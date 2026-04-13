@@ -1,0 +1,108 @@
+<!doctype html>
+<html class="no-js" lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arpeggio Loop</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="description" content="A small Web Audio app that plays an up-and-down arpeggio loop.">
+
+  <meta property="og:title" content="Arpeggio Loop">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="">
+  <meta property="og:image" content="">
+  <meta property="og:image:alt" content="">
+
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#fafafa">
+</head>
+
+<body>
+  <main class="app">
+    <h1>Arpeggio Loop</h1>
+    <p class="description">Play a repeating C major arpeggio moving up and down.</p>
+    <button id="play-toggle" type="button">Start</button>
+    <p id="status" aria-live="polite">Stopped</p>
+
+    <section class="controls" aria-label="Synth controls">
+      <h2>Controls</h2>
+
+      <p class="control-label">Instrument Stack (up to 12)</p>
+      <div id="sound-preset-buttons" class="button-grid" aria-label="Instrument Stack"></div>
+      <p class="hint">Click presets to toggle them in the stack. The last clicked preset becomes the current instrument for controls and Start/Stop.</p>
+
+
+      <fieldset class="note-selector">
+        <legend>Arpeggio Notes</legend>
+        <div class="note-grid" id="note-grid">
+          <button id="note-c4" data-note-id="note-c4" type="button" class="note-toggle is-active" aria-pressed="true">C</button>
+          <button id="note-cs4" data-note-id="note-cs4" type="button" class="note-toggle" aria-pressed="false">C#</button>
+          <button id="note-d4" data-note-id="note-d4" type="button" class="note-toggle" aria-pressed="false">D</button>
+          <button id="note-ds4" data-note-id="note-ds4" type="button" class="note-toggle" aria-pressed="false">D#</button>
+          <button id="note-e4" data-note-id="note-e4" type="button" class="note-toggle is-active" aria-pressed="true">E</button>
+          <button id="note-f4" data-note-id="note-f4" type="button" class="note-toggle" aria-pressed="false">F</button>
+          <button id="note-fs4" data-note-id="note-fs4" type="button" class="note-toggle" aria-pressed="false">F#</button>
+          <button id="note-g4" data-note-id="note-g4" type="button" class="note-toggle is-active" aria-pressed="true">G</button>
+          <button id="note-gs4" data-note-id="note-gs4" type="button" class="note-toggle" aria-pressed="false">G#</button>
+          <button id="note-a4" data-note-id="note-a4" type="button" class="note-toggle" aria-pressed="false">A</button>
+          <button id="note-as4" data-note-id="note-as4" type="button" class="note-toggle" aria-pressed="false">A#</button>
+          <button id="note-b4" data-note-id="note-b4" type="button" class="note-toggle" aria-pressed="false">B</button>
+        </div>
+      </fieldset>
+
+      <label for="tempo-bpm">Tempo (<span id="tempo-bpm-value">120</span> BPM)</label>
+      <input id="tempo-bpm" type="range" min="60" max="220" step="1" value="120">
+
+      <label for="attack">Attack (<span id="attack-value">0.10</span>s)</label>
+      <input id="attack" type="range" min="0.001" max="0.3" step="0.001" value="0.1">
+
+      <label for="decay">Decay (<span id="decay-value">0.50</span>s)</label>
+      <input id="decay" type="range" min="0.01" max="0.8" step="0.01" value="0.5">
+
+      <label for="release">Release (<span id="release-value">0.08</span>s)</label>
+      <input id="release" type="range" min="0.01" max="0.5" step="0.01" value="0.08">
+
+      <label for="filter-cutoff">Filter Cutoff (<span id="filter-cutoff-value">1600</span> Hz)</label>
+      <input id="filter-cutoff" type="range" min="300" max="5000" step="10" value="1600">
+
+      <label for="filter-q">Filter Resonance (<span id="filter-q-value">1.10</span>)</label>
+      <input id="filter-q" type="range" min="0.2" max="8" step="0.1" value="1.1">
+
+      <label for="detune-spread">Detune Spread (<span id="detune-spread-value">3.0</span> cent)</label>
+      <input id="detune-spread" type="range" min="0" max="20" step="0.5" value="3">
+
+      <label for="sub-level">Sub Level (<span id="sub-level-value">0.45</span>)</label>
+      <input id="sub-level" type="range" min="0" max="1" step="0.01" value="0.45">
+
+      <label for="stereo-pan">Stereo Pan (<span id="stereo-pan-value">0.00</span>)</label>
+      <input id="stereo-pan" type="range" min="-1" max="1" step="0.01" value="0">
+
+      <label for="delay-send">Delay Send (<span id="delay-send-value">0.20</span>)</label>
+      <input id="delay-send" type="range" min="0" max="0.6" step="0.01" value="0.2">
+
+      <label for="delay-time">Delay Time (<span id="delay-time-value">0.24</span>s)</label>
+      <input id="delay-time" type="range" min="0.05" max="0.6" step="0.01" value="0.24">
+
+      <label for="delay-feedback">Delay Feedback (<span id="delay-feedback-value">0.26</span>)</label>
+      <input id="delay-feedback" type="range" min="0" max="0.8" step="0.01" value="0.26">
+
+      <label for="reverb-mix">Reverb Mix (<span id="reverb-mix-value">0.35</span>)</label>
+      <input id="reverb-mix" type="range" min="0" max="1" step="0.01" value="0.35">
+
+      <label for="reverb-send">Reverb Send (<span id="reverb-send-value">0.24</span>)</label>
+      <input id="reverb-send" type="range" min="0" max="0.8" step="0.01" value="0.24">
+
+      <label for="master-volume">Master Volume (<span id="master-volume-value">0.75</span>)</label>
+      <input id="master-volume" type="range" min="0" max="1" step="0.01" value="0.75">
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+
+</html>
