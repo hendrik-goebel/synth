@@ -112,10 +112,31 @@ export function renderMixerChannels() {
     variationBtn.textContent = "Var";
     variationBtn.dataset.presetId = presetId;
 
-    buttonsDiv.append(playBtn, variationBtn);
+    const noteLengthBtn = document.createElement("button");
+    noteLengthBtn.type = "button";
+    noteLengthBtn.className = "channel-note-length-btn";
+    const noteLength = getInstrumentParams(presetId).noteLength ?? 8;
+    noteLengthBtn.textContent = `1/${noteLength}`;
+    noteLengthBtn.value = String(noteLength);
+    noteLengthBtn.dataset.presetId = presetId;
+    noteLengthBtn.title = "Note Length";
+
+    buttonsDiv.append(playBtn, variationBtn, noteLengthBtn);
     channelStrip.append(nameDiv, indicator, buttonsDiv);
     mixerChannelsContainer.append(channelStrip);
   });
+}
+
+function updateChannelNoteLengthButton(presetId, value) {
+  const container = document.getElementById("mixer-channels");
+  if (!container) return;
+  const strip = container.querySelector(`.channel-strip[data-preset-id="${presetId}"]`);
+  if (!strip) return;
+  const btn = strip.querySelector(".channel-note-length-btn");
+  if (!btn) return;
+  const rounded = Math.round(value);
+  btn.textContent = `1/${rounded}`;
+  btn.value = String(rounded);
 }
 
 export function updateTransportUI() {
@@ -216,6 +237,7 @@ export function bindMixerChannels(controller) {
 
     const playBtn = event.target.closest(".channel-play-btn");
     const variationBtn = event.target.closest(".channel-variation-btn");
+    const noteLengthBtn = event.target.closest(".channel-note-length-btn");
     const presetId = strip.dataset.presetId;
     if (!presetId) {
       return;
@@ -231,6 +253,14 @@ export function bindMixerChannels(controller) {
 
     if (variationBtn) {
       controller.createNoteVariation(presetId);
+      return;
+    }
+
+    if (noteLengthBtn) {
+      const currentValue = Number.parseInt(noteLengthBtn.value, 10);
+      const currentIndex = NOTE_LENGTH_OPTIONS.indexOf(currentValue);
+      const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % NOTE_LENGTH_OPTIONS.length;
+      controller.setControlValue("note-length-toggle", NOTE_LENGTH_OPTIONS[nextIndex]);
       return;
     }
   });
@@ -287,6 +317,9 @@ export function bindControllerEvents(controller) {
     if (type === "control-updated") {
       if (GLOBAL_CONTROL_KEYS.has(controlConfig[controlId].key) || presetId === state.activeInstrumentPresetId) {
         setControlUIValue(controlId, value);
+      }
+      if (controlId === "note-length-toggle") {
+        updateChannelNoteLengthButton(presetId, value);
       }
       return;
     }
