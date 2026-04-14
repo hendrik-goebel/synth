@@ -10,6 +10,7 @@ import { state } from "./state.js";
 import { clamp, randomCentered } from "./utils.js";
 
 const DISTORTION_CURVE_STEPS = 100;
+const SCHEDULER_GRID_DIVISION = 48;
 const distortionCurveCache = new Map();
 
 function getDistortionCurve(amount) {
@@ -36,11 +37,11 @@ function getDistortionCurve(amount) {
 }
 
 export function getStepDuration() {
-  return 240 / (state.synthParams.tempoBpm * state.synthParams.noteLength);
+  return 240 / (state.synthParams.tempoBpm * SCHEDULER_GRID_DIVISION);
 }
 
-export function getNoteDuration() {
-  return getStepDuration() + 0.05;
+export function getNoteDuration(noteLength = 8) {
+  return 240 / (state.synthParams.tempoBpm * noteLength) + 0.05;
 }
 
 export function createImpulseResponse(context, durationSeconds, decay) {
@@ -136,6 +137,7 @@ export function scheduleNote(
   voiceParams,
   layerIndex,
   layerCount,
+  noteLength = 8,
 ) {
   const ctx = state.audioContext;
   const oscA = ctx.createOscillator();
@@ -158,7 +160,7 @@ export function scheduleNote(
     voiceNodes.push(stereoPanner);
   }
 
-  const noteDuration = getNoteDuration();
+  const noteDuration = getNoteDuration(noteLength);
   const releaseStartTime = Math.max(time + 0.02, time + noteDuration - voiceParams.release);
   const layerGainScale = 1 / Math.sqrt(layerCount);
   const driftCents = randomCentered(HUMANIZE.detuneCents);
@@ -334,18 +336,26 @@ export function scheduleInstrumentStackNote(time) {
   presetIds.forEach((presetId, layerIndex) => {
     const voiceParams = getInstrumentParams(presetId);
     const pattern = getInstrumentPattern(presetId);
+    const noteLength = voiceParams.noteLength || 8;
+    const stepInterval = SCHEDULER_GRID_DIVISION / noteLength;
 
     if (pattern.length === 0) {
       return;
     }
 
-    const layerFrequency = pattern[state.stepIndex % pattern.length];
+    if (state.stepIndex % stepInterval !== 0) {
+      return;
+    }
+
+    const patternStepIndex = Math.floor(state.stepIndex / stepInterval);
+    const layerFrequency = pattern[patternStepIndex % pattern.length];
     scheduleNote(
       layerFrequency,
       time,
       voiceParams,
       layerIndex,
       presetIds.length,
+      noteLength,
     );
   });
 }

@@ -813,4 +813,25 @@
 - Webpack compiled without errors and emitted updated assets.
 - The cycle button now exposes the four supported global values: `8`, `16`, `6`, and `3`.
 
+---
+
+# Task: Per-Instrument Note-Length Toggle
+
+## Plan
+- [x] Re-scope `noteLength` from global state to selected-instrument state.
+- [x] Keep the cycle button UI, but make it edit only the currently selected instrument.
+- [x] Update the scheduler to support mixed note lengths for simultaneously playing instruments.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Removed `noteLength` from `GLOBAL_CONTROL_KEYS` in `js/constants.js`, so the control now edits the selected instrument only.
+- Updated `js/audio-engine.js` to schedule on a shared 48th-note transport grid.
+- Each instrument now triggers on its own interval derived from its current `noteLength` (`8`, `16`, `6`, or `3`).
+- Existing cycle-button UI in `index.html` / `js/ui.js` now reflects the selected instrument's note length through normal control syncing.
+
+## Review
+- `npm run build` completed successfully after making note length per-instrument.
+- Webpack compiled without errors and emitted updated assets.
+- Mixed note lengths are now supported by a shared 48th-note scheduler grid.
+
 

@@ -290,7 +290,6 @@ export const GLOBAL_CONTROL_KEYS = new Set([
   "reverbMix",
   "delayTime",
   "delayFeedback",
-  "noteLength",
 ]);
 
 export const INITIAL_SYNTH_PARAMS = {
