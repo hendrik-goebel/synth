@@ -18,3 +18,5 @@
 - When adding boolean controls, treat checkboxes as `checked` state in the UI layer instead of writing to `.value`, and change transport speed by adjusting scheduler timing rather than pattern indexing.
 - When a timing control grows beyond on/off behavior, promote it to an explicit finite set of allowed values and compute note duration directly from that value instead of stacking special cases.
 - When multiple instruments need different rhythmic subdivisions at the same time, schedule against a shared fine-grained transport grid and let each instrument fire only on its own interval.
+- To darken bright presets without losing their identity, lower `filterCutoff`, ease resonant `filterQ`, and lower `distortionTone` before making larger waveform changes.
+- For randomized startup rhythm, tie note-length probability to note-count density and apply it exactly once per instrument so later manual edits are never overwritten.

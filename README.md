@@ -8,6 +8,7 @@ Small Web Audio demo that plays a C major arpeggio up and down in a loop.
 - The last clicked stack button becomes the current instrument for controls and Start/Stop
 - Event-driven action layer (`window.audioStateController`) so every UI action can also be triggered programmatically
 - Per-instrument note-length cycle control with `8`, `16`, `6`, and `3` timing values
+- Randomized initial note length per instrument, weighted by note-count density (fewer notes favor slower lengths)
 - Per-instrument arpeggio notes (note buttons are saved per selected instrument)
 - Per-instrument transport control: Start/Stop affects only the currently selected instrument
 - Up-and-down arpeggio pattern initialized per instrument from a random pentatonic note set (2-5 notes)

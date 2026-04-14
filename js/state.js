@@ -22,6 +22,7 @@ export const state = {
   activePresetIds: Object.keys(BASE_SOUND_PRESETS),
   instrumentParamsByPresetId: {},
   instrumentNoteIdsByPresetId: {},
+  instrumentNoteLengthInitializedByPresetId: {},
   instrumentPatternsByPresetId: {},
   activeInstrumentPresetId: DEFAULT_PRESET_ID,
   playingPresetIds: new Set(),

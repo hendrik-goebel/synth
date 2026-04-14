@@ -834,4 +834,46 @@
 - Webpack compiled without errors and emitted updated assets.
 - Mixed note lengths are now supported by a shared 48th-note scheduler grid.
 
+---
+
+# Task: Darken and Warm High-Sounding Instruments
+
+## Plan
+- [x] Identify the brightest presets in `js/constants.js`.
+- [x] Reduce harsh top-end with lower cutoff/Q and darker distortion tone values.
+- [x] Add warmth with more sub content and slightly softer envelopes/waveforms where needed.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Darkened and warmed the brighter presets: `pluck`, `organ`, `glass-shimmer`, `noisy-spark`, `metal-cloud`, `pixel-tone`, and `wide-chorus`.
+- Lowered `filterCutoff` / `filterQ` on the sharpest presets to reduce brittle highs.
+- Lowered `distortionTone` on bright distorted presets to soften fizz.
+- Increased `subLevel`, reverb, and in a few cases swapped harsher oscillators to `triangle` / `sine` for a rounder tone.
+
+## Review
+- `npm run build` completed successfully after darkening the brighter presets.
+- Webpack compiled without errors and emitted updated assets.
+- IDE reported one unrelated warning in `js/constants.js` for unused `DEFAULT_NOTE_IDS`.
+
+---
+
+# Task: Weighted Random Initial Note Length Per Instrument
+
+## Plan
+- [x] Add one-time startup initialization guard for per-instrument random note length.
+- [x] Add weighted random mapping so fewer selected notes prefer slower note lengths.
+- [x] Apply weighting at first instrument note-state initialization only.
+- [x] Update docs to reflect new startup behavior.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `instrumentNoteLengthInitializedByPresetId` map in `js/state.js` to avoid overriding user changes after initialization.
+- Added weighted note-length selection in `js/patterns.js` with values `3`, `6`, `8`, `16` and note-count-dependent weights.
+- `ensureInstrumentNoteState(...)` now assigns a randomized initial `noteLength` once per preset, based on how many startup notes were generated for that preset.
+- Updated `README.md` feature list with weighted randomized startup note lengths.
+
+## Review
+- `npm run build` completed successfully after weighted random initial note-length assignment.
+- Webpack compiled without errors and emitted updated assets.
+
 

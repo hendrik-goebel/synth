@@ -1,4 +1,5 @@
 import { NOTE_OPTIONS, PENTATONIC_NOTE_IDS } from "./constants.js";
+import { getInstrumentParams } from "./presets.js";
 import { state } from "./state.js";
 
 // Pre-built Map for O(1) frequency lookups instead of linear NOTE_OPTIONS.find()
@@ -20,6 +21,49 @@ function getRandomPentatonicNoteIds() {
   return pool
     .slice(0, count)
     .sort((a, b) => noteOrderIndexMap.get(a) - noteOrderIndexMap.get(b));
+}
+
+const noteLengthWeightsByNoteCount = {
+  2: [
+    { value: 3, weight: 7 },
+    { value: 6, weight: 4 },
+    { value: 8, weight: 2 },
+    { value: 16, weight: 1 },
+  ],
+  3: [
+    { value: 3, weight: 5 },
+    { value: 6, weight: 4 },
+    { value: 8, weight: 3 },
+    { value: 16, weight: 2 },
+  ],
+  4: [
+    { value: 3, weight: 3 },
+    { value: 6, weight: 4 },
+    { value: 8, weight: 4 },
+    { value: 16, weight: 3 },
+  ],
+  5: [
+    { value: 3, weight: 1 },
+    { value: 6, weight: 3 },
+    { value: 8, weight: 5 },
+    { value: 16, weight: 5 },
+  ],
+};
+
+function getRandomWeightedNoteLength(noteCount) {
+  const clampedCount = Math.min(5, Math.max(2, noteCount));
+  const options = noteLengthWeightsByNoteCount[clampedCount] || noteLengthWeightsByNoteCount[3];
+  const totalWeight = options.reduce((sum, option) => sum + option.weight, 0);
+  let randomWeight = Math.random() * totalWeight;
+
+  for (let i = 0; i < options.length; i += 1) {
+    randomWeight -= options[i].weight;
+    if (randomWeight <= 0) {
+      return options[i].value;
+    }
+  }
+
+  return options[options.length - 1].value;
 }
 
 // Cache note button DOM elements after first access
@@ -69,6 +113,13 @@ export function rebuildInstrumentPattern(presetId) {
 export function ensureInstrumentNoteState(presetId) {
   if (!state.instrumentNoteIdsByPresetId[presetId]) {
     state.instrumentNoteIdsByPresetId[presetId] = getRandomPentatonicNoteIds();
+  }
+
+  if (!state.instrumentNoteLengthInitializedByPresetId[presetId]) {
+    const instrumentParams = getInstrumentParams(presetId);
+    const noteCount = state.instrumentNoteIdsByPresetId[presetId].length;
+    instrumentParams.noteLength = getRandomWeightedNoteLength(noteCount);
+    state.instrumentNoteLengthInitializedByPresetId[presetId] = true;
   }
 
   if (!state.instrumentPatternsByPresetId[presetId]) {
