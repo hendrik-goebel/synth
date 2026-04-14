@@ -967,3 +967,26 @@
 - `npm run build` completed successfully after adding the global timbre slider.
 - Static checks passed on the edited files; the only remaining note is the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
 
+---
+
+# Task: Tempo-Quantized Delay Values
+
+## Plan
+- [x] Inspect the current delay-time control and timing path.
+- [x] Replace free delay seconds with discrete tempo-synced delay divisions.
+- [x] Recompute the live delay node whenever tempo or delay division changes.
+- [x] Update README/task notes to reflect the synced delay behavior.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Replaced the free `delay-time` seconds slider with discrete musical delay divisions (`1/32` through `1/4`) in `js/constants.js` and `index.html`.
+- Switched the global delay control mapping from `delayTime` to `delayDivision`, while keeping `state.synthParams.delayTime` as a derived seconds value for the audio engine.
+- Added tempo-sync helpers in `js/audio-engine.js` so the live delay node recalculates from `tempoBpm` and `delayDivision` during initialization and on control updates.
+- Added controller-side validation so only defined delay division indices are accepted.
+- Updated `README.md` to describe the feedback delay as tempo-synced.
+
+## Review
+- Static checks passed on the edited files; the only remaining note is the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
+- `npm run build` completed successfully after making delay values tempo-quantized.
+- Webpack compiled without errors and emitted updated assets.
+

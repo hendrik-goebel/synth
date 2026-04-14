@@ -22,3 +22,4 @@
 - For randomized startup rhythm, tie note-length probability to note-count density and apply it exactly once per instrument so later manual edits are never overwritten.
 - When a synth needs more preset variety without UI bloat, add preset-only parameters (for example harmonic balance, filter tracking, and transient attack shaping) to the engine defaults and let presets override them selectively.
 - When adding a global tone color control, keep it in shared synth state and apply it as proportional scaling around each preset's existing parameters instead of replacing preset values outright.
+- When a time-based FX control must stay musical across tempo changes, store the user-facing value as a discrete rhythmic division and derive the actual seconds value centrally from the current BPM.

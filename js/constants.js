@@ -14,6 +14,16 @@ export const HUMANIZE = {
 };
 export const MAX_SIMULTANEOUS_PRESETS = 12;
 export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
+export const DELAY_DIVISION_OPTIONS = [
+  { label: "1/32", beats: 0.125 },
+  { label: "1/16T", beats: 1 / 6 },
+  { label: "1/16", beats: 0.25 },
+  { label: "1/8T", beats: 1 / 3 },
+  { label: "1/8", beats: 0.5 },
+  { label: "1/4T", beats: 2 / 3 },
+  { label: "1/8D", beats: 0.75 },
+  { label: "1/4", beats: 1 },
+];
 export const DEFAULT_NOTE_IDS = ["note-c4", "note-e4", "note-g4"];
 export const NOTE_OPTIONS = [
   { id: "note-c4", frequency: 261.63 },
@@ -268,7 +278,7 @@ export const GLOBAL_CONTROL_KEYS = new Set([
   "globalTimbre",
   "masterVolume",
   "reverbMix",
-  "delayTime",
+  "delayDivision",
   "delayFeedback",
 ]);
 
@@ -293,7 +303,8 @@ export const INITIAL_SYNTH_PARAMS = {
   transientTone: 2200,
   pitchDropCents: 0,
   delaySend: 0.35,
-  delayTime: 0.24,
+  delayDivision: 4,
+  delayTime: 0.25,
   delayFeedback: 0.26,
   reverbMix: 0.8,
   reverbSend: 0.35,
@@ -387,9 +398,9 @@ export const controlConfig = {
     formatter: (value) => value.toFixed(2),
   },
   "delay-time": {
-    key: "delayTime",
+    key: "delayDivision",
     valueId: "delay-time-value",
-    formatter: (value) => value.toFixed(2),
+    formatter: (value) => DELAY_DIVISION_OPTIONS[Math.round(value)]?.label || DELAY_DIVISION_OPTIONS[4].label,
   },
   "delay-feedback": {
     key: "delayFeedback",

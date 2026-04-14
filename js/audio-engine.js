@@ -1,4 +1,5 @@
 import {
+  DELAY_DIVISION_OPTIONS,
   HUMANIZE,
   MAX_SIMULTANEOUS_PRESETS,
   REVERB_DECAY,
@@ -65,6 +66,25 @@ function getDelayToneFrequencyForTimbre(timbreBias = getGlobalTimbreBias()) {
   return clamp(1600 * (1 - warmAmount * 0.45 + coldAmount * 0.65), 700, 4200);
 }
 
+function getDelayDivisionOption(divisionIndex = state.synthParams.delayDivision) {
+  const normalizedIndex = clamp(Math.round(divisionIndex ?? 4), 0, DELAY_DIVISION_OPTIONS.length - 1);
+  return DELAY_DIVISION_OPTIONS[normalizedIndex];
+}
+
+export function getTempoSyncedDelayTime(
+  tempoBpm = state.synthParams.tempoBpm,
+  delayDivision = state.synthParams.delayDivision,
+) {
+  const beats = getDelayDivisionOption(delayDivision).beats;
+  return clamp((60 / tempoBpm) * beats, 0.01, 1);
+}
+
+export function syncDelayTimeToTempo() {
+  const delayTime = getTempoSyncedDelayTime();
+  state.synthParams.delayTime = delayTime;
+  return delayTime;
+}
+
 export function getStepDuration() {
   return 240 / (state.synthParams.tempoBpm * SCHEDULER_GRID_DIVISION);
 }
@@ -120,7 +140,7 @@ export function initializeAudioGraph() {
   state.compressor.attack.value = 0.004;
   state.compressor.release.value = 0.16;
 
-  state.delayNode.delayTime.value = state.synthParams.delayTime;
+  state.delayNode.delayTime.value = syncDelayTimeToTempo();
   state.delayFeedback.gain.value = state.synthParams.delayFeedback;
   state.delayTone.type = "lowpass";
   state.delayTone.frequency.value = getDelayToneFrequencyForTimbre();
@@ -149,6 +169,7 @@ export function initializeAudioGraph() {
 
 export function ensureAudioContext() {
   if (!state.audioContext) {
+    syncDelayTimeToTempo();
     state.audioContext = new window.AudioContext();
     initializeAudioGraph();
   }
@@ -532,6 +553,11 @@ export function applyLiveAudioUpdates(paramKey, value) {
   }
 
   const now = state.audioContext.currentTime;
+
+  if ((paramKey === "tempoBpm" || paramKey === "delayDivision") && state.delayNode) {
+    state.delayNode.delayTime.setValueAtTime(syncDelayTimeToTempo(), now);
+    return;
+  }
 
   if (paramKey === "masterVolume" && state.masterGain) {
     state.masterGain.gain.setValueAtTime(value, now);

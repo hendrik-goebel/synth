@@ -17,9 +17,9 @@ Small Web Audio demo that plays a C major arpeggio up and down in a loop.
 - Arpeggio note selection via clickable UI buttons across two chromatic octaves (C4-B5)
 - Expanded preset library with darker/warm pads, smoky keys, rubbery sequences, and punchier percussive voices
 - Richer synth voice: layered oscillators (saw + triangle + sub sine)
-- Tone shaping with low-pass filtering, soft compression, subtle feedback delay, and convolution reverb
+- Tone shaping with low-pass filtering, soft compression, tempo-synced feedback delay, and convolution reverb
 - Subtle per-note humanization (detune, envelope, filter, pan, and FX send variation)
-- Live controls for tempo, ADSR, filter cutoff/resonance, detune/sub, stereo pan, delay/reverb sends, and master volume
+- Live controls for tempo, ADSR, filter cutoff/resonance, detune/sub, stereo pan, tempo-synced delay/reverb sends, and master volume
 - Browser-safe audio start (requires user interaction)
 
 ## Run

@@ -1,4 +1,10 @@
-import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_LENGTH_OPTIONS, NOTE_OPTIONS } from "./constants.js";
+import {
+  controlConfig,
+  DELAY_DIVISION_OPTIONS,
+  GLOBAL_CONTROL_KEYS,
+  NOTE_LENGTH_OPTIONS,
+  NOTE_OPTIONS,
+} from "./constants.js";
 import { applyLiveAudioUpdates, ensureAudioContext, startPresetPlayback, stopPresetPlayback } from "./audio-engine.js";
 import { createInstrumentNoteVariation, ensureInstrumentNoteState, rebuildInstrumentPattern } from "./patterns.js";
 import { getInstrumentParams, getPresetIds } from "./presets.js";
@@ -8,6 +14,7 @@ const validControlIds = new Set(Object.keys(controlConfig));
 const validPresetIds = new Set(getPresetIds());
 const validNoteIds = new Set(NOTE_OPTIONS.map(({ id }) => id));
 const validNoteLengths = new Set(NOTE_LENGTH_OPTIONS);
+const validDelayDivisionIndices = new Set(DELAY_DIVISION_OPTIONS.map((_, index) => index));
 
 function toNumber(value) {
   const numeric = Number.parseFloat(value);
@@ -57,6 +64,11 @@ export class AudioStateController extends EventTarget {
 
     if (controlId === "note-length-toggle" && !validNoteLengths.has(numericValue)) {
       this.emitError(`Invalid note length value for ${controlId}`, { controlId, value });
+      return false;
+    }
+
+    if (controlId === "delay-time" && !validDelayDivisionIndices.has(numericValue)) {
+      this.emitError(`Invalid delay division value for ${controlId}`, { controlId, value });
       return false;
     }
 
