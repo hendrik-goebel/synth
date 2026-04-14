@@ -245,18 +245,43 @@ body {
 
 .controls-top-row {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
+  grid-template-columns: 3fr 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: start;
+}
+
+.controls-main-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 @media (min-width: 900px) {
   .controls-top-row {
+    display: grid;
     grid-template-columns: 3fr 1fr;
+    column-gap: 0.75rem;
+    row-gap: 0.75rem;
     align-items: start;
   }
 
-  .controls-top-row .note-selector {
+  .controls-top-row > .mixer {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .controls-top-row > .controls-global-panel {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    position: static;
+    width: auto;
     margin: 0;
+  }
+
+  .controls-top-row > .note-selector {
+    grid-column: 1;
+    grid-row: 2;
   }
 }
 
