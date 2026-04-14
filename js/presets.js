@@ -2,6 +2,23 @@ import { BASE_SOUND_PRESETS, DEFAULT_PRESET_ID } from "./constants.js";
 import { state } from "./state.js";
 
 const presetLabelCache = new Map();
+const presetPanCache = new Map();
+
+function getInitialStereoPan(presetId) {
+  if (presetPanCache.has(presetId)) {
+    return presetPanCache.get(presetId);
+  }
+
+  const presetIds = getPresetIds();
+  const index = Math.max(0, presetIds.indexOf(presetId));
+  const maxIndex = Math.max(1, presetIds.length - 1);
+  const pan = presetIds.length <= 1
+    ? 0
+    : -0.9 + (index / maxIndex) * 1.8;
+
+  presetPanCache.set(presetId, pan);
+  return pan;
+}
 
 export function getPresetLabel(presetId) {
   if (presetLabelCache.has(presetId)) {
@@ -23,6 +40,8 @@ export function createInstrumentParams(presetId) {
   return {
     ...state.synthParams,
     ...(BASE_SOUND_PRESETS[presetId] || {}),
+    // Ensure every instrument starts at a unique panorama position.
+    stereoPan: getInitialStereoPan(presetId),
   };
 }
 

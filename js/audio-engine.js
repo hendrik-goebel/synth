@@ -339,6 +339,7 @@ export function scheduleInstrumentStackNote(time) {
       return;
     }
 
+
     const layerFrequency = pattern[state.stepIndex % pattern.length];
     scheduleNote(
       layerFrequency,

@@ -1,10 +1,8 @@
 import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_OPTIONS } from "./constants.js";
-import { applyLiveAudioUpdates, startPresetPlayback, stopPresetPlayback } from "./audio-engine.js";
 import { statusLabel } from "./dom.js";
 import {
   ensureInstrumentNoteState,
   syncNoteButtonsFromActiveInstrumentPage,
-  updateSelectedNotesFromUI,
 } from "./patterns.js";
 import { getInstrumentParams, getPresetIds, getPresetLabel } from "./presets.js";
 import { state } from "./state.js";
@@ -143,56 +141,39 @@ export function syncControlsFromActiveInstrumentPage() {
 }
 
 export function bindControls() {
-  controlConfigEntries.forEach(({ id: controlId, key }) => {
+  controlConfigEntries.forEach(({ id: controlId }) => {
     const input = document.getElementById(controlId);
 
     if (!input) {
       return;
     }
 
-    setControlLabel(controlId, state.synthParams[key]);
-
     input.addEventListener("input", (event) => {
-      const numericValue = Number.parseFloat(event.target.value);
-
-      if (Number.isNaN(numericValue)) {
+      const controller = event.currentTarget?.controllerRef;
+      if (!controller) {
         return;
       }
 
-      if (GLOBAL_CONTROL_KEYS.has(key)) {
-        state.synthParams[key] = numericValue;
-        setControlLabel(controlId, numericValue);
-        applyLiveAudioUpdates(key, numericValue);
-        return;
-      }
-
-      const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
-      instrumentParams[key] = numericValue;
-      setControlLabel(controlId, numericValue);
+      controller.setControlValue(controlId, event.target.value);
     });
   });
 }
 
-export function bindNoteSelector() {
+export function bindNoteSelector(controller) {
   const buttons = getNoteButtonElements();
 
   buttons.forEach((button) => {
+    button.controllerRef = controller;
     button.addEventListener("click", (event) => {
-      event.currentTarget.classList.toggle("is-active");
-
-      const activeButtons = buttons.filter((btn) => btn.classList.contains("is-active"));
-
-      if (activeButtons.length === 0) {
-        event.currentTarget.classList.add("is-active");
-        event.currentTarget.setAttribute("aria-pressed", "true");
+      const noteId = event.currentTarget.dataset.noteId;
+      if (!noteId) {
         return;
       }
-
-      buttons.forEach((btn) => {
-        btn.setAttribute("aria-pressed", String(btn.classList.contains("is-active")));
-      });
-
-      updateSelectedNotesFromUI();
+      const controllerRef = event.currentTarget?.controllerRef;
+      if (!controllerRef) {
+        return;
+      }
+      controllerRef.toggleNote(noteId);
     });
   });
 
@@ -200,14 +181,7 @@ export function bindNoteSelector() {
   syncNoteButtonsFromActiveInstrumentPage();
 }
 
-export function bindMixerChannels() {
-  state.activePresetIds.forEach((presetId) => {
-    getInstrumentParams(presetId);
-    ensureInstrumentNoteState(presetId);
-  });
-  syncControlsFromActiveInstrumentPage();
-  updateTransportUI();
-
+export function bindMixerChannels(controller) {
   const mixerChannelsContainer = document.getElementById("mixer-channels");
   if (!mixerChannelsContainer) {
     return;
@@ -222,9 +196,7 @@ export function bindMixerChannels() {
       if (!presetId) {
         return;
       }
-      state.activeInstrumentPresetId = presetId;
-      syncControlsFromActiveInstrumentPage();
-      updateTransportUI();
+      controller.selectInstrument(presetId);
       return;
     }
 
@@ -234,15 +206,53 @@ export function bindMixerChannels() {
         return;
       }
 
-      if (state.playingPresetIds.has(presetId)) {
-        stopPresetPlayback(presetId);
-      } else {
-        const { ensureAudioContext } = await import("./audio-engine.js");
-        await ensureAudioContext();
-        startPresetPlayback(presetId);
+      await controller.togglePlayback(presetId);
+    }
+  });
+}
+
+export function bindControllerEvents(controller) {
+  controlConfigEntries.forEach(({ id: controlId }) => {
+    const input = document.getElementById(controlId);
+    if (input) {
+      input.controllerRef = controller;
+    }
+  });
+
+  controller.addEventListener("statechange", (event) => {
+    const { type, controlId, value, presetId } = event.detail;
+
+    if (type === "initialized" || type === "instrument-selected") {
+      syncControlsFromActiveInstrumentPage();
+      return;
+    }
+
+    if (type === "control-updated") {
+      if (GLOBAL_CONTROL_KEYS.has(controlConfig[controlId].key) || presetId === state.activeInstrumentPresetId) {
+        setControlUIValue(controlId, value);
       }
+      return;
+    }
+
+    if (type === "notes-updated") {
+      if (presetId === state.activeInstrumentPresetId) {
+        syncNoteButtonsFromActiveInstrumentPage();
+      }
+      return;
+    }
+
+    if (type === "playback-toggled") {
       updateTransportUI();
     }
+  });
+
+  controller.addEventListener("error", (event) => {
+    if (!statusLabel) {
+      return;
+    }
+
+    const { message } = event.detail;
+    statusLabel.textContent = message;
   });
 }
 

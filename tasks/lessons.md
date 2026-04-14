@@ -14,3 +14,4 @@
 - Split a monolithic file in order of data flow: extract pure constants first, then shared state, then utility functions, then domain logic, then UI bindings, leaving a thin entry point last that just wires everything up.
 - In a multi-instrument mixer, explicitly pass channel identity into voice scheduling and gate channel-scoped effects (like distortion) there; do not assume per-instrument params alone prevent cross-channel perception.
 - Keep editor selection (`activeInstrumentPresetId`) out of DSP routing decisions; selection should only control which channel parameters are edited, never change how other running channels sound.
+- When startup variation is requested, randomize only during first state initialization and keep all later rebuilds deterministic from stored note IDs.

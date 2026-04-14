@@ -1,8 +1,26 @@
-import { DEFAULT_NOTE_IDS, NOTE_OPTIONS } from "./constants.js";
+import { NOTE_OPTIONS, PENTATONIC_NOTE_IDS } from "./constants.js";
 import { state } from "./state.js";
 
 // Pre-built Map for O(1) frequency lookups instead of linear NOTE_OPTIONS.find()
 const noteFrequencyMap = new Map(NOTE_OPTIONS.map(({ id, frequency }) => [id, frequency]));
+const noteOrderIndexMap = new Map(NOTE_OPTIONS.map(({ id }, index) => [id, index]));
+
+function getRandomPentatonicNoteIds() {
+  const pool = PENTATONIC_NOTE_IDS.slice();
+
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const randomIndex = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[randomIndex]] = [pool[randomIndex], pool[i]];
+  }
+
+  const maxCount = Math.min(5, pool.length);
+  const minCount = Math.min(2, maxCount);
+  const count = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
+
+  return pool
+    .slice(0, count)
+    .sort((a, b) => noteOrderIndexMap.get(a) - noteOrderIndexMap.get(b));
+}
 
 // Cache note button DOM elements after first access
 let noteButtonCache = null;
@@ -40,7 +58,7 @@ export function updateSelectedNotesFromUI() {
 }
 
 export function rebuildInstrumentPattern(presetId) {
-  const selectedNoteIds = state.instrumentNoteIdsByPresetId[presetId] || DEFAULT_NOTE_IDS.slice();
+  const selectedNoteIds = state.instrumentNoteIdsByPresetId[presetId] || PENTATONIC_NOTE_IDS.slice(0, 3);
   const selectedFrequencies = selectedNoteIds
     .map((id) => noteFrequencyMap.get(id))
     .filter(Boolean);
@@ -50,7 +68,7 @@ export function rebuildInstrumentPattern(presetId) {
 
 export function ensureInstrumentNoteState(presetId) {
   if (!state.instrumentNoteIdsByPresetId[presetId]) {
-    state.instrumentNoteIdsByPresetId[presetId] = DEFAULT_NOTE_IDS.slice();
+    state.instrumentNoteIdsByPresetId[presetId] = getRandomPentatonicNoteIds();
   }
 
   if (!state.instrumentPatternsByPresetId[presetId]) {

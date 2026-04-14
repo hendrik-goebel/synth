@@ -649,3 +649,119 @@
 - `npm run build` completed successfully after moving cutoff behind distortion.
 - Webpack compiled without errors and emitted updated assets.
 
+---
+
+# Task: Event-Driven Action Layer For UI Parity
+
+## Plan
+- [x] Add a controller class that exposes every UI action as methods and emits events.
+- [x] Refactor UI handlers to call controller methods instead of mutating state directly.
+- [x] Bind controller events back to UI rendering so programmatic actions stay visible.
+- [x] Expose the controller instance for external scripting.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `js/audio-state-controller.js` with `AudioStateController` (`EventTarget`) and methods for selecting instruments, updating controls, toggling notes, and toggling playback.
+- Refactored `js/ui.js` handlers so mixer, note, and control interactions route through the controller layer.
+- Added `bindControllerEvents(...)` in `js/ui.js` to keep sliders, note buttons, channel UI, and status text in sync when actions are triggered from code.
+- Updated `js/app.js` bootstrap to initialize and expose `window.audioStateController`.
+- Updated `README.md` with API and event contract documentation.
+
+## Review
+- `npm run build` completed successfully after introducing the controller action layer.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Random Pentatonic Initialization Per Instrument
+
+## Plan
+- [x] Add a pentatonic note-id pool derived from existing note options.
+- [x] Generate random startup note selections with 2-5 notes per instrument.
+- [x] Apply the random selection only at first instrument note-state initialization.
+- [x] Update docs to match startup behavior.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `PENTATONIC_NOTE_IDS` in `js/constants.js` based on pitch classes C, D, E, G, A.
+- Added randomized startup note selection in `js/patterns.js` via `getRandomPentatonicNoteIds()`.
+- `ensureInstrumentNoteState(...)` now initializes each instrument with a random pentatonic set of 2-5 notes.
+- Updated `README.md` feature wording to match new startup arpeggio behavior.
+
+## Review
+- `npm run build` completed successfully after random pentatonic startup initialization.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Initial Stereo Spot Per Instrument
+
+## Plan
+- [x] Add deterministic initial pan calculation across all presets.
+- [x] Apply this pan assignment when instrument params are created the first time.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `getInitialStereoPan(...)` in `js/presets.js` with a left-to-right spread from `-0.9` to `0.9`.
+- Updated `createInstrumentParams(...)` so each instrument starts with its own `stereoPan` spot.
+- Existing runtime editing behavior remains unchanged because params are still cached per instrument.
+
+## Review
+- `npm run build` completed successfully after per-instrument initial stereo placement.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Warmer and Darker Initial Sounds
+
+## Plan
+- [x] Lower filter cutoff values across all presets.
+- [x] Increase sub-oscillator levels for bass warmth.
+- [x] Boost reverb/delay sends for spatial warmth.
+- [x] Adjust global defaults for consistent warmth.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Updated all 12 `BASE_SOUND_PRESETS` with warmer/darker parameters:
+  - Reduced `filterCutoff` by 30-40% across all presets.
+  - Increased `subLevel` by 30-50% to add bass warmth.
+  - Boosted `reverbSend` and `delaySend` for spacious character.
+  - Adjusted `distortionTone` lower on distorted presets for darker edge.
+- Updated `INITIAL_SYNTH_PARAMS` defaults:
+  - `filterCutoff` 1600 → 1200 Hz
+  - `subLevel` 0.45 → 0.55
+  - `reverbMix` 0.7 → 0.8
+  - `reverbSend` 0.24 → 0.35
+
+## Review
+- `npm run build` completed successfully after warming and darkening initial sounds.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Add More Distortion To All Instruments
+
+## Plan
+- [x] Increase distortion drive/mix on all presets with existing distortion.
+- [x] Add distortion to presets that didn't have it yet.
+- [x] Balance distortion across all 12 instruments for consistent character.
+- [x] Update global defaults to reflect increased distortion.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `distortionDrive`, `distortionMix`, and `distortionTone` to all 12 presets:
+  - acid-bite: increased from 0.58/0.38 → 0.75/0.55 (already distorted)
+  - noisy-spark: increased from 0.72/0.52 → 0.85/0.65 (already distorted)
+  - metal-cloud: increased from 0.44/0.30 → 0.62/0.45 (already distorted)
+  - warm-pad, pluck, organ, bass, glass-shimmer, hollow-drift, deep-space, rubber-seq, pixel-tone, wide-chorus, sub-rumble: all now have distortion (0.25–0.52 drive, 0.15–0.38 mix)
+- Updated `INITIAL_SYNTH_PARAMS`:
+  - `distortionDrive` 0.3 → 0.45
+  - `distortionMix` 0.2 → 0.32
+- All distortion tones tailored to preset character.
+
+## Review
+- `npm run build` completed successfully after adding more distortion to all instruments.
+- Webpack compiled without errors and emitted updated assets.
+- Bundle size: 19.4 KiB (app.js) — expected growth due to distortion parameters.
+
+
