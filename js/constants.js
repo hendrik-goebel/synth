@@ -14,6 +14,7 @@ export const HUMANIZE = {
 };
 export const MAX_SIMULTANEOUS_PRESETS = 12;
 export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
+export const DELAY_FEEDBACK_MAX = 0.11;
 export const DELAY_DIVISION_OPTIONS = [
   { label: "1/32", beats: 0.125 },
   { label: "1/16T", beats: 1 / 6 },
@@ -302,8 +303,8 @@ export const INITIAL_SYNTH_PARAMS = {
   delaySend: 0.35,
   delayDivision: 4,
   delayTime: 0.25,
-  delayFeedback: 0.22,
-  reverbMix: 0.8,
+  delayFeedback: 0.06,
+  reverbMix: 0.4,
   reverbSend: 0.35,
   masterVolume: 0.75,
   oscAWave: "sawtooth",
@@ -326,7 +327,7 @@ export const controlConfig = {
       if (amount === 0) {
         return "Neutral";
       }
-      return value < 0 ? `Warm ${amount}%` : `Cold ${amount}%`;
+      return value < 0 ? ` ${amount}%` : ` ${amount}%`;
     },
   },
   "tempo-bpm": {

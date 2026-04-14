@@ -1,5 +1,6 @@
 import {
   controlConfig,
+  DELAY_FEEDBACK_MAX,
   DELAY_DIVISION_OPTIONS,
   GLOBAL_CONTROL_KEYS,
   NOTE_LENGTH_OPTIONS,
@@ -69,6 +70,14 @@ export class AudioStateController extends EventTarget {
 
     if (controlId === "delay-time" && !validDelayDivisionIndices.has(numericValue)) {
       this.emitError(`Invalid delay division value for ${controlId}`, { controlId, value });
+      return false;
+    }
+
+    if (controlId === "delay-feedback" && (numericValue < 0 || numericValue > DELAY_FEEDBACK_MAX)) {
+      this.emitError(`Delay feedback must stay between 0 and ${DELAY_FEEDBACK_MAX}`, {
+        controlId,
+        value,
+      });
       return false;
     }
 

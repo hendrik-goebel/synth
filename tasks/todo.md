@@ -1018,32 +1018,63 @@
 # Task: Soften Delay Feedback Range
 
 ## Plan
-- [ ] Inspect the current delay feedback UI range and audio-engine mapping.
-- [ ] Reduce the exposed feedback ceiling so the strongest repeats are less aggressive.
-- [ ] Keep the control behavior consistent between `index.html`, `js/constants.js`, and `js/audio-engine.js`.
-- [ ] Update `tasks/lessons.md` with a guardrail for shared-FX range changes.
-- [ ] Verify with static checks and `npm run build`.
+- [x] Inspect the current delay feedback UI range and audio-engine mapping.
+- [x] Reduce the exposed feedback ceiling so the strongest repeats are less aggressive.
+- [x] Keep the control behavior consistent between `index.html`, `js/constants.js`, and `js/audio-engine.js`.
+- [x] Update `tasks/lessons.md` with a guardrail for shared-FX range changes.
+- [x] Verify with static checks and `npm run build`.
 
 ## Progress Notes
 - Investigated the current feedback path after the recent delay-extreme change; the user-facing range is now capped at `0.88` in both the slider and `getDelayFeedbackGain(...)`.
+- Lowered the default feedback value from `0.26` to `0.22` in `js/constants.js`.
+- Lowered the slider ceiling in `index.html` and engine clamp in `js/audio-engine.js` from `0.88` to `0.72` so the upper range is less aggressive.
 
 ## Review
-- Pending implementation.
+- Static checks passed on the edited files; the only remaining note is the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
+- `npm run build` completed successfully after softening the delay feedback range.
+- Webpack compiled without errors and emitted updated assets.
 
 ---
 
 # Task: Clarify Global Delay Feedback Ownership
 
 ## Plan
-- [ ] Trace how preset params are created and whether preset-level `delayFeedback` can affect the audio engine.
-- [ ] Remove misleading preset-level global FX keys from `js/constants.js` if they are dead data.
-- [ ] Add a code guard so `BASE_SOUND_PRESETS` cannot override global controls in `js/presets.js`.
-- [ ] Update `tasks/lessons.md` with a rule about separating preset-scoped and global parameters.
-- [ ] Verify with static checks and `npm run build`.
+- [x] Trace how preset params are created and whether preset-level `delayFeedback` can affect the audio engine.
+- [x] Remove misleading preset-level global FX keys from `js/constants.js` if they are dead data.
+- [x] Add a code guard so `BASE_SOUND_PRESETS` cannot override global controls in `js/presets.js`.
+- [x] Update `tasks/lessons.md` with a rule about separating preset-scoped and global parameters.
+- [x] Verify with static checks and `npm run build`.
 
 ## Progress Notes
 - Confirmed `delayFeedback` is treated as a global key in `GLOBAL_CONTROL_KEYS`, while `createInstrumentParams(...)` currently spreads preset values over shared defaults, which makes stray preset-level global keys misleading even if the engine reads feedback from `state.synthParams`.
+- Removed stray preset-level `delayFeedback` entries and the stray preset-level `delayTime` entry from `js/constants.js` because both belong to the shared delay path.
+- Added a filter in `js/presets.js` so preset overrides can no longer overwrite global control keys or derived shared delay timing when instrument params are created.
 
 ## Review
-- Pending implementation.
+- Static checks passed on the edited files; the only remaining note is the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
+- `npm run build` completed successfully after clarifying global delay ownership.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Cap Delay Feedback Range At 0.11
+
+## Plan
+- [x] Confirm every delay-feedback entry point in the UI, defaults, controller, and audio engine.
+- [x] Reduce the global default feedback value so it remains valid inside the new cap.
+- [x] Limit the UI slider and engine clamp to the `0` to `0.11` range.
+- [x] Add a controller-side guard so scripted control updates also respect the new range.
+- [x] Update `tasks/lessons.md` and verify with static checks plus `npm run build`.
+
+## Progress Notes
+- Added a shared `DELAY_FEEDBACK_MAX` constant in `js/constants.js` and set it to `0.11`.
+- Lowered the default global `delayFeedback` value in `js/constants.js` from `0.22` to `0.06` so startup remains inside the new range.
+- Updated the `delay-feedback` slider in `index.html` to `min="0" max="0.11" step="0.01"` with an initial value label of `0.06`.
+- Updated `getDelayFeedbackGain(...)` in `js/audio-engine.js` to clamp against `DELAY_FEEDBACK_MAX`.
+- Added controller-side validation in `js/audio-state-controller.js` so programmatic feedback updates above `0.11` are rejected.
+
+## Review
+- Static checks passed on the edited files; the only remaining note is the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
+- `npm run build` completed successfully after capping the delay feedback range at `0.11`.
+- Webpack compiled without errors and emitted updated assets.
 

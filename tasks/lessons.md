@@ -26,3 +26,4 @@
 - When a shared delay sounds too soft, make the repeats more present with return gain, a high-pass stage, and light saturation before reaching for unsafe feedback values.
 - When a shared delay already has boosted return and tone shaping, keep the exposed feedback ceiling conservative in both the engine clamp and the slider UI; otherwise small adjustments feel disproportionately strong.
 - When presets are merged over instrument params, explicitly filter out global and derived shared-control keys (for example `delayFeedback`, `delayDivision`, and derived `delayTime`) so preset data cannot imply ownership it does not actually have.
+- When tightening a sensitive shared-control range like delay feedback, update the default value, UI max, controller validation, and engine clamp together so no layer can drift beyond the intended cap.

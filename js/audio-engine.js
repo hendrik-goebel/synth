@@ -1,4 +1,5 @@
 import {
+  DELAY_FEEDBACK_MAX,
   DELAY_DIVISION_OPTIONS,
   HUMANIZE,
   MAX_SIMULTANEOUS_PRESETS,
@@ -73,7 +74,7 @@ function getDelayHighpassFrequencyForTimbre(timbreBias = getGlobalTimbreBias()) 
 }
 
 function getDelayFeedbackGain(value = state.synthParams.delayFeedback) {
-  return clamp(value, 0, 0.72);
+  return clamp(value, 0, DELAY_FEEDBACK_MAX);
 }
 
 function getDelayDivisionOption(divisionIndex = state.synthParams.delayDivision) {
