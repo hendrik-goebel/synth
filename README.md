@@ -14,7 +14,7 @@ Small Web Audio demo that plays a C major arpeggio up and down in a loop.
 - Per-instrument transport control: Start/Stop affects only the currently selected instrument
 - Up-and-down arpeggio pattern initialized per instrument from a random pentatonic note set (2-5 notes)
 - Arpeggio note selection via clickable UI buttons across two chromatic octaves (C4-B5)
-- Many base sound presets (from Warm Pad to Acid Bite and Deep Space) for very different synthetic timbres
+- Expanded preset library with darker/warm pads, smoky keys, rubbery sequences, and punchier percussive voices
 - Richer synth voice: layered oscillators (saw + triangle + sub sine)
 - Tone shaping with low-pass filtering, soft compression, subtle feedback delay, and convolution reverb
 - Subtle per-note humanization (detune, envelope, filter, pan, and FX send variation)

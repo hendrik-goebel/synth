@@ -12,6 +12,7 @@ import { clamp, randomCentered } from "./utils.js";
 const DISTORTION_CURVE_STEPS = 100;
 const SCHEDULER_GRID_DIVISION = 48;
 const distortionCurveCache = new Map();
+const noiseBufferCache = new Map();
 
 function getDistortionCurve(amount) {
   const clamped = clamp(amount, 0, 1);
@@ -34,6 +35,24 @@ function getDistortionCurve(amount) {
 
   distortionCurveCache.set(bucket, curve);
   return curve;
+}
+
+function getNoiseBuffer(context) {
+  const key = context.sampleRate;
+  if (noiseBufferCache.has(key)) {
+    return noiseBufferCache.get(key);
+  }
+
+  const length = Math.floor(context.sampleRate * 0.12);
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const channelData = buffer.getChannelData(0);
+
+  for (let i = 0; i < length; i += 1) {
+    channelData[i] = Math.random() * 2 - 1;
+  }
+
+  noiseBufferCache.set(key, buffer);
+  return buffer;
 }
 
 export function getStepDuration() {
@@ -161,9 +180,32 @@ export function scheduleNote(
   }
 
   const noteDuration = getNoteDuration(noteLength);
+  const stopTime = time + noteDuration + 0.04;
   const releaseStartTime = Math.max(time + 0.02, time + noteDuration - voiceParams.release);
   const layerGainScale = 1 / Math.sqrt(layerCount);
   const driftCents = randomCentered(HUMANIZE.detuneCents);
+  const filterTracking = clamp(voiceParams.filterTracking ?? 0.8, 0, 2);
+  const upperLevel = clamp(
+    (voiceParams.upperLevel ?? 0.7) * (1 + randomCentered(HUMANIZE.upperAmount)),
+    0.05,
+    1.2,
+  );
+  const transientAmount = clamp(
+    (voiceParams.transientAmount ?? 0) * (1 + randomCentered(HUMANIZE.transientAmount)),
+    0,
+    0.7,
+  );
+  const transientDecay = clamp(voiceParams.transientDecay ?? 0.02, 0.005, 0.08);
+  const transientTone = clamp(
+    (voiceParams.transientTone ?? 2200) * (1 + randomCentered(HUMANIZE.cutoffAmount)),
+    300,
+    6000,
+  );
+  const pitchDropCents = clamp(
+    (voiceParams.pitchDropCents ?? 0) * (1 + randomCentered(HUMANIZE.pitchDropCents)),
+    0,
+    240,
+  );
   const attackTime = clamp(
     voiceParams.attack + randomCentered(HUMANIZE.attackSeconds),
     0.005,
@@ -185,7 +227,7 @@ export function scheduleNote(
     0.16,
   );
   const cutoffWithVariation = clamp(
-    (Math.min(8000, voiceParams.filterCutoff + frequency * 0.8)) *
+    (Math.min(8000, voiceParams.filterCutoff + frequency * filterTracking)) *
       (1 + randomCentered(HUMANIZE.cutoffAmount)),
     250,
     8000,
@@ -216,23 +258,32 @@ export function scheduleNote(
     12000,
   );
 
+  const oscABaseDetune = -voiceParams.detuneSpread + driftCents;
+  const oscBBaseDetune = voiceParams.detuneSpread + driftCents;
+  const subBaseDetune = driftCents * 0.35;
+  const pitchDropRampTime = time + Math.max(0.01, transientDecay * 1.5);
+
   oscA.type = voiceParams.oscAWave;
   oscA.frequency.setValueAtTime(frequency, time);
-  oscA.detune.value = -voiceParams.detuneSpread + driftCents;
+  oscA.detune.setValueAtTime(oscABaseDetune + pitchDropCents, time);
+  oscA.detune.linearRampToValueAtTime(oscABaseDetune, pitchDropRampTime);
 
   oscB.type = voiceParams.oscBWave;
   oscB.frequency.setValueAtTime(frequency, time);
-  oscB.detune.value = voiceParams.detuneSpread + driftCents;
+  oscB.detune.setValueAtTime(oscBBaseDetune + pitchDropCents, time);
+  oscB.detune.linearRampToValueAtTime(oscBBaseDetune, pitchDropRampTime);
 
   subOsc.type = voiceParams.subWave;
   subOsc.frequency.setValueAtTime(frequency / 2, time);
+  subOsc.detune.setValueAtTime(subBaseDetune + pitchDropCents * 0.6, time);
+  subOsc.detune.linearRampToValueAtTime(subBaseDetune, pitchDropRampTime);
 
   toneFilter.type = "lowpass";
   toneFilter.frequency.setValueAtTime(cutoffWithVariation, time);
   toneFilter.Q.value = voiceParams.filterQ;
 
-  upperMix.gain.value = 0.7;
-  subMix.gain.value = voiceParams.subLevel;
+  upperMix.gain.value = upperLevel;
+  subMix.gain.value = clamp(voiceParams.subLevel, 0, 1.2);
 
   delaySend.gain.value = delaySendValue;
   reverbSend.gain.value = reverbSendValue;
@@ -254,6 +305,28 @@ export function scheduleNote(
   subOsc.connect(subMix);
   upperMix.connect(voiceGain);
   subMix.connect(voiceGain);
+
+  if (transientAmount > 0.001) {
+    const transientSource = ctx.createBufferSource();
+    const transientFilter = ctx.createBiquadFilter();
+    const transientGain = ctx.createGain();
+
+    voiceNodes.push(transientSource, transientFilter, transientGain);
+
+    transientSource.buffer = getNoiseBuffer(ctx);
+    transientFilter.type = "lowpass";
+    transientFilter.frequency.setValueAtTime(transientTone, time);
+    transientFilter.Q.value = 0.4;
+
+    transientGain.gain.setValueAtTime(clamp(transientAmount * 0.24, 0.0001, 0.24), time);
+    transientGain.gain.exponentialRampToValueAtTime(0.0001, time + transientDecay);
+
+    transientSource.connect(transientFilter);
+    transientFilter.connect(transientGain);
+    transientGain.connect(voiceGain);
+    transientSource.start(time);
+    transientSource.stop(Math.min(stopTime, time + transientDecay + 0.02));
+  }
 
   let voiceOutput = voiceGain;
 
@@ -313,7 +386,6 @@ export function scheduleNote(
   oscB.start(time);
   subOsc.start(time);
 
-  const stopTime = time + noteDuration + 0.04;
   oscA.stop(stopTime);
   oscB.stop(stopTime);
   subOsc.stop(stopTime);

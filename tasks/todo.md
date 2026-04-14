@@ -921,3 +921,26 @@
 - Webpack compiled without errors and emitted updated assets.
 
 
+
+
+---
+
+# Task: Darker, Warmer, More Variable Preset Library
+
+## Plan
+- [x] Review the current preset palette and audio-engine timbre hooks.
+- [x] Add new dark/warm and percussive presets in `js/constants.js`.
+- [x] Extend preset-only timbre shaping in `js/audio-engine.js` for more variable attacks and tone balance.
+- [x] Update `README.md` to reflect the broader preset range.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Rebalanced the existing presets toward darker and warmer defaults by lowering cutoff brightness, reducing harsher distortion tone values, and adding more sub/low-mid weight.
+- Added three new presets in `js/constants.js`: `velvet-choir`, `smoke-piano`, and `night-thump`.
+- Added preset-only hidden timbre parameters (`upperLevel`, `filterTracking`, `transientAmount`, `transientDecay`, `transientTone`, `pitchDropCents`) so presets can sound more distinct without adding more UI controls.
+- Updated `js/audio-engine.js` to use those parameters for harmonic balance, cutoff tracking, percussive transient noise, and short pitch-drop attacks.
+- Updated `README.md` so the feature list reflects the darker, warmer, and more percussive preset library.
+
+## Review
+- `npm run build` completed successfully after the preset-library and voice-shaping changes.
+- Webpack compiled without errors and emitted updated assets.
