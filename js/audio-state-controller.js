@@ -1,6 +1,6 @@
 import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_LENGTH_OPTIONS, NOTE_OPTIONS } from "./constants.js";
 import { applyLiveAudioUpdates, ensureAudioContext, startPresetPlayback, stopPresetPlayback } from "./audio-engine.js";
-import { ensureInstrumentNoteState, rebuildInstrumentPattern } from "./patterns.js";
+import { createInstrumentNoteVariation, ensureInstrumentNoteState, rebuildInstrumentPattern } from "./patterns.js";
 import { getInstrumentParams, getPresetIds } from "./presets.js";
 import { state } from "./state.js";
 
@@ -114,6 +114,29 @@ export class AudioStateController extends EventTarget {
     this.emitStateChange("notes-updated", {
       presetId,
       activeNoteIds: selectedNoteIds.slice(),
+    });
+    return true;
+  }
+
+  createNoteVariation(presetId = state.activeInstrumentPresetId) {
+    if (!validPresetIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const result = createInstrumentNoteVariation(presetId);
+    if (!result.changed) {
+      this.emitError("No eligible pentatonic notes available for variation", { presetId });
+      return false;
+    }
+
+    this.emitAction("note-variation-created", {
+      presetId,
+      activeNoteIds: result.noteIds,
+    });
+    this.emitStateChange("notes-updated", {
+      presetId,
+      activeNoteIds: result.noteIds,
     });
     return true;
   }

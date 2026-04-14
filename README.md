@@ -10,6 +10,7 @@ Small Web Audio demo that plays a C major arpeggio up and down in a loop.
 - Per-instrument note-length cycle control with `8`, `16`, `6`, and `3` timing values
 - Randomized initial note length per instrument, weighted by note-count density (fewer notes favor slower lengths)
 - Per-instrument arpeggio notes (note buttons are saved per selected instrument)
+- Per-instrument "Var" action that mutates only a random fraction of current notes using pentatonic replacements
 - Per-instrument transport control: Start/Stop affects only the currently selected instrument
 - Up-and-down arpeggio pattern initialized per instrument from a random pentatonic note set (2-5 notes)
 - Arpeggio note selection via clickable UI buttons across two chromatic octaves (C4-B5)
@@ -38,6 +39,7 @@ Supported actions:
 - `selectInstrument(presetId)`
 - `setControlValue(controlId, value)`
 - `toggleNote(noteId)`
+- `createNoteVariation(presetId?)`
 - `togglePlayback(presetId)`
 
 Events:

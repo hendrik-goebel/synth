@@ -185,7 +185,8 @@ body {
 }
 
 .channel-select-btn,
-.channel-play-btn {
+.channel-play-btn,
+.channel-variation-btn {
   width: 100%;
   padding: 0.4rem 0.3rem;
   font-size: 0.7rem;
@@ -224,6 +225,17 @@ body {
 
 .channel-play-btn.is-playing:hover {
   background: #b91c1c;
+}
+
+.channel-variation-btn {
+  background: #0f766e;
+  border-color: #14b8a6;
+  color: #ccfbf1;
+}
+
+.channel-variation-btn:hover {
+  background: #0f5f58;
+  border-color: #2dd4bf;
 }
 
 .controls {

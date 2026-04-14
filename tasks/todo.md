@@ -876,4 +876,29 @@
 - `npm run build` completed successfully after weighted random initial note-length assignment.
 - Webpack compiled without errors and emitted updated assets.
 
+---
+
+# Task: Per-Instrument Arpeggio Variation Button
+
+## Plan
+- [x] Add a variation action in the controller for UI/programmatic parity.
+- [x] Add note-variation logic that changes only a random subset of current notes.
+- [x] Restrict replacements to pentatonic notes.
+- [x] Add a variation button to every mixer channel.
+- [x] Wire mixer click handling to trigger per-instrument variation.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `createInstrumentNoteVariation(presetId)` in `js/patterns.js`.
+- Variation changes a random fraction of current notes (up to 60%, at least one note), then rebuilds the pattern.
+- Replacement notes are drawn only from `PENTATONIC_NOTE_IDS`.
+- Added `createNoteVariation(presetId?)` to `js/audio-state-controller.js` with `action`/`statechange` event emission.
+- Added `Var` button per channel in `js/ui.js` and connected it to the controller action.
+- Styled `.channel-variation-btn` in `css/style.css`.
+- Updated API docs in `README.md`.
+
+## Review
+- `npm run build` completed successfully after adding per-instrument variation buttons.
+- Webpack compiled without errors and emitted updated assets.
+
 

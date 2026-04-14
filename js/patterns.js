@@ -6,6 +6,15 @@ import { state } from "./state.js";
 const noteFrequencyMap = new Map(NOTE_OPTIONS.map(({ id, frequency }) => [id, frequency]));
 const noteOrderIndexMap = new Map(NOTE_OPTIONS.map(({ id }, index) => [id, index]));
 
+function shuffle(array) {
+  const clone = array.slice();
+  for (let i = clone.length - 1; i > 0; i -= 1) {
+    const randomIndex = Math.floor(Math.random() * (i + 1));
+    [clone[i], clone[randomIndex]] = [clone[randomIndex], clone[i]];
+  }
+  return clone;
+}
+
 function getRandomPentatonicNoteIds() {
   const pool = PENTATONIC_NOTE_IDS.slice();
 
@@ -108,6 +117,46 @@ export function rebuildInstrumentPattern(presetId) {
     .filter(Boolean);
 
   state.instrumentPatternsByPresetId[presetId] = buildArpeggioPattern(selectedFrequencies);
+}
+
+export function createInstrumentNoteVariation(presetId) {
+  ensureInstrumentNoteState(presetId);
+
+  const currentNoteIds = state.instrumentNoteIdsByPresetId[presetId] || [];
+  if (currentNoteIds.length === 0) {
+    return { changed: false, noteIds: [] };
+  }
+
+  const availablePentatonicReplacements = PENTATONIC_NOTE_IDS
+    .filter((id) => !currentNoteIds.includes(id));
+
+  if (availablePentatonicReplacements.length === 0) {
+    return { changed: false, noteIds: currentNoteIds.slice() };
+  }
+
+  const maxChanges = Math.max(1, Math.floor(currentNoteIds.length * 0.6));
+  const desiredChanges = 1 + Math.floor(Math.random() * maxChanges);
+  const actualChanges = Math.min(
+    desiredChanges,
+    currentNoteIds.length,
+    availablePentatonicReplacements.length,
+  );
+
+  const indexPool = shuffle(currentNoteIds.map((_, index) => index));
+  const replacementPool = shuffle(availablePentatonicReplacements);
+  const nextNoteIds = currentNoteIds.slice();
+
+  for (let i = 0; i < actualChanges; i += 1) {
+    nextNoteIds[indexPool[i]] = replacementPool[i];
+  }
+
+  const normalized = Array.from(new Set(nextNoteIds))
+    .sort((a, b) => noteOrderIndexMap.get(a) - noteOrderIndexMap.get(b));
+
+  state.instrumentNoteIdsByPresetId[presetId] = normalized;
+  rebuildInstrumentPattern(presetId);
+
+  return { changed: true, noteIds: normalized };
 }
 
 export function ensureInstrumentNoteState(presetId) {

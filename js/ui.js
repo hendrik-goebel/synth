@@ -112,7 +112,13 @@ export function renderMixerChannels() {
       playBtn.classList.add("is-playing");
     }
 
-    buttonsDiv.append(selectBtn, playBtn);
+    const variationBtn = document.createElement("button");
+    variationBtn.type = "button";
+    variationBtn.className = "channel-variation-btn";
+    variationBtn.textContent = "Var";
+    variationBtn.dataset.presetId = presetId;
+
+    buttonsDiv.append(selectBtn, playBtn, variationBtn);
     channelStrip.append(nameDiv, indicator, buttonsDiv);
     mixerChannelsContainer.append(channelStrip);
   });
@@ -211,6 +217,7 @@ export function bindMixerChannels(controller) {
   mixerChannelsContainer.addEventListener("click", async (event) => {
     const selectBtn = event.target.closest(".channel-select-btn");
     const playBtn = event.target.closest(".channel-play-btn");
+    const variationBtn = event.target.closest(".channel-variation-btn");
 
     if (selectBtn) {
       const presetId = selectBtn.dataset.presetId;
@@ -228,6 +235,15 @@ export function bindMixerChannels(controller) {
       }
 
       await controller.togglePlayback(presetId);
+    }
+
+    if (variationBtn) {
+      const presetId = variationBtn.dataset.presetId;
+      if (!presetId) {
+        return;
+      }
+
+      controller.createNoteVariation(presetId);
     }
   });
 }
