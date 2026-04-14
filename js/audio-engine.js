@@ -63,7 +63,17 @@ function getGlobalTimbreBias() {
 function getDelayToneFrequencyForTimbre(timbreBias = getGlobalTimbreBias()) {
   const warmAmount = Math.max(0, -timbreBias);
   const coldAmount = Math.max(0, timbreBias);
-  return clamp(1600 * (1 - warmAmount * 0.45 + coldAmount * 0.65), 700, 4200);
+  return clamp(2400 * (1 - warmAmount * 0.4 + coldAmount * 0.7), 900, 5600);
+}
+
+function getDelayHighpassFrequencyForTimbre(timbreBias = getGlobalTimbreBias()) {
+  const warmAmount = Math.max(0, -timbreBias);
+  const coldAmount = Math.max(0, timbreBias);
+  return clamp(170 * (1 - warmAmount * 0.18 + coldAmount * 0.45), 110, 380);
+}
+
+function getDelayFeedbackGain(value = state.synthParams.delayFeedback) {
+  return clamp(value, 0, 0.88);
 }
 
 function getDelayDivisionOption(divisionIndex = state.synthParams.delayDivision) {
@@ -126,6 +136,9 @@ export function initializeAudioGraph() {
   state.compressor = state.audioContext.createDynamicsCompressor();
   state.delayNode = state.audioContext.createDelay(1.0);
   state.delayFeedback = state.audioContext.createGain();
+  state.delayDrive = state.audioContext.createWaveShaper();
+  state.delayHighpass = state.audioContext.createBiquadFilter();
+  state.delayReturnGain = state.audioContext.createGain();
   state.delayTone = state.audioContext.createBiquadFilter();
   state.reverbConvolver = state.audioContext.createConvolver();
   state.reverbInput = state.audioContext.createGain();
@@ -141,10 +154,16 @@ export function initializeAudioGraph() {
   state.compressor.release.value = 0.16;
 
   state.delayNode.delayTime.value = syncDelayTimeToTempo();
-  state.delayFeedback.gain.value = state.synthParams.delayFeedback;
+  state.delayFeedback.gain.value = getDelayFeedbackGain();
+  state.delayDrive.curve = getDistortionCurve(0.22);
+  state.delayDrive.oversample = "4x";
+  state.delayHighpass.type = "highpass";
+  state.delayHighpass.frequency.value = getDelayHighpassFrequencyForTimbre();
+  state.delayHighpass.Q.value = 0.35;
   state.delayTone.type = "lowpass";
   state.delayTone.frequency.value = getDelayToneFrequencyForTimbre();
-  state.delayTone.Q.value = 0.7;
+  state.delayTone.Q.value = 0.85;
+  state.delayReturnGain.gain.value = 1.2;
 
   state.reverbConvolver.buffer = createImpulseResponse(
     state.audioContext,
@@ -161,10 +180,13 @@ export function initializeAudioGraph() {
   state.reverbWetGain.connect(state.compressor);
   state.compressor.connect(state.audioContext.destination);
 
-  state.delayNode.connect(state.delayTone);
+  state.delayNode.connect(state.delayHighpass);
+  state.delayHighpass.connect(state.delayDrive);
+  state.delayDrive.connect(state.delayTone);
   state.delayTone.connect(state.delayFeedback);
   state.delayFeedback.connect(state.delayNode);
-  state.delayTone.connect(state.masterGain);
+  state.delayTone.connect(state.delayReturnGain);
+  state.delayReturnGain.connect(state.masterGain);
 }
 
 export function ensureAudioContext() {
@@ -570,11 +592,14 @@ export function applyLiveAudioUpdates(paramKey, value) {
   }
 
   if (paramKey === "delayFeedback" && state.delayFeedback) {
-    state.delayFeedback.gain.setValueAtTime(value, now);
+    state.delayFeedback.gain.setValueAtTime(getDelayFeedbackGain(value), now);
     return;
   }
 
   if (paramKey === "globalTimbre" && state.delayTone) {
+    if (state.delayHighpass) {
+      state.delayHighpass.frequency.setValueAtTime(getDelayHighpassFrequencyForTimbre(value), now);
+    }
     state.delayTone.frequency.setValueAtTime(getDelayToneFrequencyForTimbre(value), now);
     return;
   }

@@ -990,3 +990,26 @@
 - `npm run build` completed successfully after making delay values tempo-quantized.
 - Webpack compiled without errors and emitted updated assets.
 
+---
+
+# Task: Make Delay More Extreme
+
+## Plan
+- [x] Inspect the shared delay graph and the current feedback/tone limits.
+- [x] Strengthen the delay character in `js/audio-engine.js` with a more pronounced return and feedback path.
+- [x] Adjust existing delay control defaults/range only if needed to expose the stronger effect.
+- [x] Update task/docs/lessons to reflect the new delay character.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Added dedicated shared delay-shaping nodes in `js/state.js` / `js/audio-engine.js`: `delayHighpass`, `delayDrive`, and `delayReturnGain`.
+- Changed the shared delay graph from a simple `delay -> lowpass -> feedback/master` path to `delay -> highpass -> drive -> lowpass -> feedback + boosted return`.
+- Brightened the delay tone response and added a high-pass stage so repeats cut through more clearly instead of sounding soft and cloudy.
+- Increased the effective delay return level and slightly widened the UI feedback range from `0.8` to `0.88` so the more extreme behavior is reachable.
+- Updated `README.md` to describe the delay as a driven tempo-synced feedback delay.
+
+## Review
+- Static checks passed on the edited files.
+- `npm run build` completed successfully after strengthening the shared delay.
+- Webpack compiled without errors and emitted updated assets.
+

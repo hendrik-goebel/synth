@@ -60,7 +60,7 @@ export const PENTATONIC_NOTE_IDS = NOTE_OPTIONS
   .map(({ id }) => id)
   .filter((id) => PENTATONIC_PITCH_CLASSES.has(extractPitchClass(id)));
 export const BASE_SOUND_PRESETS = {
-  "warm-pad": {
+  "warm": {
     oscAWave: "sawtooth",
     oscBWave: "triangle",
     subWave: "sine",
@@ -160,7 +160,7 @@ export const BASE_SOUND_PRESETS = {
     transientTone: 2600,
     pitchDropCents: 10,
   },
-  "acid-bite": {
+  "acid": {
     oscAWave: "sawtooth",
     oscBWave: "square",
     subWave: "triangle",
@@ -184,7 +184,7 @@ export const BASE_SOUND_PRESETS = {
     pitchDropCents: 26,
   },
 
-  "noisy-spark": {
+  "noisy": {
     oscAWave: "square",
     oscBWave: "triangle",
     subWave: "sine",
@@ -208,7 +208,7 @@ export const BASE_SOUND_PRESETS = {
     transientTone: 2400,
     pitchDropCents: 32,
   },
-  "deep-space": {
+  "deep": {
     oscAWave: "sine",
     oscBWave: "triangle",
     subWave: "sine",
@@ -229,7 +229,7 @@ export const BASE_SOUND_PRESETS = {
     distortionMix: 0.18,
     distortionTone: 1400,
   },
-  "rubber-seq": {
+  "rubber": {
     oscAWave: "sawtooth",
     oscBWave: "triangle",
     subWave: "triangle",
@@ -252,7 +252,7 @@ export const BASE_SOUND_PRESETS = {
     transientTone: 1300,
     pitchDropCents: 22,
   },
-  "velvet-choir": {
+  "velvet": {
     oscAWave: "triangle",
     oscBWave: "sine",
     subWave: "sine",
