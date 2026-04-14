@@ -24,17 +24,16 @@
 
 <body>
   <main class="app">
-    <h1>Arpeggio Loop</h1>
-    <p class="description">Play a repeating C major arpeggio moving up and down.</p>
-    <button id="play-toggle" type="button">Start</button>
+    <h1>Arpeggio Loop Mixer</h1>
+    <p class="description">12-channel audio synthesizer with independent arpeggio patterns.</p>
     <p id="status" aria-live="polite">Stopped</p>
 
-    <section class="controls" aria-label="Synth controls">
-      <h2>Controls</h2>
+    <section class="mixer" aria-label="Audio mixer">
+      <div id="mixer-channels" class="mixer-channels"></div>
+    </section>
 
-      <p class="control-label">Instrument Stack (up to 12)</p>
-      <div id="sound-preset-buttons" class="button-grid" aria-label="Instrument Stack"></div>
-      <p class="hint">Click presets to toggle them in the stack. The last clicked preset becomes the current instrument for controls and Start/Stop.</p>
+    <section class="controls" aria-label="Synth controls">
+      <h2>Controls for Selected Channel</h2>
 
 
       <fieldset class="note-selector">

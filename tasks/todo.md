@@ -456,7 +456,6 @@
 - `npm run build` completed successfully after instrument selection/playback visual split.
 - Webpack compiled without errors and emitted updated `dist` assets.
 
-
 ---
 
 # Task: Add Another Arpeggio Octave
@@ -477,7 +476,6 @@
 ## Review
 - `npm run build` completed successfully after adding the second octave.
 - Webpack compiled without errors and emitted updated assets.
-
 
 ---
 
@@ -515,3 +513,39 @@
 - No import syntax errors; all modules correctly resolve their dependencies.
 - Browser loading via webpack dev server (`npm start`) works; the bundled app.js replaces ES module syntax with IIFE closure.
 - HTML references remain unchanged at `js/app.js`; dev server serves from `dist` folder automatically.
+
+---
+
+# Task: Audio Mixer UI Redesign
+
+## Plan
+- [x] Replace preset selector dropdown with horizontal mixer-style channel strips.
+- [x] Display all 12 instruments as vertical channel strips arranged horizontally.
+- [x] Add per-channel play/stop and select buttons.
+- [x] Show visual indicator (LED-style) for playing channels.
+- [x] Keep note selector and controls below mixer for currently selected channel.
+- [x] Update HTML structure to support mixer layout.
+- [x] Create CSS styles for channel strips (grid, colors, hover states).
+- [x] Bind click handlers to mixer channels for select and play/stop actions.
+- [x] Rebuild and verify.
+
+## Progress Notes
+- Replaced `<div id="sound-preset-buttons">` with `<div id="mixer-channels">` in HTML.
+- Created `.mixer` and `.mixer-channels` container styles for horizontal scrollable layout.
+- Created `.channel-strip` styles: vertical flex layout, 90px width, dark background with border.
+- Added `.channel-name` to display preset label in 3-line truncated text.
+- Added `.channel-indicator` (16px circular LED) that lights up red when playing.
+- Created `.channel-select-btn` (blue) and `.channel-play-btn` (gray/red toggle) styles.
+- Updated `renderMixerChannels()` to dynamically create 12 channel strips from preset IDs.
+- Updated `bindMixerChannels()` to handle per-channel select (border highlight) and play/stop (red background).
+- Removed old `renderPresetStackButtons()` and `bindPresetSelector()` functions.
+- Updated `app.js` bootstrap to call `bindMixerChannels()` instead.
+- Rebuilt successfully: 15.6 KiB bundle.
+
+## Review
+- Mixer layout complete: all 12 instruments visible horizontally with channel strip UI.
+- Each channel has clear play/stop button (red when playing) and select button (yellow border when selected).
+- Visual feedback is immediate: LED indicator and button color changes reflect real-time state.
+- Controls panel below now says "Controls for Selected Channel" to clarify scope.
+- Horizontal scrolling allows full 12-channel visibility even on smaller screens.
+- No errors during build; webpack successfully bundled the new UI code.

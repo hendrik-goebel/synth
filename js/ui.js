@@ -1,6 +1,6 @@
 import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_OPTIONS } from "./constants.js";
-import { applyLiveAudioUpdates } from "./audio-engine.js";
-import { toggleButton, statusLabel, presetButtonsContainer } from "./dom.js";
+import { applyLiveAudioUpdates, startPresetPlayback, stopPresetPlayback } from "./audio-engine.js";
+import { statusLabel } from "./dom.js";
 import {
   ensureInstrumentNoteState,
   syncNoteButtonsFromActiveInstrumentPage,
@@ -26,40 +26,59 @@ export function setControlUIValue(controlId, value) {
   setControlLabel(controlId, value);
 }
 
-export function renderPresetStackButtons() {
-  if (!presetButtonsContainer) {
+export function renderMixerChannels() {
+  const mixerChannelsContainer = document.getElementById("mixer-channels");
+  if (!mixerChannelsContainer) {
     return;
   }
 
-  presetButtonsContainer.innerHTML = "";
+  mixerChannelsContainer.innerHTML = "";
 
   getPresetIds().forEach((presetId) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.presetId = presetId;
-    button.className = "preset-button";
-    button.textContent = `${state.playingPresetIds.has(presetId) ? "● " : "○ "}${getPresetLabel(presetId)}`;
-    button.setAttribute("aria-pressed", String(presetId === state.activeInstrumentPresetId));
-
-    if (state.playingPresetIds.has(presetId)) {
-      button.classList.add("is-playing");
-    }
+    const channelStrip = document.createElement("div");
+    channelStrip.className = "channel-strip";
+    channelStrip.dataset.presetId = presetId;
 
     if (presetId === state.activeInstrumentPresetId) {
-      button.classList.add("is-current");
+      channelStrip.classList.add("is-current");
     }
 
-    presetButtonsContainer.append(button);
+    const nameDiv = document.createElement("div");
+    nameDiv.className = "channel-name";
+    nameDiv.textContent = getPresetLabel(presetId);
+
+    const indicator = document.createElement("div");
+    indicator.className = "channel-indicator";
+    if (state.playingPresetIds.has(presetId)) {
+      indicator.classList.add("is-playing");
+    }
+
+    const buttonsDiv = document.createElement("div");
+    buttonsDiv.className = "channel-buttons";
+
+    const selectBtn = document.createElement("button");
+    selectBtn.type = "button";
+    selectBtn.className = "channel-select-btn";
+    selectBtn.textContent = "Select";
+    selectBtn.dataset.presetId = presetId;
+
+    const playBtn = document.createElement("button");
+    playBtn.type = "button";
+    playBtn.className = "channel-play-btn";
+    playBtn.textContent = state.playingPresetIds.has(presetId) ? "Stop" : "Play";
+    playBtn.dataset.presetId = presetId;
+    if (state.playingPresetIds.has(presetId)) {
+      playBtn.classList.add("is-playing");
+    }
+
+    buttonsDiv.append(selectBtn, playBtn);
+    channelStrip.append(nameDiv, indicator, buttonsDiv);
+    mixerChannelsContainer.append(channelStrip);
   });
 }
 
 export function updateTransportUI() {
-  renderPresetStackButtons();
-
-  if (toggleButton) {
-    const isCurrentPagePlaying = state.playingPresetIds.has(state.activeInstrumentPresetId);
-    toggleButton.textContent = isCurrentPagePlaying ? "Stop" : "Start";
-  }
+  renderMixerChannels();
 
   if (!statusLabel) {
     return;
@@ -159,11 +178,7 @@ export function bindNoteSelector() {
   syncNoteButtonsFromActiveInstrumentPage();
 }
 
-export function bindPresetSelector() {
-  if (!presetButtonsContainer) {
-    return;
-  }
-
+export function bindMixerChannels() {
   state.activePresetIds.forEach((presetId) => {
     getInstrumentParams(presetId);
     ensureInstrumentNoteState(presetId);
@@ -171,20 +186,41 @@ export function bindPresetSelector() {
   syncControlsFromActiveInstrumentPage();
   updateTransportUI();
 
-  presetButtonsContainer.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-preset-id]");
-    if (!button) {
+  const mixerChannelsContainer = document.getElementById("mixer-channels");
+  if (!mixerChannelsContainer) {
+    return;
+  }
+
+  mixerChannelsContainer.addEventListener("click", async (event) => {
+    const selectBtn = event.target.closest(".channel-select-btn");
+    const playBtn = event.target.closest(".channel-play-btn");
+
+    if (selectBtn) {
+      const presetId = selectBtn.dataset.presetId;
+      if (!presetId) {
+        return;
+      }
+      state.activeInstrumentPresetId = presetId;
+      syncControlsFromActiveInstrumentPage();
+      updateTransportUI();
       return;
     }
 
-    const presetId = button.dataset.presetId;
-    if (!presetId) {
-      return;
-    }
+    if (playBtn) {
+      const presetId = playBtn.dataset.presetId;
+      if (!presetId) {
+        return;
+      }
 
-    state.activeInstrumentPresetId = presetId;
-    syncControlsFromActiveInstrumentPage();
-    updateTransportUI();
+      if (state.playingPresetIds.has(presetId)) {
+        stopPresetPlayback(presetId);
+      } else {
+        const { ensureAudioContext } = await import("./audio-engine.js");
+        await ensureAudioContext();
+        startPresetPlayback(presetId);
+      }
+      updateTransportUI();
+    }
   });
 }
 
