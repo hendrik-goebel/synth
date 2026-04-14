@@ -113,6 +113,9 @@ export const BASE_SOUND_PRESETS = {
     release: 0.06,
     delaySend: 0.08,
     reverbSend: 0.12,
+    distortionDrive: 0.58,
+    distortionMix: 0.38,
+    distortionTone: 2600,
   },
   "hollow-drift": {
     oscAWave: "triangle",
@@ -142,6 +145,9 @@ export const BASE_SOUND_PRESETS = {
     delaySend: 0.16,
     delayFeedback: 0.38,
     stereoPan: 0.35,
+    distortionDrive: 0.72,
+    distortionMix: 0.52,
+    distortionTone: 4200,
   },
   "deep-space": {
     oscAWave: "sine",
@@ -186,6 +192,9 @@ export const BASE_SOUND_PRESETS = {
     release: 0.2,
     reverbSend: 0.42,
     stereoPan: 0.15,
+    distortionDrive: 0.44,
+    distortionMix: 0.3,
+    distortionTone: 3200,
   },
   "pixel-tone": {
     oscAWave: "square",
@@ -251,6 +260,9 @@ export const INITIAL_SYNTH_PARAMS = {
   detuneSpread: 3,
   subLevel: 0.45,
   stereoPan: 0,
+  distortionDrive: 0.3,
+  distortionMix: 0.2,
+  distortionTone: 4500,
   delaySend: 0.35,
   delayTime: 0.24,
   delayFeedback: 0.26,
@@ -307,6 +319,21 @@ export const controlConfig = {
     key: "stereoPan",
     valueId: "stereo-pan-value",
     formatter: (value) => value.toFixed(2),
+  },
+  "distortion-drive": {
+    key: "distortionDrive",
+    valueId: "distortion-drive-value",
+    formatter: (value) => value.toFixed(2),
+  },
+  "distortion-mix": {
+    key: "distortionMix",
+    valueId: "distortion-mix-value",
+    formatter: (value) => value.toFixed(2),
+  },
+  "distortion-tone": {
+    key: "distortionTone",
+    valueId: "distortion-tone-value",
+    formatter: (value) => String(Math.round(value)),
   },
   "delay-send": {
     key: "delaySend",

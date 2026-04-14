@@ -12,3 +12,5 @@
 - When splitting a monolithic module into multiple focused files, use a single shared state module instead of multiple top-level singletons; this keeps import order predictable and makes it easier to trace which module owns which piece of data.
 - During a refactor, keep the webpack entry point filename unchanged (`app.js`) and ensure the output path remains the same; this lets the refactor happen transparently without updating HTML or build config.
 - Split a monolithic file in order of data flow: extract pure constants first, then shared state, then utility functions, then domain logic, then UI bindings, leaving a thin entry point last that just wires everything up.
+- In a multi-instrument mixer, explicitly pass channel identity into voice scheduling and gate channel-scoped effects (like distortion) there; do not assume per-instrument params alone prevent cross-channel perception.
+- Keep editor selection (`activeInstrumentPresetId`) out of DSP routing decisions; selection should only control which channel parameters are edited, never change how other running channels sound.

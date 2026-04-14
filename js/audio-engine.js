@@ -9,6 +9,32 @@ import { getInstrumentParams, getPlayablePresetIds } from "./presets.js";
 import { state } from "./state.js";
 import { clamp, randomCentered } from "./utils.js";
 
+const DISTORTION_CURVE_STEPS = 100;
+const distortionCurveCache = new Map();
+
+function getDistortionCurve(amount) {
+  const clamped = clamp(amount, 0, 1);
+  const bucket = Math.round(clamped * DISTORTION_CURVE_STEPS);
+
+  if (distortionCurveCache.has(bucket)) {
+    return distortionCurveCache.get(bucket);
+  }
+
+  const normalized = bucket / DISTORTION_CURVE_STEPS;
+  const k = normalized * 500;
+  const samples = 2048;
+  const curve = new Float32Array(samples);
+  const deg = Math.PI / 180;
+
+  for (let i = 0; i < samples; i += 1) {
+    const x = (i * 2) / samples - 1;
+    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+  }
+
+  distortionCurveCache.set(bucket, curve);
+  return curve;
+}
+
 export function getStepDuration() {
   return 30 / state.synthParams.tempoBpm;
 }
@@ -104,7 +130,13 @@ export function ensureAudioContext() {
   return Promise.resolve();
 }
 
-export function scheduleNote(frequency, time, voiceParams, layerIndex, layerCount) {
+export function scheduleNote(
+  frequency,
+  time,
+  voiceParams,
+  layerIndex,
+  layerCount,
+) {
   const oscA = state.audioContext.createOscillator();
   const oscB = state.audioContext.createOscillator();
   const subOsc = state.audioContext.createOscillator();
@@ -159,6 +191,21 @@ export function scheduleNote(frequency, time, voiceParams, layerIndex, layerCoun
     0,
     1,
   );
+  const distortionDriveValue = clamp(
+    voiceParams.distortionDrive * (1 + randomCentered(HUMANIZE.fxSendAmount)),
+    0,
+    1,
+  );
+  const distortionMixValue = clamp(
+    voiceParams.distortionMix * (1 + randomCentered(HUMANIZE.fxSendAmount)),
+    0,
+    1,
+  );
+  const distortionToneValue = clamp(
+    voiceParams.distortionTone * (1 + randomCentered(HUMANIZE.cutoffAmount * 0.5)),
+    500,
+    12000,
+  );
 
   oscA.type = voiceParams.oscAWave;
   oscA.frequency.setValueAtTime(frequency, time);
@@ -199,7 +246,37 @@ export function scheduleNote(frequency, time, voiceParams, layerIndex, layerCoun
   upperMix.connect(voiceGain);
   subMix.connect(voiceGain);
 
-  voiceGain.connect(toneFilter);
+  let voiceOutput = voiceGain;
+
+  if (distortionDriveValue > 0.001 && distortionMixValue > 0.001) {
+    const distortionIn = state.audioContext.createGain();
+    const distortionDry = state.audioContext.createGain();
+    const distortionWet = state.audioContext.createGain();
+    const distortionOut = state.audioContext.createGain();
+    const shaper = state.audioContext.createWaveShaper();
+    const distortionToneFilter = state.audioContext.createBiquadFilter();
+
+    shaper.curve = getDistortionCurve(distortionDriveValue);
+    shaper.oversample = "4x";
+    distortionToneFilter.type = "lowpass";
+    distortionToneFilter.frequency.setValueAtTime(distortionToneValue, time);
+    distortionToneFilter.Q.value = 0.7;
+    distortionDry.gain.value = 1 - distortionMixValue;
+    distortionWet.gain.value = distortionMixValue;
+
+    voiceGain.connect(distortionIn);
+    distortionIn.connect(distortionDry);
+    distortionIn.connect(shaper);
+    shaper.connect(distortionToneFilter);
+    distortionToneFilter.connect(distortionWet);
+    distortionDry.connect(distortionOut);
+    distortionWet.connect(distortionOut);
+    voiceOutput = distortionOut;
+  }
+
+  voiceOutput.connect(toneFilter);
+  voiceOutput = toneFilter;
+
   if (stereoPanner) {
     const layerSpread = layerCount > 1
       ? ((layerIndex / (layerCount - 1)) * 2 - 1) * 0.35
@@ -209,14 +286,14 @@ export function scheduleNote(frequency, time, voiceParams, layerIndex, layerCoun
       -1,
       1,
     );
-    toneFilter.connect(stereoPanner);
+    voiceOutput.connect(stereoPanner);
     stereoPanner.connect(state.masterGain);
     stereoPanner.connect(delaySend);
     stereoPanner.connect(reverbSend);
   } else {
-    toneFilter.connect(state.masterGain);
-    toneFilter.connect(delaySend);
-    toneFilter.connect(reverbSend);
+    voiceOutput.connect(state.masterGain);
+    voiceOutput.connect(delaySend);
+    voiceOutput.connect(reverbSend);
   }
   delaySend.connect(state.delayNode);
   reverbSend.connect(state.reverbInput);
@@ -243,7 +320,13 @@ export function scheduleInstrumentStackNote(time) {
     }
 
     const layerFrequency = pattern[state.stepIndex % pattern.length];
-    scheduleNote(layerFrequency, time, voiceParams, layerIndex, presetIds.length);
+    scheduleNote(
+      layerFrequency,
+      time,
+      voiceParams,
+      layerIndex,
+      presetIds.length,
+    );
   });
 }
 

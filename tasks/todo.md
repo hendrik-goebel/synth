@@ -549,3 +549,103 @@
 - Controls panel below now says "Controls for Selected Channel" to clarify scope.
 - Horizontal scrolling allows full 12-channel visibility even on smaller screens.
 - No errors during build; webpack successfully bundled the new UI code.
+
+---
+
+# Task: Add Distortion Effect
+
+## Plan
+- [x] Add distortion parameters to synth defaults and control mapping.
+- [x] Add distortion sliders to the controls UI.
+- [x] Implement a Web Audio waveshaper distortion stage with dry/wet mix in the voice path.
+- [x] Seed a few presets with non-zero distortion defaults for clearly different tones.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `distortionDrive` and `distortionMix` to `INITIAL_SYNTH_PARAMS` and `controlConfig` in `js/constants.js`.
+- Added `distortion-drive` and `distortion-mix` sliders with live value labels in `index.html`.
+- Implemented per-voice distortion in `js/audio-engine.js` using `WaveShaperNode` plus dry/wet routing before panning and FX sends.
+- Added cached distortion curves to avoid regenerating waveshaper curves for every note.
+- Updated several presets (`acid-bite`, `noisy-spark`, `metal-cloud`) with non-zero distortion defaults.
+
+## Review
+- `npm run build` completed successfully after distortion integration.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Add Distortion Tone Control
+
+## Plan
+- [x] Add `distortionTone` defaults in synth params and selected presets.
+- [x] Add a `distortion-tone` UI slider and value display.
+- [x] Route distortion wet signal through a tone low-pass filter in the audio engine.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `distortionTone` to `INITIAL_SYNTH_PARAMS` and `controlConfig` in `js/constants.js`.
+- Added preset defaults for `acid-bite`, `noisy-spark`, and `metal-cloud` to emphasize distinct distortion colors.
+- Added `distortion-tone` slider in `index.html` with a 500-12000 Hz range.
+- Updated `scheduleNote(...)` in `js/audio-engine.js` so distortion wet path is now `WaveShaper -> Lowpass -> WetMix`.
+
+## Review
+- `npm run build` completed successfully after distortion tone integration.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Restrict Distortion to Current Instrument
+
+## Plan
+- [x] Verify where distortion is applied in the voice scheduling path.
+- [x] Gate distortion so it runs only for `activeInstrumentPresetId`.
+- [x] Keep all other synthesis and FX sends unchanged for non-selected instruments.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Updated `scheduleNote(...)` in `js/audio-engine.js` to accept an `isActiveInstrument` flag.
+- In `scheduleInstrumentStackNote(...)`, passed `presetId === state.activeInstrumentPresetId` into `scheduleNote(...)`.
+- Distortion drive/mix/tone are now only evaluated when the voice belongs to the currently selected instrument; other instruments bypass distortion.
+
+## Review
+- `npm run build` completed successfully after the distortion scope fix.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Prevent Sound Changes on Instrument Selection
+
+## Plan
+- [x] Identify why selecting another instrument changes audible tone.
+- [x] Remove UI selection state from DSP decisions in `scheduleNote(...)`.
+- [x] Keep distortion fully per-instrument via each channel's own `voiceParams`.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Removed `isActiveInstrument` from `scheduleNote(...)` in `js/audio-engine.js`.
+- Distortion drive/mix/tone now always derive from the scheduled instrument's `voiceParams`.
+- Updated `scheduleInstrumentStackNote(...)` call site to stop passing `activeInstrumentPresetId` into audio routing logic.
+
+## Review
+- `npm run build` completed successfully after decoupling selection from sound.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Move Cutoff Filter Behind Distortion
+
+## Plan
+- [x] Update `scheduleNote(...)` routing so the main cutoff filter is post-distortion.
+- [x] Keep `distortionTone` low-pass in the distortion wet path unchanged.
+- [x] Ensure non-distorted voices still pass through the main cutoff filter.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Changed routing in `js/audio-engine.js` from `voiceGain -> toneFilter -> distortion` to `voiceGain -> (optional distortion) -> toneFilter`.
+- Kept distortion wet-tone shaping path as `WaveShaper -> distortionToneFilter -> wet mix`.
+- Implemented a shared `voiceOutput` flow so both distorted and non-distorted voices end at the same post-filter stage.
+
+## Review
+- `npm run build` completed successfully after moving cutoff behind distortion.
+- Webpack compiled without errors and emitted updated assets.
+
