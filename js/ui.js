@@ -97,12 +97,6 @@ export function renderMixerChannels() {
     const buttonsDiv = document.createElement("div");
     buttonsDiv.className = "channel-buttons";
 
-    const selectBtn = document.createElement("button");
-    selectBtn.type = "button";
-    selectBtn.className = "channel-select-btn";
-    selectBtn.textContent = "Select";
-    selectBtn.dataset.presetId = presetId;
-
     const playBtn = document.createElement("button");
     playBtn.type = "button";
     playBtn.className = "channel-play-btn";
@@ -118,7 +112,7 @@ export function renderMixerChannels() {
     variationBtn.textContent = "Var";
     variationBtn.dataset.presetId = presetId;
 
-    buttonsDiv.append(selectBtn, playBtn, variationBtn);
+    buttonsDiv.append(playBtn, variationBtn);
     channelStrip.append(nameDiv, indicator, buttonsDiv);
     mixerChannelsContainer.append(channelStrip);
   });
@@ -215,35 +209,59 @@ export function bindMixerChannels(controller) {
   }
 
   mixerChannelsContainer.addEventListener("click", async (event) => {
-    const selectBtn = event.target.closest(".channel-select-btn");
-    const playBtn = event.target.closest(".channel-play-btn");
-    const variationBtn = event.target.closest(".channel-variation-btn");
-
-    if (selectBtn) {
-      const presetId = selectBtn.dataset.presetId;
-      if (!presetId) {
-        return;
-      }
-      controller.selectInstrument(presetId);
+    const strip = event.target.closest(".channel-strip");
+    if (!strip) {
       return;
     }
 
-    if (playBtn) {
-      const presetId = playBtn.dataset.presetId;
-      if (!presetId) {
-        return;
-      }
+    const playBtn = event.target.closest(".channel-play-btn");
+    const variationBtn = event.target.closest(".channel-variation-btn");
+    const presetId = strip.dataset.presetId;
+    if (!presetId) {
+      return;
+    }
 
+    // Always select the instrument first, regardless of which part was clicked
+    controller.selectInstrument(presetId);
+
+    if (playBtn) {
       await controller.togglePlayback(presetId);
+      return;
     }
 
     if (variationBtn) {
-      const presetId = variationBtn.dataset.presetId;
-      if (!presetId) {
-        return;
-      }
-
       controller.createNoteVariation(presetId);
+      return;
+    }
+  });
+}
+
+export function bindKeyboardShortcuts(controller) {
+  const presetIds = getPresetIds();
+
+  document.addEventListener("keydown", (event) => {
+    // Ignore when focus is inside a text-like input to avoid hijacking typing
+    const tag = document.activeElement?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+      return;
+    }
+
+    // Space → toggle playback for the active instrument
+    if (event.key === " ") {
+      event.preventDefault();
+      controller.togglePlayback(state.activeInstrumentPresetId);
+      return;
+    }
+
+    const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+    const digitIndex = digits.indexOf(event.key);
+    if (digitIndex === -1) {
+      return;
+    }
+
+    const presetId = presetIds[digitIndex];
+    if (presetId) {
+      controller.selectInstrument(presetId);
     }
   });
 }

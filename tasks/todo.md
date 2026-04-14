@@ -901,4 +901,23 @@
 - `npm run build` completed successfully after adding per-instrument variation buttons.
 - Webpack compiled without errors and emitted updated assets.
 
+---
+
+# Task: Add 4 As Note-Length Option
+
+## Plan
+- [x] Add `4` to the allowed note-length cycle options.
+- [x] Include `4` in weighted random startup note-length assignment.
+- [x] Update docs/task notes to reflect the expanded set.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Updated `NOTE_LENGTH_OPTIONS` in `js/constants.js` to `[8, 16, 6, 4, 3]`.
+- Updated note-length weighting in `js/patterns.js` so `4` can be selected during randomized per-instrument initialization.
+- Updated `README.md` and prior task notes in `tasks/todo.md` to include the new value.
+
+## Review
+- `npm run build` completed successfully after adding note length `4`.
+- Webpack compiled without errors and emitted updated assets.
+
 
