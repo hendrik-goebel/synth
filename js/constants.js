@@ -265,6 +265,7 @@ export const BASE_SOUND_PRESETS = {
 export const DEFAULT_PRESET_ID = "warm-pad";
 export const GLOBAL_CONTROL_KEYS = new Set([
   "tempoBpm",
+  "globalTimbre",
   "masterVolume",
   "reverbMix",
   "delayTime",
@@ -273,23 +274,24 @@ export const GLOBAL_CONTROL_KEYS = new Set([
 
 export const INITIAL_SYNTH_PARAMS = {
   tempoBpm: 120,
+  globalTimbre: 0,
   attack: 0.1,
   decay: 0.5,
   release: 0.08,
   filterCutoff: 1200,
-   filterTracking: 0.72,
+  filterTracking: 0.72,
   filterQ: 1.1,
   detuneSpread: 3,
   subLevel: 0.55,
-   upperLevel: 0.68,
+  upperLevel: 0.68,
   stereoPan: 0,
   distortionDrive: 0.45,
   distortionMix: 0.32,
   distortionTone: 4500,
-   transientAmount: 0,
-   transientDecay: 0.02,
-   transientTone: 2200,
-   pitchDropCents: 0,
+  transientAmount: 0,
+  transientDecay: 0.02,
+  transientTone: 2200,
+  pitchDropCents: 0,
   delaySend: 0.35,
   delayTime: 0.24,
   delayFeedback: 0.26,
@@ -307,6 +309,17 @@ export const controlConfig = {
     key: "noteLength",
     valueId: "note-length-toggle-value",
     formatter: (value) => String(Math.round(value)),
+  },
+  "global-timbre": {
+    key: "globalTimbre",
+    valueId: "global-timbre-value",
+    formatter: (value) => {
+      const amount = Math.round(Math.abs(value) * 100);
+      if (amount === 0) {
+        return "Neutral";
+      }
+      return value < 0 ? `Warm ${amount}%` : `Cold ${amount}%`;
+    },
   },
   "tempo-bpm": {
     key: "tempoBpm",

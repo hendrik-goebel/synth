@@ -21,3 +21,4 @@
 - To darken bright presets without losing their identity, lower `filterCutoff`, ease resonant `filterQ`, and lower `distortionTone` before making larger waveform changes.
 - For randomized startup rhythm, tie note-length probability to note-count density and apply it exactly once per instrument so later manual edits are never overwritten.
 - When a synth needs more preset variety without UI bloat, add preset-only parameters (for example harmonic balance, filter tracking, and transient attack shaping) to the engine defaults and let presets override them selectively.
+- When adding a global tone color control, keep it in shared synth state and apply it as proportional scaling around each preset's existing parameters instead of replacing preset values outright.

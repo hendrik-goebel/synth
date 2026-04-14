@@ -944,3 +944,26 @@
 ## Review
 - `npm run build` completed successfully after the preset-library and voice-shaping changes.
 - Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Global Warm/Cold Timbre Slider
+
+## Plan
+- [x] Review the global control flow and current timbre shaping path.
+- [x] Add a global warm/cold slider to `index.html` and register it in `js/constants.js`.
+- [x] Apply the global timbre bias across all instruments in `js/audio-engine.js` without flattening preset identity.
+- [x] Update `README.md` to document the new control.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Added a new global `global-timbre` range slider to `index.html` with a neutral midpoint and warm/cold percentage label.
+- Registered `globalTimbre` as a shared control in `js/constants.js` so it syncs across instrument switching like the other global controls.
+- Updated `js/audio-engine.js` so every newly scheduled note responds to the global timbre bias by shifting cutoff, resonance, harmonic balance, sub weight, transient brightness, and distortion tone.
+- Added a live update for the shared delay low-pass tone so delay tails also move warmer/cooler immediately when the slider changes.
+- Updated `README.md` to mention the new global warm/cold timbre control.
+
+## Review
+- `npm run build` completed successfully after adding the global timbre slider.
+- Static checks passed on the edited files; the only remaining note is the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
+

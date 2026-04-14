@@ -55,6 +55,16 @@ function getNoiseBuffer(context) {
   return buffer;
 }
 
+function getGlobalTimbreBias() {
+  return clamp(state.synthParams.globalTimbre ?? 0, -1, 1);
+}
+
+function getDelayToneFrequencyForTimbre(timbreBias = getGlobalTimbreBias()) {
+  const warmAmount = Math.max(0, -timbreBias);
+  const coldAmount = Math.max(0, timbreBias);
+  return clamp(1600 * (1 - warmAmount * 0.45 + coldAmount * 0.65), 700, 4200);
+}
+
 export function getStepDuration() {
   return 240 / (state.synthParams.tempoBpm * SCHEDULER_GRID_DIVISION);
 }
@@ -113,7 +123,7 @@ export function initializeAudioGraph() {
   state.delayNode.delayTime.value = state.synthParams.delayTime;
   state.delayFeedback.gain.value = state.synthParams.delayFeedback;
   state.delayTone.type = "lowpass";
-  state.delayTone.frequency.value = 1600;
+  state.delayTone.frequency.value = getDelayToneFrequencyForTimbre();
   state.delayTone.Q.value = 0.7;
 
   state.reverbConvolver.buffer = createImpulseResponse(
@@ -183,21 +193,38 @@ export function scheduleNote(
   const stopTime = time + noteDuration + 0.04;
   const releaseStartTime = Math.max(time + 0.02, time + noteDuration - voiceParams.release);
   const layerGainScale = 1 / Math.sqrt(layerCount);
+  const timbreBias = getGlobalTimbreBias();
+  const warmAmount = Math.max(0, -timbreBias);
+  const coldAmount = Math.max(0, timbreBias);
   const driftCents = randomCentered(HUMANIZE.detuneCents);
   const filterTracking = clamp(voiceParams.filterTracking ?? 0.8, 0, 2);
-  const upperLevel = clamp(
+  const upperLevelBase = clamp(
     (voiceParams.upperLevel ?? 0.7) * (1 + randomCentered(HUMANIZE.upperAmount)),
     0.05,
     1.2,
   );
+  const upperLevel = clamp(
+    upperLevelBase * (1 - warmAmount * 0.24 + coldAmount * 0.28),
+    0.03,
+    1.3,
+  );
+  const subLevel = clamp(
+    (voiceParams.subLevel ?? 0.55) * (1 + warmAmount * 0.18 - coldAmount * 0.12),
+    0,
+    1.3,
+  );
   const transientAmount = clamp(
-    (voiceParams.transientAmount ?? 0) * (1 + randomCentered(HUMANIZE.transientAmount)),
+    (voiceParams.transientAmount ?? 0) *
+      (1 + randomCentered(HUMANIZE.transientAmount)) *
+      (1 - warmAmount * 0.12 + coldAmount * 0.14),
     0,
     0.7,
   );
   const transientDecay = clamp(voiceParams.transientDecay ?? 0.02, 0.005, 0.08);
   const transientTone = clamp(
-    (voiceParams.transientTone ?? 2200) * (1 + randomCentered(HUMANIZE.cutoffAmount)),
+    (voiceParams.transientTone ?? 2200) *
+      (1 + randomCentered(HUMANIZE.cutoffAmount)) *
+      (1 - warmAmount * 0.32 + coldAmount * 0.42),
     300,
     6000,
   );
@@ -228,9 +255,15 @@ export function scheduleNote(
   );
   const cutoffWithVariation = clamp(
     (Math.min(8000, voiceParams.filterCutoff + frequency * filterTracking)) *
+      (1 - warmAmount * 0.35 + coldAmount * 0.55) *
       (1 + randomCentered(HUMANIZE.cutoffAmount)),
     250,
     8000,
+  );
+  const filterQValue = clamp(
+    voiceParams.filterQ * (1 - warmAmount * 0.12 + coldAmount * 0.18),
+    0.2,
+    12,
   );
   const delaySendValue = clamp(
     voiceParams.delaySend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
@@ -253,7 +286,9 @@ export function scheduleNote(
     1,
   );
   const distortionToneValue = clamp(
-    voiceParams.distortionTone * (1 + randomCentered(HUMANIZE.cutoffAmount * 0.5)),
+    voiceParams.distortionTone *
+      (1 + randomCentered(HUMANIZE.cutoffAmount * 0.5)) *
+      (1 - warmAmount * 0.28 + coldAmount * 0.38),
     500,
     12000,
   );
@@ -280,10 +315,10 @@ export function scheduleNote(
 
   toneFilter.type = "lowpass";
   toneFilter.frequency.setValueAtTime(cutoffWithVariation, time);
-  toneFilter.Q.value = voiceParams.filterQ;
+  toneFilter.Q.value = filterQValue;
 
   upperMix.gain.value = upperLevel;
-  subMix.gain.value = clamp(voiceParams.subLevel, 0, 1.2);
+  subMix.gain.value = subLevel;
 
   delaySend.gain.value = delaySendValue;
   reverbSend.gain.value = reverbSendValue;
@@ -510,6 +545,11 @@ export function applyLiveAudioUpdates(paramKey, value) {
 
   if (paramKey === "delayFeedback" && state.delayFeedback) {
     state.delayFeedback.gain.setValueAtTime(value, now);
+    return;
+  }
+
+  if (paramKey === "globalTimbre" && state.delayTone) {
+    state.delayTone.frequency.setValueAtTime(getDelayToneFrequencyForTimbre(value), now);
     return;
   }
 
