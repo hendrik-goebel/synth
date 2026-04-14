@@ -456,3 +456,62 @@
 - `npm run build` completed successfully after instrument selection/playback visual split.
 - Webpack compiled without errors and emitted updated `dist` assets.
 
+
+---
+
+# Task: Add Another Arpeggio Octave
+
+## Plan
+- [x] Review the current note-button markup and note-frequency source of truth.
+- [x] Extend the selectable arpeggio note range from one octave to two octaves.
+- [x] Keep the default selected notes and up/down arpeggio behavior unchanged.
+- [x] Update documentation/text that still says the selector only covers 12 tones.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Extended `NOTE_OPTIONS` in `js/app.js` from `C4-B4` to `C4-B5` so scheduling and note-state syncing use a two-octave source of truth.
+- Expanded the note-button grid in `index.html` to 24 buttons and labeled every button with its octave number to avoid ambiguity.
+- Kept the default selected notes at `C4`, `E4`, and `G4`, so existing startup behavior stays the same.
+- Updated `README.md` to describe the two-octave note selector.
+
+## Review
+- `npm run build` completed successfully after adding the second octave.
+- Webpack compiled without errors and emitted updated assets.
+
+
+---
+
+# Task: Split App Into Several Files
+
+## Plan
+- [x] Review the current bundle entry and `js/app.js` responsibilities.
+- [x] Extract shared constants/config into dedicated modules.
+- [x] Extract shared mutable runtime state into a dedicated module.
+- [x] Split pattern, preset, audio, transport, and UI logic into focused files.
+- [x] Keep `js/app.js` as the entry point so webpack/html output remains unchanged.
+- [x] Verify the refactor with static checks and a production build.
+
+## Progress Notes
+- Extracted `js/constants.js` with all config data: `REVERB_SECONDS`, `HUMANIZE`, `NOTE_OPTIONS`, `BASE_SOUND_PRESETS`, `controlConfig`, etc.
+- Created `js/state.js` with a single shared state object holding all mutable runtime data (synthParams, audioContext, playingPresetIds, instrument maps).
+- Created `js/dom.js` with DOM element queries (toggleButton, statusLabel, presetButtonsContainer).
+- Created `js/utils.js` with pure utility functions (clamp, randomCentered).
+- Created `js/patterns.js` with arpeggio pattern logic (buildArpeggioPattern, ensureInstrumentNoteState, getInstrumentPattern, syncNoteButtonsFromActiveInstrumentPage).
+- Created `js/presets.js` with preset helpers (getPresetLabel, getPresetIds, getInstrumentParams, getPlayablePresetIds).
+- Created `js/audio-engine.js` with Web Audio API logic (ensureAudioContext, initializeAudioGraph, scheduleNote, scheduleAhead, startPresetPlayback, stopPresetPlayback, applyLiveAudioUpdates).
+- Created `js/ui.js` with UI binding and rendering (renderPresetStackButtons, bindControls, bindNoteSelector, bindPresetSelector, syncControlsFromActiveInstrumentPage, updateTransportUI).
+- Created `js/transport-controller.js` with playback control logic (toggleCurrentPagePlayback, handleTransportStartError).
+- Replaced `js/app.js` (969 lines) with a thin 16-line bootstrap that imports modules and wires event listeners.
+- All modules validated with zero syntax/import errors; IDE warnings are expected for export boundaries.
+- Webpack bundle entry remains `./js/app.js` with output `./dist/js/app.js`, so `index.html` reference unchanged.
+
+## Review
+- Split successful: app now has 9 focused domain-specific modules + thin entry point.
+- Single shared `state.js` object replaces multiple top-level singletons, improving module independence.
+- Each module has a clear responsibility: constants → state → utils → domain logic (patterns, presets, audio) → UI → transport.
+- Entry point now delegates all behavior to sub-modules instead of containing everything inline.
+- Ready for future feature expansion: adding new controls or presets now requires editing only the relevant module.
+- Webpack build verified: all 9 modules bundled into single 13.8 KiB minified `dist/js/app.js` file.
+- No import syntax errors; all modules correctly resolve their dependencies.
+- Browser loading via webpack dev server (`npm start`) works; the bundled app.js replaces ES module syntax with IIFE closure.
+- HTML references remain unchanged at `js/app.js`; dev server serves from `dist` folder automatically.

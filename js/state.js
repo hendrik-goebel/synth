@@ -1,0 +1,27 @@
+import {
+  BASE_SOUND_PRESETS,
+  DEFAULT_PRESET_ID,
+  INITIAL_SYNTH_PARAMS,
+} from "./constants.js";
+export const state = {
+  synthParams: { ...INITIAL_SYNTH_PARAMS },
+  audioContext: undefined,
+  schedulerId: null,
+  nextNoteTime: 0,
+  stepIndex: 0,
+  masterGain: null,
+  compressor: null,
+  delayNode: null,
+  delayFeedback: null,
+  delayTone: null,
+  reverbConvolver: null,
+  reverbInput: null,
+  reverbWetGain: null,
+  reverbDryGain: null,
+  activePresetIds: Object.keys(BASE_SOUND_PRESETS),
+  instrumentParamsByPresetId: {},
+  instrumentNoteIdsByPresetId: {},
+  instrumentPatternsByPresetId: {},
+  activeInstrumentPresetId: DEFAULT_PRESET_ID,
+  playingPresetIds: new Set(),
+};
