@@ -7,6 +7,7 @@ export const state = {
   synthParams: { ...INITIAL_SYNTH_PARAMS },
   audioContext: undefined,
   schedulerId: null,
+  schedulerChannel: null,
   nextNoteTime: 0,
   stepIndex: 0,
   masterGain: null,

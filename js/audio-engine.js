@@ -137,19 +137,26 @@ export function scheduleNote(
   layerIndex,
   layerCount,
 ) {
-  const oscA = state.audioContext.createOscillator();
-  const oscB = state.audioContext.createOscillator();
-  const subOsc = state.audioContext.createOscillator();
+  const ctx = state.audioContext;
+  const oscA = ctx.createOscillator();
+  const oscB = ctx.createOscillator();
+  const subOsc = ctx.createOscillator();
 
-  const voiceGain = state.audioContext.createGain();
-  const upperMix = state.audioContext.createGain();
-  const subMix = state.audioContext.createGain();
-  const toneFilter = state.audioContext.createBiquadFilter();
-  const delaySend = state.audioContext.createGain();
-  const reverbSend = state.audioContext.createGain();
-  const stereoPanner = state.audioContext.createStereoPanner
-    ? state.audioContext.createStereoPanner()
+  const voiceGain = ctx.createGain();
+  const upperMix = ctx.createGain();
+  const subMix = ctx.createGain();
+  const toneFilter = ctx.createBiquadFilter();
+  const delaySend = ctx.createGain();
+  const reverbSend = ctx.createGain();
+  const stereoPanner = ctx.createStereoPanner
+    ? ctx.createStereoPanner()
     : null;
+
+  // Track all nodes for cleanup after playback ends
+  const voiceNodes = [oscA, oscB, subOsc, voiceGain, upperMix, subMix, toneFilter, delaySend, reverbSend];
+  if (stereoPanner) {
+    voiceNodes.push(stereoPanner);
+  }
 
   const noteDuration = getNoteDuration();
   const releaseStartTime = Math.max(time + 0.02, time + noteDuration - voiceParams.release);
@@ -249,12 +256,14 @@ export function scheduleNote(
   let voiceOutput = voiceGain;
 
   if (distortionDriveValue > 0.001 && distortionMixValue > 0.001) {
-    const distortionIn = state.audioContext.createGain();
-    const distortionDry = state.audioContext.createGain();
-    const distortionWet = state.audioContext.createGain();
-    const distortionOut = state.audioContext.createGain();
-    const shaper = state.audioContext.createWaveShaper();
-    const distortionToneFilter = state.audioContext.createBiquadFilter();
+    const distortionIn = ctx.createGain();
+    const distortionDry = ctx.createGain();
+    const distortionWet = ctx.createGain();
+    const distortionOut = ctx.createGain();
+    const shaper = ctx.createWaveShaper();
+    const distortionToneFilter = ctx.createBiquadFilter();
+
+    voiceNodes.push(distortionIn, distortionDry, distortionWet, distortionOut, shaper, distortionToneFilter);
 
     shaper.curve = getDistortionCurve(distortionDriveValue);
     shaper.oversample = "4x";
@@ -306,6 +315,17 @@ export function scheduleNote(
   oscA.stop(stopTime);
   oscB.stop(stopTime);
   subOsc.stop(stopTime);
+
+  // Auto-disconnect all nodes once oscA finishes to free audio graph memory
+  oscA.onended = () => {
+    for (let i = 0; i < voiceNodes.length; i += 1) {
+      try {
+        voiceNodes[i].disconnect();
+      } catch (_) {
+        // Already disconnected — safe to ignore
+      }
+    }
+  };
 }
 
 export function scheduleInstrumentStackNote(time) {
@@ -358,7 +378,20 @@ export function startPresetPlayback(presetId) {
     state.stepIndex = 0;
     state.nextNoteTime = state.audioContext.currentTime + 0.05;
     scheduleAhead();
-    state.schedulerId = window.setInterval(scheduleAhead, 25);
+
+    // Use MessageChannel for precise, throttle-resistant scheduling.
+    // A small setTimeout throttles the loop to avoid busy-spinning.
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      if (state.schedulerId === null) {
+        return;
+      }
+      scheduleAhead();
+      setTimeout(() => channel.port2.postMessage(null), 20);
+    };
+    state.schedulerChannel = channel;
+    state.schedulerId = true; // non-null sentinel
+    channel.port2.postMessage(null);
   }
 
   return { started: true };
@@ -368,8 +401,11 @@ export function stopPresetPlayback(presetId) {
   state.playingPresetIds.delete(presetId);
 
   if (state.playingPresetIds.size === 0 && state.schedulerId !== null) {
-    window.clearInterval(state.schedulerId);
     state.schedulerId = null;
+    if (state.schedulerChannel) {
+      state.schedulerChannel.port1.onmessage = null;
+      state.schedulerChannel = null;
+    }
   }
 }
 

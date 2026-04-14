@@ -1,11 +1,18 @@
 import { BASE_SOUND_PRESETS, DEFAULT_PRESET_ID } from "./constants.js";
 import { state } from "./state.js";
 
+const presetLabelCache = new Map();
+
 export function getPresetLabel(presetId) {
-  return presetId
+  if (presetLabelCache.has(presetId)) {
+    return presetLabelCache.get(presetId);
+  }
+  const label = presetId
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+  presetLabelCache.set(presetId, label);
+  return label;
 }
 
 export function getPresetIds() {

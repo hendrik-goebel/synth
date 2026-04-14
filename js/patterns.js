@@ -1,6 +1,21 @@
 import { DEFAULT_NOTE_IDS, NOTE_OPTIONS } from "./constants.js";
 import { state } from "./state.js";
 
+// Pre-built Map for O(1) frequency lookups instead of linear NOTE_OPTIONS.find()
+const noteFrequencyMap = new Map(NOTE_OPTIONS.map(({ id, frequency }) => [id, frequency]));
+
+// Cache note button DOM elements after first access
+let noteButtonCache = null;
+
+function getNoteButtonCache() {
+  if (!noteButtonCache) {
+    noteButtonCache = new Map(
+      NOTE_OPTIONS.map(({ id }) => [id, document.getElementById(id)]),
+    );
+  }
+  return noteButtonCache;
+}
+
 export function buildArpeggioPattern(notes) {
   if (notes.length < 2) {
     return notes.slice();
@@ -13,9 +28,10 @@ export function buildArpeggioPattern(notes) {
 }
 
 export function updateSelectedNotesFromUI() {
+  const buttons = getNoteButtonCache();
   state.instrumentNoteIdsByPresetId[state.activeInstrumentPresetId] = NOTE_OPTIONS
     .filter(({ id }) => {
-      const button = document.getElementById(id);
+      const button = buttons.get(id);
       return button && button.classList.contains("is-active");
     })
     .map(({ id }) => id);
@@ -26,9 +42,8 @@ export function updateSelectedNotesFromUI() {
 export function rebuildInstrumentPattern(presetId) {
   const selectedNoteIds = state.instrumentNoteIdsByPresetId[presetId] || DEFAULT_NOTE_IDS.slice();
   const selectedFrequencies = selectedNoteIds
-    .map((selectedId) => NOTE_OPTIONS.find((note) => note.id === selectedId))
-    .filter(Boolean)
-    .map((note) => note.frequency);
+    .map((id) => noteFrequencyMap.get(id))
+    .filter(Boolean);
 
   state.instrumentPatternsByPresetId[presetId] = buildArpeggioPattern(selectedFrequencies);
 }
@@ -51,9 +66,10 @@ export function getInstrumentPattern(presetId) {
 export function syncNoteButtonsFromActiveInstrumentPage() {
   ensureInstrumentNoteState(state.activeInstrumentPresetId);
   const selectedNoteIds = state.instrumentNoteIdsByPresetId[state.activeInstrumentPresetId];
+  const buttons = getNoteButtonCache();
 
   NOTE_OPTIONS.forEach((note) => {
-    const noteButton = document.getElementById(note.id);
+    const noteButton = buttons.get(note.id);
     if (!noteButton) {
       return;
     }

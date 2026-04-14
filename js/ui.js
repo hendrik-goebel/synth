@@ -9,6 +9,19 @@ import {
 import { getInstrumentParams, getPresetIds, getPresetLabel } from "./presets.js";
 import { state } from "./state.js";
 
+// Cache note button elements once for the lifetime of the page
+let noteButtonElements = null;
+
+function getNoteButtonElements() {
+  if (!noteButtonElements) {
+    noteButtonElements = NOTE_OPTIONS.map(({ id }) => document.getElementById(id)).filter(Boolean);
+  }
+  return noteButtonElements;
+}
+
+// Cache control config entries once
+const controlConfigEntries = Object.keys(controlConfig).map((id) => ({ id, ...controlConfig[id] }));
+
 export function setControlLabel(controlId, value) {
   const config = controlConfig[controlId];
   const valueElement = document.getElementById(config.valueId);
@@ -32,8 +45,31 @@ export function renderMixerChannels() {
     return;
   }
 
-  mixerChannelsContainer.innerHTML = "";
+  // Incremental update: if channels are already rendered, only patch class state
+  if (mixerChannelsContainer.children.length > 0) {
+    const strips = mixerChannelsContainer.querySelectorAll(".channel-strip[data-preset-id]");
+    strips.forEach((strip) => {
+      const { presetId } = strip.dataset;
+      const isPlaying = state.playingPresetIds.has(presetId);
+      const isCurrent = presetId === state.activeInstrumentPresetId;
 
+      strip.classList.toggle("is-current", isCurrent);
+
+      const indicator = strip.querySelector(".channel-indicator");
+      if (indicator) {
+        indicator.classList.toggle("is-playing", isPlaying);
+      }
+
+      const playBtn = strip.querySelector(".channel-play-btn");
+      if (playBtn) {
+        playBtn.textContent = isPlaying ? "Stop" : "Play";
+        playBtn.classList.toggle("is-playing", isPlaying);
+      }
+    });
+    return;
+  }
+
+  // Full initial render (runs only once)
   getPresetIds().forEach((presetId) => {
     const channelStrip = document.createElement("div");
     channelStrip.className = "channel-strip";
@@ -95,8 +131,7 @@ export function updateTransportUI() {
 export function syncControlsFromActiveInstrumentPage() {
   const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
 
-  Object.keys(controlConfig).forEach((controlId) => {
-    const { key } = controlConfig[controlId];
+  controlConfigEntries.forEach(({ id: controlId, key }) => {
     const value = GLOBAL_CONTROL_KEYS.has(key)
       ? state.synthParams[key]
       : instrumentParams[key];
@@ -108,15 +143,14 @@ export function syncControlsFromActiveInstrumentPage() {
 }
 
 export function bindControls() {
-  Object.keys(controlConfig).forEach((controlId) => {
-    const config = controlConfig[controlId];
+  controlConfigEntries.forEach(({ id: controlId, key }) => {
     const input = document.getElementById(controlId);
 
     if (!input) {
       return;
     }
 
-    setControlLabel(controlId, state.synthParams[config.key]);
+    setControlLabel(controlId, state.synthParams[key]);
 
     input.addEventListener("input", (event) => {
       const numericValue = Number.parseFloat(event.target.value);
@@ -125,34 +159,28 @@ export function bindControls() {
         return;
       }
 
-      if (GLOBAL_CONTROL_KEYS.has(config.key)) {
-        state.synthParams[config.key] = numericValue;
+      if (GLOBAL_CONTROL_KEYS.has(key)) {
+        state.synthParams[key] = numericValue;
         setControlLabel(controlId, numericValue);
-        applyLiveAudioUpdates(config.key, numericValue);
+        applyLiveAudioUpdates(key, numericValue);
         return;
       }
 
       const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
-      instrumentParams[config.key] = numericValue;
+      instrumentParams[key] = numericValue;
       setControlLabel(controlId, numericValue);
     });
   });
 }
 
 export function bindNoteSelector() {
-  NOTE_OPTIONS.forEach(({ id }) => {
-    const button = document.getElementById(id);
+  const buttons = getNoteButtonElements();
 
-    if (!button) {
-      return;
-    }
-
+  buttons.forEach((button) => {
     button.addEventListener("click", (event) => {
       event.currentTarget.classList.toggle("is-active");
 
-      const activeButtons = NOTE_OPTIONS
-        .map((note) => document.getElementById(note.id))
-        .filter((node) => node && node.classList.contains("is-active"));
+      const activeButtons = buttons.filter((btn) => btn.classList.contains("is-active"));
 
       if (activeButtons.length === 0) {
         event.currentTarget.classList.add("is-active");
@@ -160,14 +188,8 @@ export function bindNoteSelector() {
         return;
       }
 
-      NOTE_OPTIONS.forEach((note) => {
-        const noteButton = document.getElementById(note.id);
-        if (noteButton) {
-          noteButton.setAttribute(
-            "aria-pressed",
-            String(noteButton.classList.contains("is-active")),
-          );
-        }
+      buttons.forEach((btn) => {
+        btn.setAttribute("aria-pressed", String(btn.classList.contains("is-active")));
       });
 
       updateSelectedNotesFromUI();
