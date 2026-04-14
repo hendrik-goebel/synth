@@ -1,4 +1,4 @@
-import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_OPTIONS } from "./constants.js";
+import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_LENGTH_OPTIONS, NOTE_OPTIONS } from "./constants.js";
 import { applyLiveAudioUpdates, ensureAudioContext, startPresetPlayback, stopPresetPlayback } from "./audio-engine.js";
 import { ensureInstrumentNoteState, rebuildInstrumentPattern } from "./patterns.js";
 import { getInstrumentParams, getPresetIds } from "./presets.js";
@@ -7,6 +7,7 @@ import { state } from "./state.js";
 const validControlIds = new Set(Object.keys(controlConfig));
 const validPresetIds = new Set(getPresetIds());
 const validNoteIds = new Set(NOTE_OPTIONS.map(({ id }) => id));
+const validNoteLengths = new Set(NOTE_LENGTH_OPTIONS);
 
 function toNumber(value) {
   const numeric = Number.parseFloat(value);
@@ -51,6 +52,11 @@ export class AudioStateController extends EventTarget {
     const numericValue = toNumber(value);
     if (numericValue === null) {
       this.emitError(`Invalid control value for ${controlId}`, { controlId, value });
+      return false;
+    }
+
+    if (controlId === "note-length-toggle" && !validNoteLengths.has(numericValue)) {
+      this.emitError(`Invalid note length value for ${controlId}`, { controlId, value });
       return false;
     }
 

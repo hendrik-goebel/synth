@@ -764,4 +764,53 @@
 - Webpack compiled without errors and emitted updated assets.
 - Bundle size: 19.4 KiB (app.js) — expected growth due to distortion parameters.
 
+---
+
+# Task: Global 16th Notes Speed Toggle
+
+## Plan
+- [x] Add `playAt16thNotes` to global control keys and INITIAL_SYNTH_PARAMS.
+- [x] Update scheduler to double playback speed when enabled.
+- [x] Add checkbox toggle in UI.
+- [x] Wire up checkbox change handler and controller binding.
+- [x] Sync checkbox state with controller events.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `playAt16thNotes` (default 0) to `INITIAL_SYNTH_PARAMS` and `GLOBAL_CONTROL_KEYS` in `js/constants.js`.
+- Corrected `getStepDuration()` in `js/audio-engine.js` so enabling the toggle really halves the step duration and doubles playback speed.
+- Added `<input type="checkbox" id="play-at-16th-notes">` label after tempo control in `index.html`.
+- Added `bindPlayAt16thNotesToggle(controller)` in `js/ui.js` to handle checkbox change events.
+- Corrected `setControlUIValue()` / `bindControls()` in `js/ui.js` so checkbox controls update `checked` state instead of being treated like range inputs.
+- Updated `js/app.js` to call `bindPlayAt16thNotesToggle()` in bootstrap.
+
+## Review
+- `npm run build` completed successfully after adding 16th notes speed toggle.
+- Webpack compiled without errors and emitted updated assets.
+- HTML updated with checkbox (index.html size: 7.1 KiB).
+- Bundle size: 19.8 KiB (app.js) — minimal growth.
+
+---
+
+# Task: Global Note-Length Cycle Toggle (8 / 16 / 6 / 3)
+
+## Plan
+- [x] Replace the old boolean 16th-note state with a numeric global note-length value.
+- [x] Replace the checkbox UI with a single cycle button that rotates `8 → 16 → 6 → 3`.
+- [x] Validate allowed values in the controller so programmatic control stays in sync with the UI.
+- [x] Update scheduler timing to use denominator-based note lengths.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Added `NOTE_LENGTH_OPTIONS` in `js/constants.js` and replaced `playAt16thNotes` with global `noteLength` defaulting to `8`.
+- Replaced the old `play-at-16th-notes` checkbox control with `note-length-toggle` in `index.html` and added matching button styles in `css/style.css`.
+- Updated `js/audio-state-controller.js` so `note-length-toggle` only accepts `8`, `16`, `6`, or `3`.
+- Updated `js/ui.js` with `bindNoteLengthToggle(...)` to cycle through the allowed values on every click.
+- Updated `js/audio-engine.js` so `getStepDuration()` now uses `240 / (tempoBpm * noteLength)`.
+
+## Review
+- `npm run build` completed successfully after replacing the old checkbox with the note-length cycle toggle.
+- Webpack compiled without errors and emitted updated assets.
+- The cycle button now exposes the four supported global values: `8`, `16`, `6`, and `3`.
+
 

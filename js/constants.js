@@ -10,6 +10,7 @@ export const HUMANIZE = {
   fxSendAmount: 0.12,
 };
 export const MAX_SIMULTANEOUS_PRESETS = 12;
+export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 3];
 export const DEFAULT_NOTE_IDS = ["note-c4", "note-e4", "note-g4"];
 export const NOTE_OPTIONS = [
   { id: "note-c4", frequency: 261.63 },
@@ -289,6 +290,7 @@ export const GLOBAL_CONTROL_KEYS = new Set([
   "reverbMix",
   "delayTime",
   "delayFeedback",
+  "noteLength",
 ]);
 
 export const INITIAL_SYNTH_PARAMS = {
@@ -313,9 +315,15 @@ export const INITIAL_SYNTH_PARAMS = {
   oscAWave: "sawtooth",
   oscBWave: "triangle",
   subWave: "sine",
+  noteLength: 8,
 };
 
 export const controlConfig = {
+  "note-length-toggle": {
+    key: "noteLength",
+    valueId: "note-length-toggle-value",
+    formatter: (value) => String(Math.round(value)),
+  },
   "tempo-bpm": {
     key: "tempoBpm",
     valueId: "tempo-bpm-value",

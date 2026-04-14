@@ -15,3 +15,5 @@
 - In a multi-instrument mixer, explicitly pass channel identity into voice scheduling and gate channel-scoped effects (like distortion) there; do not assume per-instrument params alone prevent cross-channel perception.
 - Keep editor selection (`activeInstrumentPresetId`) out of DSP routing decisions; selection should only control which channel parameters are edited, never change how other running channels sound.
 - When startup variation is requested, randomize only during first state initialization and keep all later rebuilds deterministic from stored note IDs.
+- When adding boolean controls, treat checkboxes as `checked` state in the UI layer instead of writing to `.value`, and change transport speed by adjusting scheduler timing rather than pattern indexing.
+- When a timing control grows beyond on/off behavior, promote it to an explicit finite set of allowed values and compute note duration directly from that value instead of stacking special cases.

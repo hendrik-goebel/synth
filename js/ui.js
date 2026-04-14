@@ -1,4 +1,4 @@
-import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_OPTIONS } from "./constants.js";
+import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_LENGTH_OPTIONS, NOTE_OPTIONS } from "./constants.js";
 import { statusLabel } from "./dom.js";
 import {
   ensureInstrumentNoteState,
@@ -22,6 +22,9 @@ const controlConfigEntries = Object.keys(controlConfig).map((id) => ({ id, ...co
 
 export function setControlLabel(controlId, value) {
   const config = controlConfig[controlId];
+  if (!config?.valueId) {
+    return;
+  }
   const valueElement = document.getElementById(config.valueId);
 
   if (valueElement) {
@@ -32,7 +35,11 @@ export function setControlLabel(controlId, value) {
 export function setControlUIValue(controlId, value) {
   const input = document.getElementById(controlId);
   if (input) {
-    input.value = String(value);
+    if (input.type === "checkbox") {
+      input.checked = Boolean(Number(value));
+    } else {
+      input.value = String(value);
+    }
   }
   setControlLabel(controlId, value);
 }
@@ -144,7 +151,7 @@ export function bindControls() {
   controlConfigEntries.forEach(({ id: controlId }) => {
     const input = document.getElementById(controlId);
 
-    if (!input) {
+    if (!input || input.type === "checkbox" || input.tagName === "BUTTON") {
       return;
     }
 
@@ -156,6 +163,20 @@ export function bindControls() {
 
       controller.setControlValue(controlId, event.target.value);
     });
+  });
+}
+
+export function bindNoteLengthToggle(controller) {
+  const button = document.getElementById("note-length-toggle");
+  if (!button) {
+    return;
+  }
+
+  button.addEventListener("click", (event) => {
+    const currentValue = Number.parseInt(event.currentTarget.value, 10);
+    const currentIndex = NOTE_LENGTH_OPTIONS.indexOf(currentValue);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % NOTE_LENGTH_OPTIONS.length;
+    controller.setControlValue("note-length-toggle", NOTE_LENGTH_OPTIONS[nextIndex]);
   });
 }
 

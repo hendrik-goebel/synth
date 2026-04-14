@@ -36,7 +36,7 @@ function getDistortionCurve(amount) {
 }
 
 export function getStepDuration() {
-  return 30 / state.synthParams.tempoBpm;
+  return 240 / (state.synthParams.tempoBpm * state.synthParams.noteLength);
 }
 
 export function getNoteDuration() {
@@ -338,7 +338,6 @@ export function scheduleInstrumentStackNote(time) {
     if (pattern.length === 0) {
       return;
     }
-
 
     const layerFrequency = pattern[state.stepIndex % pattern.length];
     scheduleNote(
