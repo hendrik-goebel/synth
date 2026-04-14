@@ -10,7 +10,7 @@ export const HUMANIZE = {
   fxSendAmount: 0.12,
 };
 export const MAX_SIMULTANEOUS_PRESETS = 12;
-export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 3];
+export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
 export const DEFAULT_NOTE_IDS = ["note-c4", "note-e4", "note-g4"];
 export const NOTE_OPTIONS = [
   { id: "note-c4", frequency: 261.63 },

@@ -811,7 +811,7 @@
 ## Review
 - `npm run build` completed successfully after replacing the old checkbox with the note-length cycle toggle.
 - Webpack compiled without errors and emitted updated assets.
-- The cycle button now exposes the four supported global values: `8`, `16`, `6`, and `3`.
+- The cycle button now exposes supported values: `8`, `16`, `6`, `4`, and `3`.
 
 ---
 
@@ -868,7 +868,7 @@
 
 ## Progress Notes
 - Added `instrumentNoteLengthInitializedByPresetId` map in `js/state.js` to avoid overriding user changes after initialization.
-- Added weighted note-length selection in `js/patterns.js` with values `3`, `6`, `8`, `16` and note-count-dependent weights.
+- Added weighted note-length selection in `js/patterns.js` with values `3`, `4`, `6`, `8`, `16` and note-count-dependent weights.
 - `ensureInstrumentNoteState(...)` now assigns a randomized initial `noteLength` once per preset, based on how many startup notes were generated for that preset.
 - Updated `README.md` feature list with weighted randomized startup note lengths.
 

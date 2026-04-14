@@ -35,24 +35,28 @@ function getRandomPentatonicNoteIds() {
 const noteLengthWeightsByNoteCount = {
   2: [
     { value: 3, weight: 7 },
+    { value: 4, weight: 4 },
     { value: 6, weight: 4 },
     { value: 8, weight: 2 },
     { value: 16, weight: 1 },
   ],
   3: [
     { value: 3, weight: 5 },
+    { value: 4, weight: 4 },
     { value: 6, weight: 4 },
     { value: 8, weight: 3 },
     { value: 16, weight: 2 },
   ],
   4: [
     { value: 3, weight: 3 },
+    { value: 4, weight: 4 },
     { value: 6, weight: 4 },
     { value: 8, weight: 4 },
     { value: 16, weight: 3 },
   ],
   5: [
     { value: 3, weight: 1 },
+    { value: 4, weight: 2 },
     { value: 6, weight: 3 },
     { value: 8, weight: 5 },
     { value: 16, weight: 5 },
