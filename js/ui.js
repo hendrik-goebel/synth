@@ -240,9 +240,11 @@ export function bindKeyboardShortcuts(controller) {
   const presetIds = getPresetIds();
 
   document.addEventListener("keydown", (event) => {
-    // Ignore when focus is inside a text-like input to avoid hijacking typing
-    const tag = document.activeElement?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    // Ignore when focus is inside a text-entry input to avoid hijacking typing
+    const el = document.activeElement;
+    const textLike = el?.tagName === "TEXTAREA" || el?.tagName === "SELECT" ||
+      (el?.tagName === "INPUT" && el.type !== "range" && el.type !== "checkbox" && el.type !== "button");
+    if (textLike) {
       return;
     }
 
