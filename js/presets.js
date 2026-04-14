@@ -1,8 +1,9 @@
-import { BASE_SOUND_PRESETS, DEFAULT_PRESET_ID } from "./constants.js";
+import { BASE_SOUND_PRESETS, DEFAULT_PRESET_ID, GLOBAL_CONTROL_KEYS } from "./constants.js";
 import { state } from "./state.js";
 
 const presetLabelCache = new Map();
 const presetPanCache = new Map();
+const NON_PRESET_PARAM_KEYS = new Set([...GLOBAL_CONTROL_KEYS, "delayTime"]);
 
 function getInitialStereoPan(presetId) {
   if (presetPanCache.has(presetId)) {
@@ -37,9 +38,16 @@ export function getPresetIds() {
 }
 
 export function createInstrumentParams(presetId) {
+  const presetOverrides = Object.fromEntries(
+    Object.entries(BASE_SOUND_PRESETS[presetId] || {}).filter(
+      ([key]) => !NON_PRESET_PARAM_KEYS.has(key),
+    ),
+  );
+
   return {
     ...state.synthParams,
-    ...(BASE_SOUND_PRESETS[presetId] || {}),
+    ...presetOverrides,
+    // Keep shared controls global; presets should only contribute instrument-scoped defaults.
     // Ensure every instrument starts at a unique panorama position.
     stereoPan: getInitialStereoPan(presetId),
   };

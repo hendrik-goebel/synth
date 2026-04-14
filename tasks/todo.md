@@ -1013,3 +1013,37 @@
 - `npm run build` completed successfully after strengthening the shared delay.
 - Webpack compiled without errors and emitted updated assets.
 
+---
+
+# Task: Soften Delay Feedback Range
+
+## Plan
+- [ ] Inspect the current delay feedback UI range and audio-engine mapping.
+- [ ] Reduce the exposed feedback ceiling so the strongest repeats are less aggressive.
+- [ ] Keep the control behavior consistent between `index.html`, `js/constants.js`, and `js/audio-engine.js`.
+- [ ] Update `tasks/lessons.md` with a guardrail for shared-FX range changes.
+- [ ] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Investigated the current feedback path after the recent delay-extreme change; the user-facing range is now capped at `0.88` in both the slider and `getDelayFeedbackGain(...)`.
+
+## Review
+- Pending implementation.
+
+---
+
+# Task: Clarify Global Delay Feedback Ownership
+
+## Plan
+- [ ] Trace how preset params are created and whether preset-level `delayFeedback` can affect the audio engine.
+- [ ] Remove misleading preset-level global FX keys from `js/constants.js` if they are dead data.
+- [ ] Add a code guard so `BASE_SOUND_PRESETS` cannot override global controls in `js/presets.js`.
+- [ ] Update `tasks/lessons.md` with a rule about separating preset-scoped and global parameters.
+- [ ] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed `delayFeedback` is treated as a global key in `GLOBAL_CONTROL_KEYS`, while `createInstrumentParams(...)` currently spreads preset values over shared defaults, which makes stray preset-level global keys misleading even if the engine reads feedback from `state.synthParams`.
+
+## Review
+- Pending implementation.
+

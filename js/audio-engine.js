@@ -73,7 +73,7 @@ function getDelayHighpassFrequencyForTimbre(timbreBias = getGlobalTimbreBias()) 
 }
 
 function getDelayFeedbackGain(value = state.synthParams.delayFeedback) {
-  return clamp(value, 0, 0.88);
+  return clamp(value, 0, 0.72);
 }
 
 function getDelayDivisionOption(divisionIndex = state.synthParams.delayDivision) {
