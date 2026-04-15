@@ -9,6 +9,9 @@ import { state } from "./state.js";
 
 // Cache note button elements once for the lifetime of the page
 let noteButtonElements = null;
+const mixerChannelCache = new Map();
+const controlElementCache = new Map();
+const controlLabelElementCache = new Map();
 
 function getNoteButtonElements() {
   if (!noteButtonElements) {
@@ -25,7 +28,13 @@ export function setControlLabel(controlId, value) {
   if (!config?.valueId) {
     return;
   }
-  const valueElement = document.getElementById(config.valueId);
+  let valueElement = controlLabelElementCache.get(config.valueId);
+  if (!valueElement) {
+    valueElement = document.getElementById(config.valueId);
+    if (valueElement) {
+      controlLabelElementCache.set(config.valueId, valueElement);
+    }
+  }
 
   if (valueElement) {
     valueElement.textContent = config.formatter(value);
@@ -33,12 +42,24 @@ export function setControlLabel(controlId, value) {
 }
 
 export function setControlUIValue(controlId, value) {
-  const input = document.getElementById(controlId);
+  let input = controlElementCache.get(controlId);
+  if (!input) {
+    input = document.getElementById(controlId);
+    if (input) {
+      controlElementCache.set(controlId, input);
+    }
+  }
   if (input) {
     if (input.type === "checkbox") {
-      input.checked = Boolean(Number(value));
+      const nextChecked = Boolean(Number(value));
+      if (input.checked !== nextChecked) {
+        input.checked = nextChecked;
+      }
     } else {
-      input.value = String(value);
+      const nextValue = String(value);
+      if (input.value !== nextValue) {
+        input.value = nextValue;
+      }
     }
   }
   setControlLabel(controlId, value);
@@ -51,30 +72,25 @@ export function renderMixerChannels() {
   }
 
   // Incremental update: if channels are already rendered, only patch class state
-  if (mixerChannelsContainer.children.length > 0) {
-    const strips = mixerChannelsContainer.querySelectorAll(".channel-strip[data-preset-id]");
-    strips.forEach((strip) => {
-      const { presetId } = strip.dataset;
+  if (mixerChannelCache.size > 0) {
+    mixerChannelCache.forEach(({ strip, indicator, playBtn }, presetId) => {
       const isPlaying = state.playingPresetIds.has(presetId);
       const isCurrent = presetId === state.activeInstrumentPresetId;
 
       strip.classList.toggle("is-current", isCurrent);
+      indicator.classList.toggle("is-playing", isPlaying);
 
-      const indicator = strip.querySelector(".channel-indicator");
-      if (indicator) {
-        indicator.classList.toggle("is-playing", isPlaying);
+      const nextPlayLabel = isPlaying ? "Stop" : "Play";
+      if (playBtn.textContent !== nextPlayLabel) {
+        playBtn.textContent = nextPlayLabel;
       }
-
-      const playBtn = strip.querySelector(".channel-play-btn");
-      if (playBtn) {
-        playBtn.textContent = isPlaying ? "Stop" : "Play";
-        playBtn.classList.toggle("is-playing", isPlaying);
-      }
+      playBtn.classList.toggle("is-playing", isPlaying);
     });
     return;
   }
 
   // Full initial render (runs only once)
+  mixerChannelCache.clear();
   getPresetIds().forEach((presetId) => {
     const channelStrip = document.createElement("div");
     channelStrip.className = "channel-strip";
@@ -124,15 +140,19 @@ export function renderMixerChannels() {
     buttonsDiv.append(playBtn, variationBtn, noteLengthBtn);
     channelStrip.append(nameDiv, indicator, buttonsDiv);
     mixerChannelsContainer.append(channelStrip);
+
+    mixerChannelCache.set(presetId, {
+      strip: channelStrip,
+      indicator,
+      playBtn,
+      noteLengthBtn,
+    });
   });
 }
 
 function updateChannelNoteLengthButton(presetId, value) {
-  const container = document.getElementById("mixer-channels");
-  if (!container) return;
-  const strip = container.querySelector(`.channel-strip[data-preset-id="${presetId}"]`);
-  if (!strip) return;
-  const btn = strip.querySelector(".channel-note-length-btn");
+  const channelElements = mixerChannelCache.get(presetId);
+  const btn = channelElements?.noteLengthBtn;
   if (!btn) return;
   const rounded = Math.round(value);
   btn.textContent = `1/${rounded}`;
@@ -171,6 +191,9 @@ export function syncControlsFromActiveInstrumentPage() {
 export function bindControls() {
   controlConfigEntries.forEach(({ id: controlId }) => {
     const input = document.getElementById(controlId);
+    if (input) {
+      controlElementCache.set(controlId, input);
+    }
 
     if (!input || input.type === "checkbox" || input.tagName === "BUTTON") {
       return;
@@ -243,8 +266,10 @@ export function bindMixerChannels(controller) {
       return;
     }
 
-    // Always select the instrument first, regardless of which part was clicked
-    controller.selectInstrument(presetId);
+    // Keep controls scoped to the clicked channel, but avoid redundant re-sync work.
+    if (state.activeInstrumentPresetId !== presetId) {
+      controller.selectInstrument(presetId);
+    }
 
     if (playBtn) {
       await controller.togglePlayback(presetId);
@@ -302,6 +327,7 @@ export function bindControllerEvents(controller) {
   controlConfigEntries.forEach(({ id: controlId }) => {
     const input = document.getElementById(controlId);
     if (input) {
+      controlElementCache.set(controlId, input);
       input.controllerRef = controller;
     }
   });

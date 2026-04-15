@@ -3,7 +3,29 @@ import { state } from "./state.js";
 
 const presetLabelCache = new Map();
 const presetPanCache = new Map();
+const presetOverrideCache = new Map();
 const NON_PRESET_PARAM_KEYS = new Set([...GLOBAL_CONTROL_KEYS, "delayTime"]);
+const PRESET_IDS = Object.keys(BASE_SOUND_PRESETS);
+
+function getPresetOverrides(presetId) {
+  if (presetOverrideCache.has(presetId)) {
+    return presetOverrideCache.get(presetId);
+  }
+
+  const source = BASE_SOUND_PRESETS[presetId] || {};
+  const result = {};
+  const keys = Object.keys(source);
+
+  for (let i = 0; i < keys.length; i += 1) {
+    const key = keys[i];
+    if (!NON_PRESET_PARAM_KEYS.has(key)) {
+      result[key] = source[key];
+    }
+  }
+
+  presetOverrideCache.set(presetId, result);
+  return result;
+}
 
 function getInitialStereoPan(presetId) {
   if (presetPanCache.has(presetId)) {
@@ -34,15 +56,11 @@ export function getPresetLabel(presetId) {
 }
 
 export function getPresetIds() {
-  return Object.keys(BASE_SOUND_PRESETS);
+  return PRESET_IDS;
 }
 
 export function createInstrumentParams(presetId) {
-  const presetOverrides = Object.fromEntries(
-    Object.entries(BASE_SOUND_PRESETS[presetId] || {}).filter(
-      ([key]) => !NON_PRESET_PARAM_KEYS.has(key),
-    ),
-  );
+  const presetOverrides = getPresetOverrides(presetId);
 
   return {
     ...state.synthParams,

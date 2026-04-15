@@ -920,9 +920,6 @@
 - `npm run build` completed successfully after adding note length `4`.
 - Webpack compiled without errors and emitted updated assets.
 
-
-
-
 ---
 
 # Task: Darker, Warmer, More Variable Preset Library
@@ -1078,3 +1075,24 @@
 - `npm run build` completed successfully after capping the delay feedback range at `0.11`.
 - Webpack compiled without errors and emitted updated assets.
 
+---
+
+# Task: Optimize For Better Live Performance
+
+## Plan
+- [x] Identify hot paths in scheduler and mixer UI updates.
+- [x] Reduce per-tick allocations and repeated lookups in `js/audio-engine.js`.
+- [x] Cache frequently used DOM references in `js/ui.js`.
+- [x] Reduce repeated preset-data allocations in `js/presets.js`.
+- [x] Verify by running a production build.
+
+## Progress Notes
+- Refactored scheduler hot path in `js/audio-engine.js` to use local loop state (`nextNoteTime`, `stepIndex`) and `for` loops instead of callback-based iteration.
+- Removed repeated scheduler early-check array allocations by using `state.playingPresetIds.size` and passing layer metadata into `scheduleInstrumentStackNote(...)`.
+- Added DOM caches in `js/ui.js` for controls, value labels, and mixer channel elements to avoid repeated `getElementById` / `querySelector` calls.
+- Updated mixer incremental rendering to patch cached nodes directly and avoid unnecessary text/value writes.
+- Added preset-id and override caching in `js/presets.js` to avoid recreating `Object.keys` / filtered override objects.
+
+## Review
+- `npm run build` completed successfully after the live-performance optimizations.
+- Webpack compiled without errors and emitted updated assets.

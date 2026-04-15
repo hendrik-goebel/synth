@@ -481,48 +481,67 @@ export function scheduleNote(
   };
 }
 
-export function scheduleInstrumentStackNote(time) {
-  const presetIds = getPlayablePresetIds();
+export function scheduleInstrumentStackNote(time, layerCount, stepIndex = state.stepIndex) {
+  if (!layerCount) {
+    return;
+  }
 
-  presetIds.forEach((presetId, layerIndex) => {
+  const activePresetIds = state.activePresetIds;
+  const playingPresetIds = state.playingPresetIds;
+  let layerIndex = 0;
+
+  for (let i = 0; i < activePresetIds.length; i += 1) {
+    const presetId = activePresetIds[i];
+    if (!playingPresetIds.has(presetId)) {
+      continue;
+    }
+
+    const currentLayerIndex = layerIndex;
+    layerIndex += 1;
+
     const voiceParams = getInstrumentParams(presetId);
     const pattern = getInstrumentPattern(presetId);
     const noteLength = voiceParams.noteLength || 8;
     const stepInterval = SCHEDULER_GRID_DIVISION / noteLength;
 
-    if (pattern.length === 0) {
-      return;
+    if (pattern.length === 0 || stepIndex % stepInterval !== 0) {
+      continue;
     }
 
-    if (state.stepIndex % stepInterval !== 0) {
-      return;
-    }
-
-    const patternStepIndex = Math.floor(state.stepIndex / stepInterval);
+    const patternStepIndex = Math.floor(stepIndex / stepInterval);
     const layerFrequency = pattern[patternStepIndex % pattern.length];
     scheduleNote(
       layerFrequency,
       time,
       voiceParams,
-      layerIndex,
-      presetIds.length,
+      currentLayerIndex,
+      layerCount,
       noteLength,
     );
-  });
+  }
 }
 
 export function scheduleAhead() {
   const lookaheadSeconds = 0.18;
 
-  if (getPlayablePresetIds().length === 0 || !state.audioContext) {
+  if (state.playingPresetIds.size === 0 || !state.audioContext) {
     return;
   }
 
-  while (state.nextNoteTime < state.audioContext.currentTime + lookaheadSeconds) {
-    scheduleInstrumentStackNote(state.nextNoteTime);
-    state.nextNoteTime += getStepDuration();
-    state.stepIndex += 1;
+  const layerCount = getPlayablePresetIds().length;
+  const lookaheadEndTime = state.audioContext.currentTime + lookaheadSeconds;
+  const stepDuration = getStepDuration();
+  let nextNoteTime = state.nextNoteTime;
+  let stepIndex = state.stepIndex;
+
+  while (nextNoteTime < lookaheadEndTime) {
+    scheduleInstrumentStackNote(nextNoteTime, layerCount, stepIndex);
+    nextNoteTime += stepDuration;
+    stepIndex += 1;
   }
+
+  state.nextNoteTime = nextNoteTime;
+  state.stepIndex = stepIndex;
 }
 
 export function startPresetPlayback(presetId) {
