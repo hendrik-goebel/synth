@@ -25,6 +25,33 @@ export const DELAY_DIVISION_OPTIONS = [
   { label: "1/8D", beats: 0.75 },
   { label: "1/4", beats: 1 },
 ];
+export const LFO_TARGET_OPTIONS = [
+  { label: "Off", key: null, min: 0, max: 0 },
+  { label: "Filter Cutoff", key: "filterCutoff", min: 250, max: 8000 },
+  { label: "Filter Resonance", key: "filterQ", min: 0.2, max: 12 },
+];
+export const LFO_RATE_MIN_HZ = 0.05;
+export const LFO_RATE_MAX_HZ = 12;
+export const LFO_RATE_CURVE_EXPONENT = 1.15;
+
+export function clampLfoRateHz(value) {
+  const numeric = Number.isFinite(value) ? value : LFO_RATE_MIN_HZ;
+  return Math.min(LFO_RATE_MAX_HZ, Math.max(LFO_RATE_MIN_HZ, numeric));
+}
+
+export function lfoRateFromNormalized(normalized) {
+  const t = Math.min(1, Math.max(0, Number.isFinite(normalized) ? normalized : 0));
+  const curved = Math.pow(t, LFO_RATE_CURVE_EXPONENT);
+  const ratio = LFO_RATE_MAX_HZ / LFO_RATE_MIN_HZ;
+  return LFO_RATE_MIN_HZ * Math.pow(ratio, curved);
+}
+
+export function normalizedFromLfoRate(rateHz) {
+  const clampedRate = clampLfoRateHz(rateHz);
+  const ratio = LFO_RATE_MAX_HZ / LFO_RATE_MIN_HZ;
+  const curved = Math.log(clampedRate / LFO_RATE_MIN_HZ) / Math.log(ratio);
+  return Math.pow(curved, 1 / LFO_RATE_CURVE_EXPONENT);
+}
 export const DEFAULT_NOTE_IDS = ["note-c4", "note-e4", "note-g4"];
 export const NOTE_OPTIONS = [
   { id: "note-c4", frequency: 261.63 },
@@ -148,11 +175,12 @@ export const BASE_SOUND_PRESETS = {
     filterCutoff: 1350,
     filterTracking: 0.78,
     filterQ: 1.3,
-    attack: 0.03,
-    decay: 0.18,
-    release: 0.18,
+    attack: 0.01,
+    decay: 0.01,
+    release: 0.10,
     stereoPan: 0.2,
-    reverbSend: 0.68,
+    reverbSend: 0,
+    delaySend: 0,
     distortionDrive: 0.18,
     distortionMix: 0.1,
     distortionTone: 2100,
@@ -274,6 +302,9 @@ export const DEFAULT_PRESET_ID = "warm-pad";
 export const GLOBAL_CONTROL_KEYS = new Set([
   "tempoBpm",
   "globalTimbre",
+  "lfoTarget",
+  "lfoRate",
+  "lfoDepth",
   "masterVolume",
   "reverbMix",
   "delayDivision",
@@ -287,6 +318,9 @@ export const POST_FILTER_WEB_AUDIO_TYPES = [null, "lowpass", "highpass", "bandpa
 export const INITIAL_SYNTH_PARAMS = {
   tempoBpm: 120,
   globalTimbre: 0,
+  lfoTarget: 0,
+  lfoRate: 1.2,
+  lfoDepth: 0,
   attack: 0.1,
   decay: 0.5,
   release: 0.08,
@@ -337,6 +371,24 @@ export const controlConfig = {
       }
       return value < 0 ? ` ${amount}%` : ` ${amount}%`;
     },
+  },
+  "lfo-target": {
+    key: "lfoTarget",
+    valueId: "lfo-target-value",
+    formatter: (value) => {
+      const index = Math.max(0, Math.min(LFO_TARGET_OPTIONS.length - 1, Math.round(value)));
+      return LFO_TARGET_OPTIONS[index].label;
+    },
+  },
+  "lfo-rate": {
+    key: "lfoRate",
+    valueId: "lfo-rate-value",
+    formatter: (value) => `${value.toFixed(2)} Hz`,
+  },
+  "lfo-depth": {
+    key: "lfoDepth",
+    valueId: "lfo-depth-value",
+    formatter: (value) => `${Math.round(value * 100)}%`,
   },
   "tempo-bpm": {
     key: "tempoBpm",

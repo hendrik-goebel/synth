@@ -3,6 +3,7 @@ import {
   DELAY_FEEDBACK_MAX,
   DELAY_DIVISION_OPTIONS,
   GLOBAL_CONTROL_KEYS,
+  LFO_TARGET_OPTIONS,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
@@ -17,6 +18,7 @@ const validPresetIds = new Set(getPresetIds());
 const validNoteIds = new Set(NOTE_OPTIONS.map(({ id }) => id));
 const validNoteLengths = new Set(NOTE_LENGTH_OPTIONS);
 const validDelayDivisionIndices = new Set(DELAY_DIVISION_OPTIONS.map((_, index) => index));
+const validLfoTargetIndices = new Set(LFO_TARGET_OPTIONS.map((_, index) => index));
 const validPostFilterTypes = new Set(POST_FILTER_TYPE_OPTIONS);
 
 function toNumber(value) {
@@ -72,6 +74,11 @@ export class AudioStateController extends EventTarget {
 
     if (controlId === "delay-time" && !validDelayDivisionIndices.has(numericValue)) {
       this.emitError(`Invalid delay division value for ${controlId}`, { controlId, value });
+      return false;
+    }
+
+    if (controlId === "lfo-target" && !validLfoTargetIndices.has(numericValue)) {
+      this.emitError(`Invalid LFO target value for ${controlId}`, { controlId, value });
       return false;
     }
 

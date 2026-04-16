@@ -31,3 +31,9 @@
 - For mixer-like UIs with frequent state changes, cache per-channel DOM references after initial render and patch only changed classes/text to reduce query and reflow overhead.
 - For channel mute controls, apply volume at a dedicated final gain stage (post-voice shaping, pre-routing) and avoid relying on upstream envelope floors/clamps, otherwise `0` may still leak audible signal.
 - For click-prone note engines, hard-skip scheduling when channel volume is effectively muted and align oscillator stop time with release decay; stopping too early can reintroduce note-end pops.
+- Keep modulation targets in the same domain as their UI section: if an LFO is presented in filter controls, map it to filter parameters (for example cutoff/Q) instead of unrelated FX nodes.
+- For noise-based transients, start gain at true zero and ramp up linearly before exponential decay; beginning at a non-zero gain can click because the buffer starts on random sample values.
+- If clicks remain when ADSR values increase, pre-start oscillators a couple of milliseconds at zero gain and enforce a hard near-zero fade before `stop()`; short tails can present as next-note click artifacts.
+- For modulation-rate controls, prefer logarithmic slider mapping so low values get finer resolution; linear Hz sliders make musically important slow rates hard to dial in.
+- When pure log mapping still feels too linear, add a mild curve exponent and keep the inverse mapping in sync; this increases low-rate precision without breaking stored Hz values.
+- For per-voice distortion paths, ramp dry/wet gains from pre-start and fade both to zero before oscillator stop; abrupt mix-node state changes are a common source of clicks.

@@ -1174,3 +1174,149 @@
 - `npm run build` completed successfully after the follow-up pop/mute fix.
 - Webpack compiled without errors and emitted updated assets.
 
+---
+
+# Task: Assignable FX LFO Oscillator
+
+## Plan
+- [x] Add global LFO config and control mapping in `js/constants.js`.
+- [x] Add global LFO controls to `index.html`.
+- [x] Implement assignable LFO routing and live updates in `js/audio-engine.js`.
+- [x] Validate new LFO target values in `js/audio-state-controller.js`.
+- [ ] Verify by running a project build.
+
+## Progress Notes
+- Added `LFO_TARGET_OPTIONS` with `Off`, `Delay Feedback`, `Delay Tone`, and `Delay HPF` targets.
+- Added global synth params and controls for `lfoTarget`, `lfoRate`, and `lfoDepth`.
+- Added an LFO section in the global panel with target/rate/depth sliders and live value labels.
+- Added engine-side LFO oscillator + depth gain nodes with safe reconnect logic when retargeting.
+- LFO depth is clamped against each target's current headroom so modulation does not force values beyond target bounds.
+- Updated `README.md` feature list with the new assignable FX LFO.
+
+## Review
+- Static IDE checks (`get_errors`) report no errors on edited files.
+- Build verification is still pending because the `npm run build` execution was skipped.
+
+---
+
+# Task: Move LFO To Filter Section And Filter Targets
+
+## Plan
+- [x] Move the LFO controls from the global panel into the Filter section in `index.html`.
+- [x] Change LFO target options from delay FX params to filter params in `js/constants.js`.
+- [x] Update modulation logic in `js/audio-engine.js` so LFO affects filter cutoff/resonance values.
+- [x] Remove obsolete LFO audio-routing state fields in `js/state.js`.
+- [x] Verify by running a project build.
+
+## Progress Notes
+- Relocated `lfo-target`, `lfo-rate`, and `lfo-depth` controls to the Filter control group.
+- Updated target list to `Off`, `Filter Cutoff`, and `Filter Resonance`.
+- Replaced delay-audio-param LFO routing with per-note filter modulation derived from LFO phase at schedule time.
+- Kept LFO control IDs and controller validation flow unchanged so UI and API remain consistent.
+- Updated `README.md` feature text to match the new filter-scoped LFO behavior.
+
+## Review
+- Static IDE checks (`get_errors`) report no errors on edited files.
+- `npm run build` completed successfully after moving LFO controls/targets to the filter path.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Click Noise At Note Start For Glass Instrument
+
+## Plan
+- [x] Inspect note-on signal path for click-prone discontinuities.
+- [x] Apply a minimal fix focused on note-start transient behavior.
+- [x] Verify with static checks and a production build.
+
+## Progress Notes
+- Root cause found in `js/audio-engine.js`: transient noise envelope started at a non-zero gain (`0.0001`) while the noise buffer begins at random sample values, creating a sharp edge at note start.
+- Updated transient envelope in `scheduleNote(...)` to start at `0`, ramp linearly to peak, then decay exponentially.
+
+## Review
+- Static IDE checks (`get_errors`) report no errors on edited files.
+- `npm run build` completed successfully after the transient note-on smoothing fix.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Glass Click/Pop Follow-up (Attack/Decay Sensitive)
+
+## Plan
+- [x] Re-check note-on/off envelope scheduling for discontinuities that can sound like start-clicks.
+- [x] Add a tiny muted pre-start for oscillators to avoid hard oscillator edge at note trigger.
+- [x] Force a stricter near-zero fade before oscillator stop to reduce end pops that mask as next-note clicks.
+- [x] Verify with static checks and a production build.
+
+## Progress Notes
+- Added `preStartTime` (`time - 2ms`) in `js/audio-engine.js` so oscillators begin while all gains are still at zero.
+- Applied the same pre-start baseline to key gain/filter automation points (`voiceGain`, `upperMix`, `subMix`, sends, and `channelOutputGain`).
+- Extended release tail handling with `releaseTimeConstant` and a final `linearRampToValueAtTime(0, voiceFadeOutTime)` before node stop.
+- Also applied release fade-out to `channelOutputGain` so the final output stage reaches silence deterministically.
+
+## Review
+- Static IDE checks (`get_errors`) report no errors on edited files.
+- `npm run build` completed successfully after the ADSR-sensitive click/pop follow-up fix.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Improve Low-Rate Resolution For LFO Rate Slider
+
+## Plan
+- [x] Add shared LFO rate mapping helpers in `js/constants.js`.
+- [x] Make `lfo-rate` UI input work on normalized `0..1` and map to Hz in `js/ui.js`.
+- [x] Keep audio engine consumption in Hz with centralized clamping in `js/audio-engine.js`.
+- [x] Verify with static checks and a production build.
+
+## Progress Notes
+- Added `LFO_RATE_MIN_HZ` / `LFO_RATE_MAX_HZ` and mapping helpers (`lfoRateFromNormalized`, `normalizedFromLfoRate`, `clampLfoRateHz`).
+- Updated `setControlUIValue(...)` so `lfo-rate` displays/stores slider position as normalized value while label still shows Hz.
+- Updated `bindControls()` so `lfo-rate` emits mapped Hz values into the existing controller/state flow.
+- Updated `index.html` `lfo-rate` range to `0..1` with fine `0.001` steps for better low-rate control.
+
+## Review
+- Static checks passed on edited files; existing warnings remain unrelated (`DEFAULT_NOTE_IDS` unused, existing `ui.js` warnings).
+- `npm run build` completed successfully after the LFO rate scaling update.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Increase Low-End Emphasis For LFO Rate Slider
+
+## Plan
+- [x] Add an extra curve exponent on top of the log LFO-rate mapping in `js/constants.js`.
+- [x] Keep forward/inverse mapping mathematically aligned for stable UI round-trips.
+- [x] Update the `index.html` `lfo-rate` default normalized value to match the unchanged default `1.2 Hz`.
+- [x] Verify with static checks and a production build.
+
+## Progress Notes
+- Added `LFO_RATE_CURVE_EXPONENT` (`1.15`) in `js/constants.js` to give slow rates more slider travel.
+- Updated `lfoRateFromNormalized(...)` and `normalizedFromLfoRate(...)` to apply the same exponent/inverse so the slider and stored Hz values remain consistent.
+- Updated initial `#lfo-rate` slider value in `index.html` to the new normalized position for approximately `1.20 Hz`.
+
+## Review
+- Static checks passed on edited files; the existing unused `DEFAULT_NOTE_IDS` warning remains unrelated.
+- `npm run build` completed successfully after increasing low-end emphasis for LFO rate.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Distortion Click/Pop Regression
+
+## Plan
+- [x] Inspect distortion dry/wet automation timing around note start/end in `js/audio-engine.js`.
+- [x] Smooth distortion dry/wet from `preStartTime` and add explicit fade-out before voice stop.
+- [x] Delay voice-node disconnect slightly after oscillator end so automation tails settle.
+- [x] Verify with static checks and a production build.
+
+## Progress Notes
+- Updated distortion mix automation in `scheduleNote(...)` to start from `preStartTime` and avoid hard gain edges.
+- Added explicit end-of-note ramps for both `distortionDry` and `distortionWet` gains to `0` at `voiceFadeOutTime`.
+- Added a short delayed disconnect (`12ms`) in `oscA.onended` to avoid click-prone immediate graph teardown.
+
+## Review
+- Static IDE checks (`get_errors`) report no errors on edited files.
+- `npm run build` completed successfully after the distortion click/pop regression fix.
+- Webpack compiled without errors and emitted updated assets.
+

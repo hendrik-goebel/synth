@@ -1,7 +1,9 @@
 import {
   DELAY_FEEDBACK_MAX,
   DELAY_DIVISION_OPTIONS,
+  clampLfoRateHz,
   HUMANIZE,
+  LFO_TARGET_OPTIONS,
   MAX_SIMULTANEOUS_PRESETS,
   POST_FILTER_WEB_AUDIO_TYPES,
   REVERB_DECAY,
@@ -81,6 +83,26 @@ function getDelayFeedbackGain(value = state.synthParams.delayFeedback) {
 function getDelayDivisionOption(divisionIndex = state.synthParams.delayDivision) {
   const normalizedIndex = clamp(Math.round(divisionIndex ?? 4), 0, DELAY_DIVISION_OPTIONS.length - 1);
   return DELAY_DIVISION_OPTIONS[normalizedIndex];
+}
+
+function getLfoTargetOption(targetIndex = state.synthParams.lfoTarget) {
+  const normalizedIndex = clamp(Math.round(targetIndex ?? 0), 0, LFO_TARGET_OPTIONS.length - 1);
+  return LFO_TARGET_OPTIONS[normalizedIndex];
+}
+
+function getLfoModulationAtTime(time) {
+  const targetOption = getLfoTargetOption();
+  if (!targetOption.key) {
+    return { key: null, amount: 0 };
+  }
+
+  const rate = clampLfoRateHz(state.synthParams.lfoRate ?? 1.2);
+  const depth = clamp(state.synthParams.lfoDepth ?? 0, 0, 1);
+  const phase = time * Math.PI * 2 * rate;
+  return {
+    key: targetOption.key,
+    amount: Math.sin(phase) * depth,
+  };
 }
 
 export function getTempoSyncedDelayTime(
@@ -253,8 +275,11 @@ export function scheduleNote(
   }
 
   const noteDuration = getNoteDuration(noteLength);
+  const preStartTime = Math.max(0, time - 0.002);
   const releaseStartTime = Math.max(time + 0.02, time + noteDuration - voiceParams.release);
-  const stopTime = releaseStartTime + Math.max(0.05, voiceParams.release * 3);
+  const releaseTimeConstant = Math.max(0.008, voiceParams.release / 3);
+  const stopTime = releaseStartTime + Math.max(0.08, releaseTimeConstant * 6);
+  const voiceFadeOutTime = Math.max(releaseStartTime + 0.01, stopTime - 0.004);
   const layerGainScale = 1 / Math.sqrt(layerCount);
   const timbreBias = getGlobalTimbreBias();
   const warmAmount = Math.max(0, -timbreBias);
@@ -318,18 +343,25 @@ export function scheduleNote(
   );
   const peakGain = basePeakGain;
   const sustainGain = baseSustainGain;
-  const cutoffWithVariation = clamp(
+  let cutoffWithVariation = clamp(
     (Math.min(8000, voiceParams.filterCutoff + frequency * filterTracking)) *
       (1 - warmAmount * 0.35 + coldAmount * 0.55) *
       (1 + randomCentered(HUMANIZE.cutoffAmount)),
     250,
     8000,
   );
-  const filterQValue = clamp(
+  let filterQValue = clamp(
     voiceParams.filterQ * (1 - warmAmount * 0.12 + coldAmount * 0.18),
     0.2,
     12,
   );
+  const lfoModulation = getLfoModulationAtTime(time);
+  if (lfoModulation.key === "filterCutoff") {
+    cutoffWithVariation = clamp(cutoffWithVariation + lfoModulation.amount * 2200, 250, 8000);
+  }
+  if (lfoModulation.key === "filterQ") {
+    filterQValue = clamp(filterQValue + lfoModulation.amount * 2.5, 0.2, 12);
+  }
   const delaySendValue = clamp(
     voiceParams.delaySend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
     0,
@@ -364,38 +396,39 @@ export function scheduleNote(
   const pitchDropRampTime = time + Math.max(0.01, transientDecay * 1.5);
 
   oscA.type = voiceParams.oscAWave;
-  oscA.frequency.setValueAtTime(frequency, time);
-  oscA.detune.setValueAtTime(oscABaseDetune + pitchDropCents, time);
+  oscA.frequency.setValueAtTime(frequency, preStartTime);
+  oscA.detune.setValueAtTime(oscABaseDetune + pitchDropCents, preStartTime);
   oscA.detune.linearRampToValueAtTime(oscABaseDetune, pitchDropRampTime);
 
   oscB.type = voiceParams.oscBWave;
-  oscB.frequency.setValueAtTime(frequency, time);
-  oscB.detune.setValueAtTime(oscBBaseDetune + pitchDropCents, time);
+  oscB.frequency.setValueAtTime(frequency, preStartTime);
+  oscB.detune.setValueAtTime(oscBBaseDetune + pitchDropCents, preStartTime);
   oscB.detune.linearRampToValueAtTime(oscBBaseDetune, pitchDropRampTime);
 
   subOsc.type = voiceParams.subWave;
-  subOsc.frequency.setValueAtTime(frequency / 2, time);
-  subOsc.detune.setValueAtTime(subBaseDetune + pitchDropCents * 0.6, time);
+  subOsc.frequency.setValueAtTime(frequency / 2, preStartTime);
+  subOsc.detune.setValueAtTime(subBaseDetune + pitchDropCents * 0.6, preStartTime);
   subOsc.detune.linearRampToValueAtTime(subBaseDetune, pitchDropRampTime);
 
    toneFilter.type = "lowpass";
-   toneFilter.frequency.setValueAtTime(cutoffWithVariation, time);
+    toneFilter.frequency.setValueAtTime(cutoffWithVariation, preStartTime);
    toneFilter.Q.value = filterQValue;
 
    // Smooth all mixer gains to prevent clicks
    const gainSmoothTime = Math.max(0.001, attackTime * 0.05);
-   upperMix.gain.setValueAtTime(0, time);
+    upperMix.gain.setValueAtTime(0, preStartTime);
    upperMix.gain.linearRampToValueAtTime(upperLevel, time + gainSmoothTime);
-   subMix.gain.setValueAtTime(0, time);
+    subMix.gain.setValueAtTime(0, preStartTime);
    subMix.gain.linearRampToValueAtTime(subLevel, time + gainSmoothTime);
 
-   delaySend.gain.setValueAtTime(0, time);
+    delaySend.gain.setValueAtTime(0, preStartTime);
    delaySend.gain.linearRampToValueAtTime(delaySendValue, time + gainSmoothTime);
-   reverbSend.gain.setValueAtTime(0, time);
+    reverbSend.gain.setValueAtTime(0, preStartTime);
    reverbSend.gain.linearRampToValueAtTime(reverbSendValue, time + gainSmoothTime);
 
   // Start at true zero and use linear ramps to avoid edge discontinuities.
-  voiceGain.gain.cancelScheduledValues(time);
+  voiceGain.gain.cancelScheduledValues(preStartTime);
+  voiceGain.gain.setValueAtTime(0, preStartTime);
   voiceGain.gain.setValueAtTime(0, time);
   voiceGain.gain.linearRampToValueAtTime(peakGain, time + attackTime);
   // Decay ramp
@@ -407,8 +440,9 @@ export function scheduleNote(
   voiceGain.gain.setTargetAtTime(
     0,
     releaseStartTime,
-    Math.max(0.008, voiceParams.release / 3),
+    releaseTimeConstant,
   );
+  voiceGain.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
 
   oscA.connect(upperMix);
   oscB.connect(upperMix);
@@ -420,6 +454,8 @@ export function scheduleNote(
     const transientSource = ctx.createBufferSource();
     const transientFilter = ctx.createBiquadFilter();
     const transientGain = ctx.createGain();
+    const transientPeakGain = clamp(transientAmount * 0.24, 0.0001, 0.24);
+    const transientRiseEnd = time + Math.max(0.002, transientDecay * 0.15);
 
     voiceNodes.push(transientSource, transientFilter, transientGain);
 
@@ -428,11 +464,10 @@ export function scheduleNote(
     transientFilter.frequency.setValueAtTime(transientTone, time);
     transientFilter.Q.value = 0.4;
 
-      transientGain.gain.setValueAtTime(0.0001, time);
-      transientGain.gain.exponentialRampToValueAtTime(
-        clamp(transientAmount * 0.24, 0.0001, 0.24),
-        time + Math.max(0.002, transientDecay * 0.15),
-      );
+      // Start from exact zero to avoid a discontinuity when the noise buffer begins.
+      transientGain.gain.setValueAtTime(0, time);
+      transientGain.gain.linearRampToValueAtTime(transientPeakGain, transientRiseEnd);
+      transientGain.gain.setValueAtTime(transientPeakGain, transientRiseEnd);
       transientGain.gain.exponentialRampToValueAtTime(0.0001, time + transientDecay);
 
     transientSource.connect(transientFilter);
@@ -459,11 +494,16 @@ export function scheduleNote(
       distortionToneFilter.type = "lowpass";
       distortionToneFilter.frequency.setValueAtTime(distortionToneValue, time);
       distortionToneFilter.Q.value = 0.7;
-      // Smooth distortion dry/wet to avoid clicks
-      distortionDry.gain.setValueAtTime(1, time);
+      // Smooth distortion dry/wet from pre-start and fade out before stop to avoid edge clicks.
+      const distortionFadeOutStart = Math.max(releaseStartTime, voiceFadeOutTime - 0.01);
+      distortionDry.gain.setValueAtTime(0, preStartTime);
       distortionDry.gain.linearRampToValueAtTime(1 - distortionMixValue, time + gainSmoothTime);
-      distortionWet.gain.setValueAtTime(0, time);
+      distortionDry.gain.setValueAtTime(1 - distortionMixValue, distortionFadeOutStart);
+      distortionDry.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
+      distortionWet.gain.setValueAtTime(0, preStartTime);
       distortionWet.gain.linearRampToValueAtTime(distortionMixValue, time + gainSmoothTime);
+      distortionWet.gain.setValueAtTime(distortionMixValue, distortionFadeOutStart);
+      distortionWet.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
 
     voiceGain.connect(distortionIn);
     distortionIn.connect(distortionDry);
@@ -477,8 +517,10 @@ export function scheduleNote(
 
   voiceOutput.connect(toneFilter);
   voiceOutput = toneFilter;
-  channelOutputGain.gain.setValueAtTime(0, time);
+  channelOutputGain.gain.setValueAtTime(0, preStartTime);
   channelOutputGain.gain.linearRampToValueAtTime(channelVolume, time + gainSmoothTime);
+  channelOutputGain.gain.setTargetAtTime(0, releaseStartTime, releaseTimeConstant);
+  channelOutputGain.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
   voiceOutput.connect(channelOutputGain);
   voiceOutput = channelOutputGain;
 
@@ -534,9 +576,9 @@ export function scheduleNote(
   delaySend.connect(state.delayNode);
   reverbSend.connect(state.reverbInput);
 
-  oscA.start(time);
-  oscB.start(time);
-  subOsc.start(time);
+  oscA.start(preStartTime);
+  oscB.start(preStartTime);
+  subOsc.start(preStartTime);
 
   oscA.stop(stopTime);
   oscB.stop(stopTime);
@@ -544,13 +586,16 @@ export function scheduleNote(
 
   // Auto-disconnect all nodes once oscA finishes to free audio graph memory
   oscA.onended = () => {
-    for (let i = 0; i < voiceNodes.length; i += 1) {
-      try {
-        voiceNodes[i].disconnect();
-      } catch (_) {
-        // Already disconnected — safe to ignore
+    // Allow automation tails to settle before disconnecting this voice graph.
+    setTimeout(() => {
+      for (let i = 0; i < voiceNodes.length; i += 1) {
+        try {
+          voiceNodes[i].disconnect();
+        } catch (_) {
+          // Already disconnected — safe to ignore
+        }
       }
-    }
+    }, 12);
   };
 }
 
@@ -694,6 +739,14 @@ export function applyLiveAudioUpdates(paramKey, value) {
       state.delayHighpass.frequency.setValueAtTime(getDelayHighpassFrequencyForTimbre(value), now);
     }
     state.delayTone.frequency.setValueAtTime(getDelayToneFrequencyForTimbre(value), now);
+    return;
+  }
+
+  if (paramKey === "lfoRate" || paramKey === "lfoDepth") {
+    return;
+  }
+
+  if (paramKey === "lfoTarget") {
     return;
   }
 

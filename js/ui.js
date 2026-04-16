@@ -1,4 +1,13 @@
-import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_LENGTH_OPTIONS, NOTE_OPTIONS, POST_FILTER_TYPE_OPTIONS, POST_FILTER_TYPE_LABELS } from "./constants.js";
+import {
+  controlConfig,
+  GLOBAL_CONTROL_KEYS,
+  lfoRateFromNormalized,
+  normalizedFromLfoRate,
+  NOTE_LENGTH_OPTIONS,
+  NOTE_OPTIONS,
+  POST_FILTER_TYPE_OPTIONS,
+  POST_FILTER_TYPE_LABELS,
+} from "./constants.js";
 import { statusLabel } from "./dom.js";
 import {
   ensureInstrumentNoteState,
@@ -57,7 +66,9 @@ export function setControlUIValue(controlId, value) {
         input.checked = nextChecked;
       }
     } else {
-      const nextValue = String(value);
+      const nextValue = controlId === "lfo-rate"
+        ? String(normalizedFromLfoRate(value))
+        : String(value);
       if (input.value !== nextValue) {
         input.value = nextValue;
       }
@@ -225,6 +236,12 @@ export function bindControls() {
     input.addEventListener("input", (event) => {
       const controller = event.currentTarget?.controllerRef;
       if (!controller) {
+        return;
+      }
+
+      if (controlId === "lfo-rate") {
+        const normalized = Number.parseFloat(event.target.value);
+        controller.setControlValue(controlId, lfoRateFromNormalized(normalized));
         return;
       }
 

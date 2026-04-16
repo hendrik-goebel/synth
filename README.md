@@ -9,6 +9,7 @@ Small Web Audio demo that plays a C major arpeggio up and down in a loop.
 - Event-driven action layer (`window.audioStateController`) so every UI action can also be triggered programmatically
 - Per-instrument note-length cycle control with `8`, `16`, `6`, `4`, and `3` timing values
 - Global warm/cold timbre slider that shifts the full mix between darker body and brighter edge
+- LFO in the Filter section with assignable target (Filter Cutoff / Filter Resonance), adjustable rate, and modulation depth
 - Randomized initial note length per instrument, weighted by note-count density (fewer notes favor slower lengths)
 - Per-instrument arpeggio notes (note buttons are saved per selected instrument)
 - Per-instrument "Var" action that mutates only a random fraction of current notes using pentatonic replacements
