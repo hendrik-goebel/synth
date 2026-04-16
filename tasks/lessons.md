@@ -29,3 +29,5 @@
 - When tightening a sensitive shared-control range like delay feedback, update the default value, UI max, controller validation, and engine clamp together so no layer can drift beyond the intended cap.
 - Keep scheduler hot paths allocation-light: avoid per-tick array creation/callback iteration, cache loop values locally, and write shared state back once per scheduling pass.
 - For mixer-like UIs with frequent state changes, cache per-channel DOM references after initial render and patch only changed classes/text to reduce query and reflow overhead.
+- For channel mute controls, apply volume at a dedicated final gain stage (post-voice shaping, pre-routing) and avoid relying on upstream envelope floors/clamps, otherwise `0` may still leak audible signal.
+- For click-prone note engines, hard-skip scheduling when channel volume is effectively muted and align oscillator stop time with release decay; stopping too early can reintroduce note-end pops.

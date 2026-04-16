@@ -1133,3 +1133,44 @@
 - `npm run build` completed successfully
 - Webpack compiled without errors and emitted updated assets (27.9 KiB)
 - Changes tested by inspection: smooth ramping prevents audio discontinuities
+
+---
+
+# Task: Channel Volume 0 Still Audible
+
+## Plan
+- [x] Reproduce and identify why `channelVolume = 0` still produces audible output.
+- [x] Fix voice gain staging so a channel can be truly silent at zero.
+- [x] Keep initial channel volume deterministic for all presets.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Root cause: channel volume was applied before envelope clamps, and envelope anti-click floors could still leak a quiet signal.
+- Updated `js/audio-engine.js` to add a dedicated `channelOutputGain` stage in `scheduleNote(...)` and apply `channelVolume` there, right before dry/fx routing.
+- Kept envelope shaping (`peakGain`/`sustainGain`) independent from channel volume so mute behavior is controlled by one final gain stage.
+- Updated `js/presets.js` so each instrument initializes with explicit `channelVolume: 1`.
+
+## Review
+- Static checks passed on edited files (existing unrelated UI warnings remain in `js/ui.js`).
+- `npm run build` completed successfully after the mute fix.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Pop On Every Note + Audible At Volume 0 (Follow-up)
+
+## Plan
+- [x] Re-check note envelope/release scheduling for click sources.
+- [x] Guarantee muted channels do not schedule any audible path.
+- [x] Rebuild and verify compilation.
+
+## Progress Notes
+- Added an early return in `js/audio-engine.js` `scheduleNote(...)` when `channelVolume <= 0.0001` so muted channels do not create voice/transient/fx events.
+- Switched the voice envelope start to true zero (`setValueAtTime(0, time)`) with linear attack ramp to reduce note-on discontinuities.
+- Extended stop timing to follow release (`releaseStartTime + max(0.05, release * 3)`) so oscillators are stopped closer to silence.
+- Smoothed `channelOutputGain` from `0` to target volume at note start to reduce routing-edge clicks.
+
+## Review
+- `npm run build` completed successfully after the follow-up pop/mute fix.
+- Webpack compiled without errors and emitted updated assets.
+

@@ -67,6 +67,7 @@ export function createInstrumentParams(presetId) {
     ...presetOverrides,
     // Keep shared controls global; presets should only contribute instrument-scoped defaults.
     // Ensure every instrument starts at a unique panorama position.
+    channelVolume: 1,
     stereoPan: getInitialStereoPan(presetId),
   };
 }

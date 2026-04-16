@@ -214,6 +214,12 @@ export function scheduleNote(
   noteLength = 8,
 ) {
   const ctx = state.audioContext;
+  const channelVolume = clamp(voiceParams.channelVolume ?? 1, 0, 1);
+  if (channelVolume <= 0.0001) {
+    // Hard-skip muted channels so no transient/click can leak into dry or FX paths.
+    return;
+  }
+
   const oscA = ctx.createOscillator();
   const oscB = ctx.createOscillator();
   const subOsc = ctx.createOscillator();
@@ -224,19 +230,31 @@ export function scheduleNote(
   const toneFilter = ctx.createBiquadFilter();
   const delaySend = ctx.createGain();
   const reverbSend = ctx.createGain();
+  const channelOutputGain = ctx.createGain();
   const stereoPanner = ctx.createStereoPanner
     ? ctx.createStereoPanner()
     : null;
 
   // Track all nodes for cleanup after playback ends
-  const voiceNodes = [oscA, oscB, subOsc, voiceGain, upperMix, subMix, toneFilter, delaySend, reverbSend];
+  const voiceNodes = [
+    oscA,
+    oscB,
+    subOsc,
+    voiceGain,
+    upperMix,
+    subMix,
+    toneFilter,
+    delaySend,
+    reverbSend,
+    channelOutputGain,
+  ];
   if (stereoPanner) {
     voiceNodes.push(stereoPanner);
   }
 
   const noteDuration = getNoteDuration(noteLength);
-  const stopTime = time + noteDuration + 0.04;
   const releaseStartTime = Math.max(time + 0.02, time + noteDuration - voiceParams.release);
+  const stopTime = releaseStartTime + Math.max(0.05, voiceParams.release * 3);
   const layerGainScale = 1 / Math.sqrt(layerCount);
   const timbreBias = getGlobalTimbreBias();
   const warmAmount = Math.max(0, -timbreBias);
@@ -288,16 +306,18 @@ export function scheduleNote(
     0.01,
     1.2,
   );
-  const peakGain = clamp(
+  const basePeakGain = clamp(
     0.19 * (1 + randomCentered(HUMANIZE.gainAmount)) * layerGainScale,
     0.03,
     0.26,
   );
-  const sustainGain = clamp(
+  const baseSustainGain = clamp(
     0.11 * (1 + randomCentered(HUMANIZE.gainAmount)) * layerGainScale,
     0.02,
     0.16,
   );
+  const peakGain = basePeakGain;
+  const sustainGain = baseSustainGain;
   const cutoffWithVariation = clamp(
     (Math.min(8000, voiceParams.filterCutoff + frequency * filterTracking)) *
       (1 - warmAmount * 0.35 + coldAmount * 0.55) *
@@ -374,28 +394,20 @@ export function scheduleNote(
    reverbSend.gain.setValueAtTime(0, time);
    reverbSend.gain.linearRampToValueAtTime(reverbSendValue, time + gainSmoothTime);
 
-  // Start from a slightly higher floor to avoid click artifacts
-  const initialGain = 0.001;
-  const preSmoothTime = Math.min(0.002, attackTime * 0.1);
-
-  voiceGain.gain.setValueAtTime(initialGain, time);
-  // Brief exponential pre-ramp to avoid discontinuities
-  voiceGain.gain.exponentialRampToValueAtTime(
-    Math.max(0.0001, peakGain * 0.1),
-    time + preSmoothTime,
-  );
-  // Main attack ramp
+  // Start at true zero and use linear ramps to avoid edge discontinuities.
+  voiceGain.gain.cancelScheduledValues(time);
+  voiceGain.gain.setValueAtTime(0, time);
   voiceGain.gain.linearRampToValueAtTime(peakGain, time + attackTime);
   // Decay ramp
   voiceGain.gain.linearRampToValueAtTime(
     sustainGain,
     time + attackTime + decayTime,
   );
-  // Release with exponential tail to avoid clicks
+  // Release and end near silence before oscillator stop time.
   voiceGain.gain.setTargetAtTime(
-    0.0001,
+    0,
     releaseStartTime,
-    Math.max(0.01, voiceParams.release / 2),
+    Math.max(0.008, voiceParams.release / 3),
   );
 
   oscA.connect(upperMix);
@@ -465,6 +477,10 @@ export function scheduleNote(
 
   voiceOutput.connect(toneFilter);
   voiceOutput = toneFilter;
+  channelOutputGain.gain.setValueAtTime(0, time);
+  channelOutputGain.gain.linearRampToValueAtTime(channelVolume, time + gainSmoothTime);
+  voiceOutput.connect(channelOutputGain);
+  voiceOutput = channelOutputGain;
 
   // Per-instrument post-filter (LP / HP / BP) at the end of the signal chain
   const postFilterTypeIndex = clamp(Math.round(voiceParams.postFilterType ?? 0), 0, 3);

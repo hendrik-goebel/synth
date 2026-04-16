@@ -6,6 +6,7 @@ import {
 } from "./patterns.js";
 import { getInstrumentParams, getPresetIds, getPresetLabel } from "./presets.js";
 import { state } from "./state.js";
+import { clamp } from "./utils.js";
 
 // Cache note button elements once for the lifetime of the page
 let noteButtonElements = null;
@@ -137,7 +138,18 @@ export function renderMixerChannels() {
     noteLengthBtn.dataset.presetId = presetId;
     noteLengthBtn.title = "Note Length";
 
-    buttonsDiv.append(playBtn, variationBtn, noteLengthBtn);
+    const volumeSlider = document.createElement("input");
+    volumeSlider.type = "range";
+    volumeSlider.className = "channel-volume-slider";
+    volumeSlider.min = "0";
+    volumeSlider.max = "1";
+    volumeSlider.step = "0.01";
+    const initialVolume = getInstrumentParams(presetId).channelVolume ?? 1;
+    volumeSlider.value = String(initialVolume);
+    volumeSlider.title = "Channel Volume";
+    volumeSlider.dataset.presetId = presetId;
+
+    buttonsDiv.append(playBtn, variationBtn, noteLengthBtn, volumeSlider);
     channelStrip.append(nameDiv, indicator, buttonsDiv);
     mixerChannelsContainer.append(channelStrip);
 
@@ -146,6 +158,7 @@ export function renderMixerChannels() {
       indicator,
       playBtn,
       noteLengthBtn,
+      volumeSlider,
     });
   });
 }
@@ -157,6 +170,16 @@ function updateChannelNoteLengthButton(presetId, value) {
   const rounded = Math.round(value);
   btn.textContent = `1/${rounded}`;
   btn.value = String(rounded);
+}
+
+function updateChannelVolumeSlider(presetId, value) {
+  const channelElements = mixerChannelCache.get(presetId);
+  const slider = channelElements?.volumeSlider;
+  if (!slider) return;
+  const next = String(clamp(value, 0, 1));
+  if (slider.value !== next) {
+    slider.value = next;
+  }
 }
 
 export function updateTransportUI() {
@@ -267,6 +290,16 @@ export function bindMixerChannels(controller) {
     return;
   }
 
+  // Volume slider input (separate handler to avoid stopPropagation issues)
+  mixerChannelsContainer.addEventListener("input", (event) => {
+    if (!event.target.classList.contains("channel-volume-slider")) {
+      return;
+    }
+    const presetId = event.target.dataset.presetId;
+    if (!presetId) return;
+    controller.setChannelVolume(presetId, Number.parseFloat(event.target.value));
+  });
+
   mixerChannelsContainer.addEventListener("click", async (event) => {
     const strip = event.target.closest(".channel-strip");
     if (!strip) {
@@ -369,6 +402,11 @@ export function bindControllerEvents(controller) {
       if (presetId === state.activeInstrumentPresetId) {
         syncNoteButtonsFromActiveInstrumentPage();
       }
+      return;
+    }
+
+    if (type === "channel-volume-updated") {
+      updateChannelVolumeSlider(event.detail.presetId, event.detail.value);
       return;
     }
 

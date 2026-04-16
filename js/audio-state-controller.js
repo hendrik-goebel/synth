@@ -169,6 +169,20 @@ export class AudioStateController extends EventTarget {
     return true;
   }
 
+  setChannelVolume(presetId, value) {
+    if (!validPresetIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const clamped = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 1));
+    const instrumentParams = getInstrumentParams(presetId);
+    instrumentParams.channelVolume = clamped;
+
+    this.emitStateChange("channel-volume-updated", { presetId, value: clamped });
+    return true;
+  }
+
   async togglePlayback(presetId) {
     if (!validPresetIds.has(presetId)) {
       this.emitError(`Unknown preset id: ${presetId}`, { presetId });
