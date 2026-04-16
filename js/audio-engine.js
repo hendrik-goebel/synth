@@ -416,12 +416,12 @@ export function scheduleNote(
     transientFilter.frequency.setValueAtTime(transientTone, time);
     transientFilter.Q.value = 0.4;
 
-     transientGain.gain.setValueAtTime(0.0001, time);
-     transientGain.gain.exponentialRampToValueAtTime(
-       clamp(transientAmount * 0.24, 0.0001, 0.24),
-       time + 0.001,
-     );
-     transientGain.gain.exponentialRampToValueAtTime(0.0001, time + transientDecay);
+      transientGain.gain.setValueAtTime(0.0001, time);
+      transientGain.gain.exponentialRampToValueAtTime(
+        clamp(transientAmount * 0.24, 0.0001, 0.24),
+        time + Math.max(0.002, transientDecay * 0.15),
+      );
+      transientGain.gain.exponentialRampToValueAtTime(0.0001, time + transientDecay);
 
     transientSource.connect(transientFilter);
     transientFilter.connect(transientGain);
@@ -442,15 +442,16 @@ export function scheduleNote(
 
     voiceNodes.push(distortionIn, distortionDry, distortionWet, distortionOut, shaper, distortionToneFilter);
 
-     shaper.curve = getDistortionCurve(distortionDriveValue);
-     shaper.oversample = "4x";
-     distortionToneFilter.type = "lowpass";
-     distortionToneFilter.frequency.setValueAtTime(distortionToneValue, time);
-     distortionToneFilter.Q.value = 0.7;
-     // Smooth distortion dry/wet to avoid clicks
-     distortionDry.gain.setValueAtTime(1 - distortionMixValue, time);
-     distortionWet.gain.setValueAtTime(0, time);
-     distortionWet.gain.linearRampToValueAtTime(distortionMixValue, time + gainSmoothTime);
+      shaper.curve = getDistortionCurve(distortionDriveValue);
+      shaper.oversample = "4x";
+      distortionToneFilter.type = "lowpass";
+      distortionToneFilter.frequency.setValueAtTime(distortionToneValue, time);
+      distortionToneFilter.Q.value = 0.7;
+      // Smooth distortion dry/wet to avoid clicks
+      distortionDry.gain.setValueAtTime(1, time);
+      distortionDry.gain.linearRampToValueAtTime(1 - distortionMixValue, time + gainSmoothTime);
+      distortionWet.gain.setValueAtTime(0, time);
+      distortionWet.gain.linearRampToValueAtTime(distortionMixValue, time + gainSmoothTime);
 
     voiceGain.connect(distortionIn);
     distortionIn.connect(distortionDry);
@@ -477,15 +478,16 @@ export function scheduleNote(
 
     voiceNodes.push(postFilter, postFilterDry, postFilterWet, postFilterOut);
 
-     postFilter.type = POST_FILTER_WEB_AUDIO_TYPES[postFilterTypeIndex];
-     // postFilterCutoff is stored as a 0-1 log position; convert to Hz: 20 * 1000^t
-     const postFilterFreqHz = 20 * Math.pow(1000, clamp(voiceParams.postFilterCutoff ?? 0.534, 0, 1));
-     postFilter.frequency.setValueAtTime(clamp(postFilterFreqHz, 20, 20000), time);
-     postFilter.Q.value = clamp(voiceParams.postFilterQ ?? 1.0, 0.1, 18);
+      postFilter.type = POST_FILTER_WEB_AUDIO_TYPES[postFilterTypeIndex];
+      // postFilterCutoff is stored as a 0-1 log position; convert to Hz: 20 * 1000^t
+      const postFilterFreqHz = 20 * Math.pow(1000, clamp(voiceParams.postFilterCutoff ?? 0.534, 0, 1));
+      postFilter.frequency.setValueAtTime(clamp(postFilterFreqHz, 20, 20000), time);
+      postFilter.Q.value = clamp(voiceParams.postFilterQ ?? 1.0, 0.1, 18);
 
-     postFilterDry.gain.setValueAtTime(1 - postFilterMixValue, time);
-     postFilterWet.gain.setValueAtTime(0, time);
-     postFilterWet.gain.linearRampToValueAtTime(postFilterMixValue, time + gainSmoothTime);
+      postFilterDry.gain.setValueAtTime(1, time);
+      postFilterDry.gain.linearRampToValueAtTime(1 - postFilterMixValue, time + gainSmoothTime);
+      postFilterWet.gain.setValueAtTime(0, time);
+      postFilterWet.gain.linearRampToValueAtTime(postFilterMixValue, time + gainSmoothTime);
 
     voiceOutput.connect(postFilterDry);
     voiceOutput.connect(postFilter);
