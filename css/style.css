@@ -438,6 +438,31 @@ body {
   outline-offset: 2px;
 }
 
+.cycle-btn {
+  width: fit-content;
+  min-width: 5.5rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #6366f1;
+  border-radius: 0.45rem;
+  background: #1e1b4b;
+  color: #c7d2fe;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cycle-btn:hover {
+  border-color: #818cf8;
+  background: #312e81;
+  color: #e0e7ff;
+}
+
+.cycle-btn:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+}
+
 .button-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

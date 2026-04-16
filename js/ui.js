@@ -1,4 +1,4 @@
-import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_LENGTH_OPTIONS, NOTE_OPTIONS } from "./constants.js";
+import { controlConfig, GLOBAL_CONTROL_KEYS, NOTE_LENGTH_OPTIONS, NOTE_OPTIONS, POST_FILTER_TYPE_OPTIONS, POST_FILTER_TYPE_LABELS } from "./constants.js";
 import { statusLabel } from "./dom.js";
 import {
   ensureInstrumentNoteState,
@@ -221,6 +221,21 @@ export function bindNoteLengthToggle(controller) {
     const currentIndex = NOTE_LENGTH_OPTIONS.indexOf(currentValue);
     const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % NOTE_LENGTH_OPTIONS.length;
     controller.setControlValue("note-length-toggle", NOTE_LENGTH_OPTIONS[nextIndex]);
+  });
+}
+
+export function bindPostFilterTypeToggle(controller) {
+  const button = document.getElementById("post-filter-type");
+  if (!button) {
+    return;
+  }
+
+  button.controllerRef = controller;
+  button.addEventListener("click", (event) => {
+    const currentValue = Number.parseInt(event.currentTarget.value, 10);
+    const currentIndex = POST_FILTER_TYPE_OPTIONS.indexOf(currentValue);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % POST_FILTER_TYPE_OPTIONS.length;
+    controller.setControlValue("post-filter-type", POST_FILTER_TYPE_OPTIONS[nextIndex]);
   });
 }
 

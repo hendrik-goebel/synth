@@ -3,6 +3,7 @@ import {
   DELAY_DIVISION_OPTIONS,
   HUMANIZE,
   MAX_SIMULTANEOUS_PRESETS,
+  POST_FILTER_WEB_AUDIO_TYPES,
   REVERB_DECAY,
   REVERB_SECONDS,
 } from "./constants.js";
@@ -357,22 +358,40 @@ export function scheduleNote(
   subOsc.detune.setValueAtTime(subBaseDetune + pitchDropCents * 0.6, time);
   subOsc.detune.linearRampToValueAtTime(subBaseDetune, pitchDropRampTime);
 
-  toneFilter.type = "lowpass";
-  toneFilter.frequency.setValueAtTime(cutoffWithVariation, time);
-  toneFilter.Q.value = filterQValue;
+   toneFilter.type = "lowpass";
+   toneFilter.frequency.setValueAtTime(cutoffWithVariation, time);
+   toneFilter.Q.value = filterQValue;
 
-  upperMix.gain.value = upperLevel;
-  subMix.gain.value = subLevel;
+   // Smooth all mixer gains to prevent clicks
+   const gainSmoothTime = Math.max(0.001, attackTime * 0.05);
+   upperMix.gain.setValueAtTime(0, time);
+   upperMix.gain.linearRampToValueAtTime(upperLevel, time + gainSmoothTime);
+   subMix.gain.setValueAtTime(0, time);
+   subMix.gain.linearRampToValueAtTime(subLevel, time + gainSmoothTime);
 
-  delaySend.gain.value = delaySendValue;
-  reverbSend.gain.value = reverbSendValue;
+   delaySend.gain.setValueAtTime(0, time);
+   delaySend.gain.linearRampToValueAtTime(delaySendValue, time + gainSmoothTime);
+   reverbSend.gain.setValueAtTime(0, time);
+   reverbSend.gain.linearRampToValueAtTime(reverbSendValue, time + gainSmoothTime);
 
-  voiceGain.gain.setValueAtTime(0.0001, time);
+  // Start from a slightly higher floor to avoid click artifacts
+  const initialGain = 0.001;
+  const preSmoothTime = Math.min(0.002, attackTime * 0.1);
+
+  voiceGain.gain.setValueAtTime(initialGain, time);
+  // Brief exponential pre-ramp to avoid discontinuities
+  voiceGain.gain.exponentialRampToValueAtTime(
+    Math.max(0.0001, peakGain * 0.1),
+    time + preSmoothTime,
+  );
+  // Main attack ramp
   voiceGain.gain.linearRampToValueAtTime(peakGain, time + attackTime);
+  // Decay ramp
   voiceGain.gain.linearRampToValueAtTime(
     sustainGain,
     time + attackTime + decayTime,
   );
+  // Release with exponential tail to avoid clicks
   voiceGain.gain.setTargetAtTime(
     0.0001,
     releaseStartTime,
@@ -397,8 +416,12 @@ export function scheduleNote(
     transientFilter.frequency.setValueAtTime(transientTone, time);
     transientFilter.Q.value = 0.4;
 
-    transientGain.gain.setValueAtTime(clamp(transientAmount * 0.24, 0.0001, 0.24), time);
-    transientGain.gain.exponentialRampToValueAtTime(0.0001, time + transientDecay);
+     transientGain.gain.setValueAtTime(0.0001, time);
+     transientGain.gain.exponentialRampToValueAtTime(
+       clamp(transientAmount * 0.24, 0.0001, 0.24),
+       time + 0.001,
+     );
+     transientGain.gain.exponentialRampToValueAtTime(0.0001, time + transientDecay);
 
     transientSource.connect(transientFilter);
     transientFilter.connect(transientGain);
@@ -419,13 +442,15 @@ export function scheduleNote(
 
     voiceNodes.push(distortionIn, distortionDry, distortionWet, distortionOut, shaper, distortionToneFilter);
 
-    shaper.curve = getDistortionCurve(distortionDriveValue);
-    shaper.oversample = "4x";
-    distortionToneFilter.type = "lowpass";
-    distortionToneFilter.frequency.setValueAtTime(distortionToneValue, time);
-    distortionToneFilter.Q.value = 0.7;
-    distortionDry.gain.value = 1 - distortionMixValue;
-    distortionWet.gain.value = distortionMixValue;
+     shaper.curve = getDistortionCurve(distortionDriveValue);
+     shaper.oversample = "4x";
+     distortionToneFilter.type = "lowpass";
+     distortionToneFilter.frequency.setValueAtTime(distortionToneValue, time);
+     distortionToneFilter.Q.value = 0.7;
+     // Smooth distortion dry/wet to avoid clicks
+     distortionDry.gain.setValueAtTime(1 - distortionMixValue, time);
+     distortionWet.gain.setValueAtTime(0, time);
+     distortionWet.gain.linearRampToValueAtTime(distortionMixValue, time + gainSmoothTime);
 
     voiceGain.connect(distortionIn);
     distortionIn.connect(distortionDry);
@@ -439,6 +464,36 @@ export function scheduleNote(
 
   voiceOutput.connect(toneFilter);
   voiceOutput = toneFilter;
+
+  // Per-instrument post-filter (LP / HP / BP) at the end of the signal chain
+  const postFilterTypeIndex = clamp(Math.round(voiceParams.postFilterType ?? 0), 0, 3);
+  const postFilterMixValue = clamp(voiceParams.postFilterMix ?? 0, 0, 1);
+
+  if (postFilterTypeIndex > 0 && postFilterMixValue > 0.001) {
+    const postFilter = ctx.createBiquadFilter();
+    const postFilterDry = ctx.createGain();
+    const postFilterWet = ctx.createGain();
+    const postFilterOut = ctx.createGain();
+
+    voiceNodes.push(postFilter, postFilterDry, postFilterWet, postFilterOut);
+
+     postFilter.type = POST_FILTER_WEB_AUDIO_TYPES[postFilterTypeIndex];
+     // postFilterCutoff is stored as a 0-1 log position; convert to Hz: 20 * 1000^t
+     const postFilterFreqHz = 20 * Math.pow(1000, clamp(voiceParams.postFilterCutoff ?? 0.534, 0, 1));
+     postFilter.frequency.setValueAtTime(clamp(postFilterFreqHz, 20, 20000), time);
+     postFilter.Q.value = clamp(voiceParams.postFilterQ ?? 1.0, 0.1, 18);
+
+     postFilterDry.gain.setValueAtTime(1 - postFilterMixValue, time);
+     postFilterWet.gain.setValueAtTime(0, time);
+     postFilterWet.gain.linearRampToValueAtTime(postFilterMixValue, time + gainSmoothTime);
+
+    voiceOutput.connect(postFilterDry);
+    voiceOutput.connect(postFilter);
+    postFilter.connect(postFilterWet);
+    postFilterDry.connect(postFilterOut);
+    postFilterWet.connect(postFilterOut);
+    voiceOutput = postFilterOut;
+  }
 
   if (stereoPanner) {
     const layerSpread = layerCount > 1

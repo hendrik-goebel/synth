@@ -5,6 +5,7 @@ import {
   GLOBAL_CONTROL_KEYS,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
+  POST_FILTER_TYPE_OPTIONS,
 } from "./constants.js";
 import { applyLiveAudioUpdates, ensureAudioContext, startPresetPlayback, stopPresetPlayback } from "./audio-engine.js";
 import { createInstrumentNoteVariation, ensureInstrumentNoteState, rebuildInstrumentPattern } from "./patterns.js";
@@ -16,6 +17,7 @@ const validPresetIds = new Set(getPresetIds());
 const validNoteIds = new Set(NOTE_OPTIONS.map(({ id }) => id));
 const validNoteLengths = new Set(NOTE_LENGTH_OPTIONS);
 const validDelayDivisionIndices = new Set(DELAY_DIVISION_OPTIONS.map((_, index) => index));
+const validPostFilterTypes = new Set(POST_FILTER_TYPE_OPTIONS);
 
 function toNumber(value) {
   const numeric = Number.parseFloat(value);
@@ -78,6 +80,11 @@ export class AudioStateController extends EventTarget {
         controlId,
         value,
       });
+      return false;
+    }
+
+    if (controlId === "post-filter-type" && !validPostFilterTypes.has(numericValue)) {
+      this.emitError(`Invalid post-filter type value for ${controlId}`, { controlId, value });
       return false;
     }
 

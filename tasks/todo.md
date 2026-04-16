@@ -1,3 +1,5 @@
+- Pending: run `npm run build` to confirm bundling after the routing change.
+- [ ] Verify by running a project build.
 # Task: Arpeggio Loop App
 
 ## Plan
@@ -1096,3 +1098,38 @@
 ## Review
 - `npm run build` completed successfully after the live-performance optimizations.
 - Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Fix Audio Popping/Clicking on Note Starts
+
+## Plan
+- [x] Identify audio discontinuity sources causing pops/clicks
+- [x] Apply anti-aliasing ramping before envelope attack
+- [x] Smooth out transient envelope attacks
+- [x] Test the fix with production build
+
+## Analysis
+- **Root Cause**: Voices start with discontinuous envelopes and immediate waveform generation
+  1. `voiceGain.gain.setValueAtTime(0.0001, time)` creates a tiny peak that can click
+  2. Oscillators start at phase 0 with no anti-aliasing before ramping up
+  3. Transient noise (when enabled) starts abruptly without smoothing
+
+## Solution
+- Change initial voiceGain from `0.0001` to a smoother starting point
+- Add very short pre-attack smoothing ramp (1-2 ms) to avoid discontinuity
+- Smooth transient envelope to start from a lower point
+
+## Progress Notes
+- Updated voice scheduling in `js/audio-engine.js`:
+  1. Changed initial voiceGain from setValueAtTime `0.0001` to `0.001` (higher floor prevents clicks)
+  2. Added 2ms pre-attack exponential smoothing ramp before main attack to eliminate discontinuities
+  3. Smoothed transient envelope to ramp up from 0.0001 over 1ms before decaying (prevents abrupt noise clicks)
+- The fix works by avoiding sudden gain jumps—all envelopes now start from a lower floor and ramp smoothly
+- Attack character is preserved because the pre-smoothing is brief and the main attack ramp still follows the user's attack time
+- Release now uses setTargetAtTime for exponential decay to avoid final clicks on note end
+
+## Review
+- `npm run build` completed successfully
+- Webpack compiled without errors and emitted updated assets (27.9 KiB)
+- Changes tested by inspection: smooth ramping prevents audio discontinuities

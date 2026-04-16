@@ -155,6 +155,28 @@
       </div>
 
       <div class="control-group">
+        <h3 class="control-group-title">Post Filter</h3>
+        <div class="control-group-items">
+          <div class="control-item">
+            <label for="post-filter-type">Type (<span id="post-filter-type-value">Off</span>)</label>
+            <button id="post-filter-type" type="button" value="0" class="cycle-btn">Cycle Type</button>
+          </div>
+          <div class="control-item">
+            <label for="post-filter-cutoff">Cutoff (<span id="post-filter-cutoff-value">800</span> Hz)</label>
+            <input id="post-filter-cutoff" type="range" min="0" max="1" step="0.001" value="0.534">
+          </div>
+          <div class="control-item">
+            <label for="post-filter-q">Resonance (<span id="post-filter-q-value">1.00</span>)</label>
+            <input id="post-filter-q" type="range" min="0.1" max="18" step="0.1" value="1">
+          </div>
+          <div class="control-item">
+            <label for="post-filter-mix">Intensity (<span id="post-filter-mix-value">0.50</span>)</label>
+            <input id="post-filter-mix" type="range" min="0" max="1" step="0.01" value="0.5">
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
         <h3 class="control-group-title">Distortion</h3>
         <div class="control-group-items">
           <div class="control-item">

@@ -1,5 +1,5 @@
 import { AudioStateController } from "./audio-state-controller.js";
-import { bindControllerEvents, bindControls, bindNoteSelector, bindMixerChannels, bindKeyboardShortcuts } from "./ui.js";
+import { bindControllerEvents, bindControls, bindNoteSelector, bindMixerChannels, bindKeyboardShortcuts, bindPostFilterTypeToggle } from "./ui.js";
 
 const audioStateController = new AudioStateController();
 
@@ -8,6 +8,7 @@ bindControls();
 bindNoteSelector(audioStateController);
 bindMixerChannels(audioStateController);
 bindKeyboardShortcuts(audioStateController);
+bindPostFilterTypeToggle(audioStateController);
 
 audioStateController.initialize();
 

@@ -280,6 +280,10 @@ export const GLOBAL_CONTROL_KEYS = new Set([
   "delayFeedback",
 ]);
 
+export const POST_FILTER_TYPE_OPTIONS = [0, 1, 2, 3];
+export const POST_FILTER_TYPE_LABELS = ["Off", "LP", "HP", "BP"];
+export const POST_FILTER_WEB_AUDIO_TYPES = [null, "lowpass", "highpass", "bandpass"];
+
 export const INITIAL_SYNTH_PARAMS = {
   tempoBpm: 120,
   globalTimbre: 0,
@@ -311,6 +315,10 @@ export const INITIAL_SYNTH_PARAMS = {
   oscBWave: "triangle",
   subWave: "sine",
   noteLength: 8,
+  postFilterType: 0,
+  postFilterCutoff: 0.534,   // normalized log position → ~800 Hz via 20 * 1000^t
+  postFilterQ: 1.0,
+  postFilterMix: 0.5,
 };
 
 export const controlConfig = {
@@ -418,6 +426,27 @@ export const controlConfig = {
   "master-volume": {
     key: "masterVolume",
     valueId: "master-volume-value",
+    formatter: (value) => value.toFixed(2),
+  },
+  "post-filter-type": {
+    key: "postFilterType",
+    valueId: "post-filter-type-value",
+    formatter: (value) => POST_FILTER_TYPE_LABELS[Math.round(value)] ?? "Off",
+  },
+  "post-filter-cutoff": {
+    key: "postFilterCutoff",
+    valueId: "post-filter-cutoff-value",
+    // stored as normalized log position t; display as Hz: 20 * 1000^t
+    formatter: (value) => String(Math.round(20 * Math.pow(1000, value))),
+  },
+  "post-filter-q": {
+    key: "postFilterQ",
+    valueId: "post-filter-q-value",
+    formatter: (value) => value.toFixed(2),
+  },
+  "post-filter-mix": {
+    key: "postFilterMix",
+    valueId: "post-filter-mix-value",
     formatter: (value) => value.toFixed(2),
   },
 };
