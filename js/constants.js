@@ -33,6 +33,7 @@ export const LFO_TARGET_OPTIONS = [
 export const LFO_RATE_MIN_HZ = 0.05;
 export const LFO_RATE_MAX_HZ = 12;
 export const LFO_RATE_CURVE_EXPONENT = 1.15;
+export const OVERDRIVE_DRIVE_CURVE_EXPONENT = 2.2;
 
 export function clampLfoRateHz(value) {
   const numeric = Number.isFinite(value) ? value : LFO_RATE_MIN_HZ;
@@ -52,6 +53,22 @@ export function normalizedFromLfoRate(rateHz) {
   const curved = Math.log(clampedRate / LFO_RATE_MIN_HZ) / Math.log(ratio);
   return Math.pow(curved, 1 / LFO_RATE_CURVE_EXPONENT);
 }
+
+export function getOverdriveToneFrequency(normalizedTone) {
+  const tone = Math.min(1, Math.max(0, Number.isFinite(normalizedTone) ? normalizedTone : 0.55));
+  return 420 + Math.pow(tone, 1.5) * 5580;
+}
+
+export function overdriveDriveFromNormalized(normalized) {
+  const t = Math.min(1, Math.max(0, Number.isFinite(normalized) ? normalized : 0));
+  return Math.pow(t, OVERDRIVE_DRIVE_CURVE_EXPONENT);
+}
+
+export function normalizedFromOverdriveDrive(drive) {
+  const clamped = Math.min(1, Math.max(0, Number.isFinite(drive) ? drive : 0));
+  return Math.pow(clamped, 1 / OVERDRIVE_DRIVE_CURVE_EXPONENT);
+}
+
 export const DEFAULT_NOTE_IDS = ["note-c4", "note-e4", "note-g4"];
 export const NOTE_OPTIONS = [
   { id: "note-c4", frequency: 261.63 },
@@ -294,6 +311,10 @@ export const INITIAL_SYNTH_PARAMS = {
   filterCutoff: 1200,
   filterTracking: 0.72,
   filterQ: 1.1,
+  overdriveDrive: 0,
+  overdriveTone: 0.55,
+  overdriveMix: 0,
+  overdriveOutput: 1,
   detuneSpread: 3,
   subLevel: 0.55,
   upperLevel: 0.68,
@@ -382,6 +403,26 @@ export const controlConfig = {
   "filter-q": {
     key: "filterQ",
     valueId: "filter-q-value",
+    formatter: (value) => value.toFixed(2),
+  },
+  "overdrive-drive": {
+    key: "overdriveDrive",
+    valueId: "overdrive-drive-value",
+    formatter: (value) => value.toFixed(2),
+  },
+  "overdrive-tone": {
+    key: "overdriveTone",
+    valueId: "overdrive-tone-value",
+    formatter: (value) => `${Math.round(value * 100)}%`,
+  },
+  "overdrive-mix": {
+    key: "overdriveMix",
+    valueId: "overdrive-mix-value",
+    formatter: (value) => value.toFixed(2),
+  },
+  "overdrive-output": {
+    key: "overdriveOutput",
+    valueId: "overdrive-output-value",
     formatter: (value) => value.toFixed(2),
   },
   "detune-spread": {

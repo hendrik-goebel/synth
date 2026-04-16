@@ -2,6 +2,7 @@ import {
   DELAY_FEEDBACK_MAX,
   DELAY_DIVISION_OPTIONS,
   clampLfoRateHz,
+  getOverdriveToneFrequency,
   HUMANIZE,
   LFO_TARGET_OPTIONS,
   MAX_SIMULTANEOUS_PRESETS,
@@ -16,6 +17,7 @@ import { clamp, randomCentered } from "./utils.js";
 
 const SCHEDULER_GRID_DIVISION = 48;
 const noiseBufferCache = new Map();
+const overdriveCurveCache = new Map();
 
 function getNoiseBuffer(context) {
   const key = context.sampleRate;
@@ -33,6 +35,45 @@ function getNoiseBuffer(context) {
 
   noiseBufferCache.set(key, buffer);
   return buffer;
+}
+
+function getOverdriveCurve(driveAmount = 0, stageIndex = 1) {
+  const normalizedDrive = clamp(driveAmount, 0, 1);
+  const normalizedStage = stageIndex === 2 ? 2 : 1;
+  const key = `${normalizedStage}:${Math.round(normalizedDrive * 256)}`;
+  if (overdriveCurveCache.has(key)) {
+    return overdriveCurveCache.get(key);
+  }
+
+  const curveLength = 2048;
+  const curve = new Float32Array(curveLength);
+  const intensity = normalizedStage === 1
+    ? 1.7 + normalizedDrive * 6.5
+    : 2.4 + normalizedDrive * 10.5;
+  const asymmetry = normalizedStage === 1
+    ? 0.18 + normalizedDrive * 0.32
+    : 0.08 + normalizedDrive * 0.18;
+  const edgeBlend = normalizedStage === 1 ? 0.28 : 0.18;
+  let sum = 0;
+
+  for (let i = 0; i < curveLength; i += 1) {
+    const x = (i / (curveLength - 1)) * 2 - 1;
+    const biased = x + asymmetry * (1 - x * x);
+    const soft = Math.tanh(biased * intensity);
+    const grain = biased / (1 + Math.abs(biased) * (0.75 + normalizedDrive * (normalizedStage === 1 ? 1.2 : 2.1)));
+    curve[i] = clamp(soft * (1 - edgeBlend) + grain * edgeBlend, -1, 1);
+    sum += curve[i];
+  }
+
+  const averageOffset = sum / curveLength;
+  if (Math.abs(averageOffset) > 0.000001) {
+    for (let i = 0; i < curveLength; i += 1) {
+      curve[i] = clamp(curve[i] - averageOffset, -1, 1);
+    }
+  }
+
+  overdriveCurveCache.set(key, curve);
+  return curve;
 }
 
 function getGlobalTimbreBias() {
@@ -338,6 +379,25 @@ export function scheduleNote(
     0,
     1,
   );
+  const overdriveDriveBase = clamp(voiceParams.overdriveDrive ?? 0, 0, 1);
+  const overdriveToneBase = clamp(voiceParams.overdriveTone ?? 0.55, 0, 1);
+  const overdriveMix = clamp(voiceParams.overdriveMix ?? 0, 0, 1);
+  const overdriveOutputBase = clamp(voiceParams.overdriveOutput ?? 1, 0, 1.5);
+  const overdriveDrive = clamp(overdriveDriveBase * (1 + randomCentered(0.08)), 0, 1);
+  const overdriveTone = clamp(overdriveToneBase + randomCentered(0.06), 0, 1);
+  const overdriveOutput = clamp(overdriveOutputBase * (1 + randomCentered(0.03)), 0, 1.5);
+  const overdriveHighpassFrequency = clamp(90 + overdriveDrive * 210, 90, 320);
+  const overdrivePreToneFrequency = clamp(
+    1700 + Math.pow(overdriveTone, 0.8) * 4200 * (1 - warmAmount * 0.08 + coldAmount * 0.12),
+    1200,
+    7600,
+  );
+  const overdriveBodyFrequency = clamp(650 + overdriveTone * 650, 350, 1600);
+  const overdriveToneFrequency = clamp(
+    getOverdriveToneFrequency(overdriveTone) * (1 - warmAmount * 0.28 + coldAmount * 0.18),
+    380,
+    7000,
+  );
   const reverbSendValue = clamp(
     voiceParams.reverbSend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
     0,
@@ -443,6 +503,90 @@ export function scheduleNote(
   voiceOutput.connect(channelOutputGain);
   voiceOutput = channelOutputGain;
 
+  if (overdriveMix > 0.001) {
+    const overdriveDry = ctx.createGain();
+    const overdriveWet = ctx.createGain();
+    const overdriveInputHighpass = ctx.createBiquadFilter();
+    const overdriveInputTone = ctx.createBiquadFilter();
+    const overdrivePreGain = ctx.createGain();
+    const overdriveStageOne = ctx.createWaveShaper();
+    const overdriveBody = ctx.createBiquadFilter();
+    const overdriveStageTwoGain = ctx.createGain();
+    const overdriveStageTwo = ctx.createWaveShaper();
+    const overdriveDcBlock = ctx.createBiquadFilter();
+    const overdriveToneFilter = ctx.createBiquadFilter();
+    const overdriveOut = ctx.createGain();
+    const overdriveMixAngle = overdriveMix * Math.PI * 0.5;
+    const autoTrim = clamp(1 - overdriveDrive * 0.28, 0.72, 1);
+
+    voiceNodes.push(
+      overdriveDry,
+      overdriveWet,
+      overdriveInputHighpass,
+      overdriveInputTone,
+      overdrivePreGain,
+      overdriveStageOne,
+      overdriveBody,
+      overdriveStageTwoGain,
+      overdriveStageTwo,
+      overdriveDcBlock,
+      overdriveToneFilter,
+      overdriveOut,
+    );
+
+    const overdriveDryGainValue = Math.cos(overdriveMixAngle);
+    const overdriveWetGainValue = Math.sin(overdriveMixAngle) * overdriveOutput * autoTrim;
+
+    overdriveDry.gain.setValueAtTime(0, preStartTime);
+    overdriveDry.gain.linearRampToValueAtTime(overdriveDryGainValue, time + gainSmoothTime);
+    overdriveDry.gain.setTargetAtTime(0, releaseStartTime, releaseTimeConstant);
+    overdriveDry.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
+
+    overdriveWet.gain.setValueAtTime(0, preStartTime);
+    overdriveWet.gain.linearRampToValueAtTime(overdriveWetGainValue, time + gainSmoothTime);
+    overdriveWet.gain.setTargetAtTime(0, releaseStartTime, releaseTimeConstant);
+    overdriveWet.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
+
+    overdriveInputHighpass.type = "highpass";
+    overdriveInputHighpass.frequency.setValueAtTime(overdriveHighpassFrequency, preStartTime);
+    overdriveInputHighpass.Q.value = 0.35;
+    overdriveInputTone.type = "lowpass";
+    overdriveInputTone.frequency.setValueAtTime(overdrivePreToneFrequency, preStartTime);
+    overdriveInputTone.Q.value = 0.28;
+    overdrivePreGain.gain.setValueAtTime(1.5 + overdriveDrive * 8, preStartTime);
+    overdriveStageOne.curve = getOverdriveCurve(overdriveDrive, 1);
+    overdriveStageOne.oversample = "4x";
+    overdriveBody.type = "peaking";
+    overdriveBody.frequency.setValueAtTime(overdriveBodyFrequency, preStartTime);
+    overdriveBody.Q.value = 0.9;
+    overdriveBody.gain.setValueAtTime(1.5 + overdriveDrive * 5.5, preStartTime);
+    overdriveStageTwoGain.gain.setValueAtTime(1.2 + overdriveDrive * 6.5, preStartTime);
+    overdriveStageTwo.curve = getOverdriveCurve(overdriveDrive, 2);
+    overdriveStageTwo.oversample = "4x";
+    overdriveDcBlock.type = "highpass";
+    overdriveDcBlock.frequency.setValueAtTime(42, preStartTime);
+    overdriveDcBlock.Q.value = 0.1;
+    overdriveToneFilter.type = "lowpass";
+    overdriveToneFilter.frequency.setValueAtTime(overdriveToneFrequency, preStartTime);
+    overdriveToneFilter.Q.value = 0.22;
+    overdriveOut.gain.setValueAtTime(1, preStartTime);
+
+    voiceOutput.connect(overdriveDry);
+    voiceOutput.connect(overdriveInputHighpass);
+    overdriveInputHighpass.connect(overdriveInputTone);
+    overdriveInputTone.connect(overdrivePreGain);
+    overdrivePreGain.connect(overdriveStageOne);
+    overdriveStageOne.connect(overdriveBody);
+    overdriveBody.connect(overdriveStageTwoGain);
+    overdriveStageTwoGain.connect(overdriveStageTwo);
+    overdriveStageTwo.connect(overdriveDcBlock);
+    overdriveDcBlock.connect(overdriveToneFilter);
+    overdriveToneFilter.connect(overdriveWet);
+    overdriveDry.connect(overdriveOut);
+    overdriveWet.connect(overdriveOut);
+    voiceOutput = overdriveOut;
+  }
+
   // Per-instrument post-filter (LP / HP / BP) at the end of the signal chain
   const postFilterTypeIndex = clamp(Math.round(voiceParams.postFilterType ?? 0), 0, 3);
   const postFilterMixValue = clamp(voiceParams.postFilterMix ?? 0, 0, 1);
@@ -514,7 +658,7 @@ export function scheduleNote(
           // Already disconnected — safe to ignore
         }
       }
-    }, 12);
+    }, 24);
   };
 }
 

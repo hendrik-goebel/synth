@@ -1,5 +1,109 @@
 - Pending: run `npm run build` to confirm bundling after the routing change.
 - [ ] Verify by running a project build.
+# Task: Make Overdrive Drive Easier To Dial In
+
+## Plan
+- [x] Inspect how `overdrive-drive` is currently bound in `js/ui.js`.
+- [x] Add shared forward/inverse mapping helpers in `js/constants.js` for a curved overdrive drive slider.
+- [x] Apply the mapping in `js/ui.js` and tighten slider resolution in `index.html`.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed `overdrive-drive` was still using a direct linear slider-to-value mapping in `js/ui.js`, which made the lower range too jumpy to dial in precisely.
+- Added shared mapping helpers in `js/constants.js`: `overdriveDriveFromNormalized(...)`, `normalizedFromOverdriveDrive(...)`, and `OVERDRIVE_DRIVE_CURVE_EXPONENT`.
+- Updated `js/ui.js` so the slider now sends a curved low-end-friendly value into controller/state, while UI sync converts stored drive values back to the slider position.
+- Tightened the `#overdrive-drive` slider step in `index.html` from `0.01` to `0.001` so the new curve has enough useful low-end resolution.
+
+## Review
+- Static checks on the edited files reported no errors; only existing/general IDE warnings remain, including the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
+- `npm run build` completed successfully after adding the curved overdrive drive mapping.
+- Webpack compiled without errors and emitted the updated bundle.
+
+---
+
+# Task: Make Overdrive Mix 0 A True Bypass
+
+## Plan
+- [x] Confirm whether `mix = 0` still routes through the overdrive branch in `js/audio-engine.js`.
+- [x] Change the routing so `mix = 0` fully bypasses overdrive and leaves the dry path untouched.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed the previous overdrive branch still activated whenever `drive` or `output` were non-neutral, even if `mix` was `0`.
+- That meant the dry signal still passed through overdrive-specific gain staging and auto-trim, which could produce audible artifacts even when the user expected a full bypass.
+- Updated `js/audio-engine.js` so the overdrive branch only exists when `overdriveMix > 0.001`.
+- Moved overdrive output scaling to the wet path only, keeping the dry path unchanged.
+
+## Review
+- Static checks reported no errors on the edited `js/audio-engine.js` file.
+- `npm run build` completed successfully after making `mix = 0` a true bypass.
+- Webpack compiled without errors and emitted the updated bundle.
+
+---
+
+# Task: Fix Overdrive Pop Sounds
+
+## Plan
+- [x] Inspect the refined overdrive path in `js/audio-engine.js` for discontinuities at note start/end.
+- [x] Reduce DC and add explicit fade automation for the overdrive dry/wet/output stages.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Root cause: the organic overdrive revision introduced two click risks in `js/audio-engine.js`: asymmetric waveshaping could leave a small DC bias, and the new `overdriveDry`, `overdriveWet`, and `overdriveOut` gains were not following the same explicit fade-in/fade-out automation as the rest of the voice path.
+- Updated `getOverdriveCurve(...)` to center the generated curve around zero after shaping, reducing DC-related pops.
+- Updated the overdrive stage gains to ramp from `0` at `preStartTime`, rise with `gainSmoothTime`, and fade back to `0` through `releaseStartTime` / `voiceFadeOutTime`.
+- Slightly increased the overdrive DC-block high-pass frequency and extended the node-disconnect delay so filter/shaper tails can settle before teardown.
+
+## Review
+- Static checks reported no errors on the edited `js/audio-engine.js` file.
+- `npm run build` completed successfully after the overdrive pop fix.
+- Webpack compiled without errors and emitted the updated bundle.
+
+---
+
+# Task: Make Overdrive More Organic And Dirty
+
+## Plan
+- [x] Audit the current overdrive DSP in `js/audio-engine.js` to find the sterile/fizzy parts of the sound.
+- [x] Rework the overdrive stage with more organic saturation and better frequency shaping, without adding more UI complexity.
+- [x] Retune overdrive defaults in `js/constants.js` so the existing controls land in more useful ranges.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Root cause: the first overdrive version was a single symmetric soft-clipper with one tone low-pass, which made the result feel flat, fizzy, and too identical from note to note.
+- Reworked `js/audio-engine.js` to use a more organic wet path: input high-pass cleanup, pre-clipping tone low-pass, two asymmetrical saturation stages, a mid peaking filter for dirt/body, DC cleanup, and a darker post-drive tone filter.
+- Switched the wet/dry blend to an equal-power crossfade and added light per-note drive/tone/output variation so repeated notes do not distort in exactly the same way.
+- Added/confirmed shared overdrive helper/config entries in `js/constants.js`, including a warmer `getOverdriveToneFrequency(...)` mapping that avoids overly fizzy highs.
+
+## Review
+- Static checks passed on the edited overdrive files; the only remaining note is the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
+- `npm run build` completed successfully after the overdrive voicing refinement.
+- Webpack compiled without errors and emitted updated assets, including the rebuilt bundled `./js/app.js`.
+
+---
+
+# Task: Add Overdrive Section Before Delay
+
+## Plan
+- [x] Inspect the current voice signal path and control plumbing for the right insert point ahead of delay sends.
+- [x] Add an `Overdrive` control group in `index.html` with the usual drive/tone/mix/output parameters.
+- [x] Register overdrive defaults and UI mappings in `js/constants.js`.
+- [x] Insert a per-instrument overdrive stage in `js/audio-engine.js` before the delay path.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Added a new `Overdrive` control group in `index.html` with `Drive`, `Tone`, `Mix`, and `Output` sliders.
+- Added `overdriveDrive`, `overdriveTone`, `overdriveMix`, and `overdriveOutput` defaults plus UI mapping in `js/constants.js`, keeping the effect instrument-scoped rather than global.
+- Implemented a cached waveshaper overdrive insert in `js/audio-engine.js` with dry/wet crossfade, low-pass tone shaping, and output trim.
+- Placed the overdrive stage after the main voice/channel shaping and before the post-filter / pan / delay-send split, so delay repeats inherit the overdriven tone.
+
+## Review
+- Static checks reported no new errors on the edited source files; the only remaining note is the pre-existing unused `DEFAULT_NOTE_IDS` warning in `js/constants.js`.
+- `npm run build` completed successfully after the overdrive integration.
+- Webpack compiled without errors and emitted updated assets, including the rebuilt `index.html` and bundled `./js/app.js`.
+
+---
+
 # Task: Arpeggio Loop App
 
 

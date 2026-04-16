@@ -40,3 +40,8 @@
 - When removing a sound feature, clean it from all layers at once (preset data, default params, UI controls, and DSP path) to avoid ghost state and regressions.
 - After removing a DSP stage, also delete any now-unused shared nodes and graph links (for example leftover state fields or constructor calls) so initialization cost and maintenance overhead do not linger.
 - When a control lives inside an instrument-scoped section, keep its ownership aligned across all layers: it must not stay in global-control lists if the UI sync and DSP are expected to change per instrument.
+- When adding an insert effect that should feed delay repeats, place it before the send split so both the dry output and the delay path hear the same processed signal.
+- For organic dirty overdrive, avoid a single symmetric clipper alone; use staged asymmetry, trim lows before clipping, and low-pass the post-drive fizz so the effect keeps body instead of sounding sterile.
+- When using asymmetric waveshaping, center the curve to limit DC bias and give every new dry/wet/output gain node the same explicit fade-in/fade-out automation as the main voice path; otherwise pops can appear even if the oscillators themselves are click-safe.
+- For wet/dry insert effects, `mix = 0` should be a real bypass: do not instantiate extra branch gain staging or apply output trim to the dry signal when the wet path is effectively off.
+- For sensitive `0..1` drive controls, keep the stored DSP value linear but apply a curved UI mapping at the slider boundary so the low end gets finer resolution without changing audio-engine semantics.

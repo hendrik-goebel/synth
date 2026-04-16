@@ -6,6 +6,8 @@ import {
   normalizedFromLfoRate,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
+  normalizedFromOverdriveDrive,
+  overdriveDriveFromNormalized,
   POST_FILTER_TYPE_OPTIONS,
 } from "./constants.js";
 import { statusLabel } from "./dom.js";
@@ -77,9 +79,12 @@ export function setControlUIValue(controlId, value) {
         input.textContent = `Type: ${controlConfig[controlId].formatter(value)}`;
       }
     } else {
-      const nextValue = controlId === "lfo-rate"
-        ? String(normalizedFromLfoRate(value))
-        : String(value);
+      let nextValue = String(value);
+      if (controlId === "lfo-rate") {
+        nextValue = String(normalizedFromLfoRate(value));
+      } else if (controlId === "overdrive-drive") {
+        nextValue = String(normalizedFromOverdriveDrive(value));
+      }
       if (input.value !== nextValue) {
         input.value = nextValue;
       }
@@ -253,6 +258,12 @@ export function bindControls() {
       if (controlId === "lfo-rate") {
         const normalized = Number.parseFloat(event.target.value);
         controller.setControlValue(controlId, lfoRateFromNormalized(normalized));
+        return;
+      }
+
+      if (controlId === "overdrive-drive") {
+        const normalized = Number.parseFloat(event.target.value);
+        controller.setControlValue(controlId, overdriveDriveFromNormalized(normalized));
         return;
       }
 
