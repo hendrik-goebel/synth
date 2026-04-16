@@ -65,14 +65,14 @@ function getLfoTargetOption(targetIndex = state.synthParams.lfoTarget) {
   return LFO_TARGET_OPTIONS[normalizedIndex];
 }
 
-function getLfoModulationAtTime(time) {
-  const targetOption = getLfoTargetOption();
+function getLfoModulationAtTime(time, voiceParams = state.synthParams) {
+  const targetOption = getLfoTargetOption(voiceParams.lfoTarget);
   if (!targetOption.key) {
     return { key: null, amount: 0 };
   }
 
-  const rate = clampLfoRateHz(state.synthParams.lfoRate ?? 1.2);
-  const depth = clamp(state.synthParams.lfoDepth ?? 0, 0, 1);
+  const rate = clampLfoRateHz(voiceParams.lfoRate ?? state.synthParams.lfoRate ?? 1.2);
+  const depth = clamp(voiceParams.lfoDepth ?? state.synthParams.lfoDepth ?? 0, 0, 1);
   const phase = time * Math.PI * 2 * rate;
   return {
     key: targetOption.key,
@@ -326,7 +326,7 @@ export function scheduleNote(
     0.2,
     12,
   );
-  const lfoModulation = getLfoModulationAtTime(time);
+  const lfoModulation = getLfoModulationAtTime(time, voiceParams);
   if (lfoModulation.key === "filterCutoff") {
     cutoffWithVariation = clamp(cutoffWithVariation + lfoModulation.amount * 2200, 250, 8000);
   }

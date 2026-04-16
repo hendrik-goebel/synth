@@ -39,3 +39,4 @@
 - For per-voice distortion paths, ramp dry/wet gains from pre-start and fade both to zero before oscillator stop; abrupt mix-node state changes are a common source of clicks.
 - When removing a sound feature, clean it from all layers at once (preset data, default params, UI controls, and DSP path) to avoid ghost state and regressions.
 - After removing a DSP stage, also delete any now-unused shared nodes and graph links (for example leftover state fields or constructor calls) so initialization cost and maintenance overhead do not linger.
+- When a control lives inside an instrument-scoped section, keep its ownership aligned across all layers: it must not stay in global-control lists if the UI sync and DSP are expected to change per instrument.

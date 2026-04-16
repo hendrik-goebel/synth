@@ -2,6 +2,37 @@
 - [ ] Verify by running a project build.
 # Task: Arpeggio Loop App
 
+
+---
+
+# Task: Replace LFO Target Slider With Cycle Button
+
+## Plan
+- [ ] Inspect the current `LFO Target` markup and existing cycle-button UI bindings.
+- [ ] Replace the `lfo-target` slider in `index.html` with a cycle button.
+- [ ] Bind `lfo-target` button cycling in `js/ui.js` and wire it in `js/app.js`.
+- [ ] Verify with static checks and a production build.
+
+---
+
+# Task: Sync Filter LFO UI On Instrument Switch
+
+## Plan
+- [x] Trace how instrument switching refreshes control values in `js/ui.js`.
+- [x] Re-scope filter LFO params so they follow the selected instrument instead of shared global state.
+- [x] Update the audio path to read LFO settings from each instrument's params.
+- [x] Verify with static checks and a production build.
+
+## Progress Notes
+- Root cause: `lfoTarget`, `lfoRate`, and `lfoDepth` were still listed in `GLOBAL_CONTROL_KEYS`, so `syncControlsFromActiveInstrumentPage()` intentionally kept reading them from shared `state.synthParams` during instrument switches.
+- Removed those three keys from `GLOBAL_CONTROL_KEYS` in `js/constants.js`, which makes the existing UI sync path restore them from the active instrument params.
+- Updated `getLfoModulationAtTime(...)` in `js/audio-engine.js` so scheduled notes read LFO target/rate/depth from the instrument's `voiceParams`, keeping runtime audio behavior aligned with the UI/state model.
+
+## Review
+- Static IDE checks report no errors on the edited files; the existing `DEFAULT_NOTE_IDS` warning in `js/constants.js` is unrelated.
+- `npm run build` completed successfully after the LFO ownership fix.
+- A headless controller/state verification confirmed two instruments can hold different LFO target/rate/depth values, switching back restores the first instrument's values, and shared `state.synthParams` LFO defaults remain unchanged.
+
 ## Plan
 - [x] Review current HTML/CSS/JS scaffold.
 - [x] Implement a simple UI for starting/stopping playback.

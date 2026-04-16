@@ -1,12 +1,12 @@
 import {
   controlConfig,
   GLOBAL_CONTROL_KEYS,
+  LFO_TARGET_OPTIONS,
   lfoRateFromNormalized,
   normalizedFromLfoRate,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
-  POST_FILTER_TYPE_LABELS,
 } from "./constants.js";
 import { statusLabel } from "./dom.js";
 import {
@@ -64,6 +64,17 @@ export function setControlUIValue(controlId, value) {
       const nextChecked = Boolean(Number(value));
       if (input.checked !== nextChecked) {
         input.checked = nextChecked;
+      }
+    } else if (input.tagName === "BUTTON") {
+      const nextValue = String(value);
+      if (input.value !== nextValue) {
+        input.value = nextValue;
+      }
+
+      if (controlId === "lfo-target") {
+        input.textContent = `${controlConfig[controlId].formatter(value)}`;
+      } else if (controlId === "post-filter-type") {
+        input.textContent = `Type: ${controlConfig[controlId].formatter(value)}`;
       }
     } else {
       const nextValue = controlId === "lfo-rate"
@@ -276,6 +287,21 @@ export function bindPostFilterTypeToggle(controller) {
     const currentIndex = POST_FILTER_TYPE_OPTIONS.indexOf(currentValue);
     const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % POST_FILTER_TYPE_OPTIONS.length;
     controller.setControlValue("post-filter-type", POST_FILTER_TYPE_OPTIONS[nextIndex]);
+  });
+}
+
+export function bindLfoTargetToggle(controller) {
+  const button = document.getElementById("lfo-target");
+  if (!button) {
+    return;
+  }
+
+  button.controllerRef = controller;
+  button.addEventListener("click", (event) => {
+    const currentValue = Number.parseInt(event.currentTarget.value, 10);
+    const currentIndex = LFO_TARGET_OPTIONS.findIndex((_, index) => index === currentValue);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % LFO_TARGET_OPTIONS.length;
+    controller.setControlValue("lfo-target", nextIndex);
   });
 }
 

@@ -272,9 +272,6 @@ export const DEFAULT_PRESET_ID = "warm-pad";
 export const GLOBAL_CONTROL_KEYS = new Set([
   "tempoBpm",
   "globalTimbre",
-  "lfoTarget",
-  "lfoRate",
-  "lfoDepth",
   "masterVolume",
   "reverbMix",
   "delayDivision",
