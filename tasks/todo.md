@@ -1320,3 +1320,44 @@
 - `npm run build` completed successfully after the distortion click/pop regression fix.
 - Webpack compiled without errors and emitted updated assets.
 
+---
+
+# Task: Remove Distortion Feature Completely
+
+## Plan
+- [x] Remove distortion parameters from `js/constants.js` (`BASE_SOUND_PRESETS`, `INITIAL_SYNTH_PARAMS`, `controlConfig`).
+- [x] Remove distortion controls from `index.html`.
+- [x] Remove per-voice distortion processing from `js/audio-engine.js`.
+- [x] Verify with static checks and a production build.
+
+## Progress Notes
+- Removed all `distortionDrive`/`distortionMix`/`distortionTone` fields from presets and defaults.
+- Removed `distortion-*` controls so UI no longer exposes distortion.
+- Removed the distortion branch in `scheduleNote(...)`; voices now route directly through the main filter/output chain.
+- Cleared the remaining delay waveshaper curve assignment to avoid dead distortion helper dependencies.
+
+## Review
+- Static IDE checks (`get_errors`) report no errors on edited files (existing unrelated warning: unused `DEFAULT_NOTE_IDS`).
+- `npm run build` completed successfully after removing distortion.
+- Webpack compiled without errors and emitted updated assets.
+
+---
+
+# Task: Remove Leftover DelayDrive Node
+
+## Plan
+- [x] Remove `delayDrive` from shared runtime state in `js/state.js`.
+- [x] Remove `delayDrive` creation/config from `initializeAudioGraph()` in `js/audio-engine.js`.
+- [x] Connect delay path directly `delayHighpass -> delayTone` in `js/audio-engine.js`.
+- [x] Verify with static checks and a production build.
+
+## Progress Notes
+- Removed stale `delayDrive` property from shared state after distortion feature removal.
+- Removed `createWaveShaper` allocation and obsolete `curve/oversample` assignments in the delay setup.
+- Simplified delay graph to `delayNode -> delayHighpass -> delayTone -> (feedback + return)`.
+
+## Review
+- Static IDE checks (`get_errors`) report no errors on edited files.
+- `npm run build` completed successfully after removing the leftover `delayDrive` node.
+- Webpack compiled without errors and emitted updated assets.
+

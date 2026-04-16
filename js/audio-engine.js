@@ -14,33 +14,8 @@ import { getInstrumentParams, getPlayablePresetIds } from "./presets.js";
 import { state } from "./state.js";
 import { clamp, randomCentered } from "./utils.js";
 
-const DISTORTION_CURVE_STEPS = 100;
 const SCHEDULER_GRID_DIVISION = 48;
-const distortionCurveCache = new Map();
 const noiseBufferCache = new Map();
-
-function getDistortionCurve(amount) {
-  const clamped = clamp(amount, 0, 1);
-  const bucket = Math.round(clamped * DISTORTION_CURVE_STEPS);
-
-  if (distortionCurveCache.has(bucket)) {
-    return distortionCurveCache.get(bucket);
-  }
-
-  const normalized = bucket / DISTORTION_CURVE_STEPS;
-  const k = normalized * 500;
-  const samples = 2048;
-  const curve = new Float32Array(samples);
-  const deg = Math.PI / 180;
-
-  for (let i = 0; i < samples; i += 1) {
-    const x = (i * 2) / samples - 1;
-    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
-  }
-
-  distortionCurveCache.set(bucket, curve);
-  return curve;
-}
 
 function getNoiseBuffer(context) {
   const key = context.sampleRate;
@@ -160,7 +135,6 @@ export function initializeAudioGraph() {
   state.compressor = state.audioContext.createDynamicsCompressor();
   state.delayNode = state.audioContext.createDelay(1.0);
   state.delayFeedback = state.audioContext.createGain();
-  state.delayDrive = state.audioContext.createWaveShaper();
   state.delayHighpass = state.audioContext.createBiquadFilter();
   state.delayReturnGain = state.audioContext.createGain();
   state.delayTone = state.audioContext.createBiquadFilter();
@@ -179,8 +153,6 @@ export function initializeAudioGraph() {
 
   state.delayNode.delayTime.value = syncDelayTimeToTempo();
   state.delayFeedback.gain.value = getDelayFeedbackGain();
-  state.delayDrive.curve = getDistortionCurve(0.22);
-  state.delayDrive.oversample = "4x";
   state.delayHighpass.type = "highpass";
   state.delayHighpass.frequency.value = getDelayHighpassFrequencyForTimbre();
   state.delayHighpass.Q.value = 0.35;
@@ -205,8 +177,7 @@ export function initializeAudioGraph() {
   state.compressor.connect(state.audioContext.destination);
 
   state.delayNode.connect(state.delayHighpass);
-  state.delayHighpass.connect(state.delayDrive);
-  state.delayDrive.connect(state.delayTone);
+  state.delayHighpass.connect(state.delayTone);
   state.delayTone.connect(state.delayFeedback);
   state.delayFeedback.connect(state.delayNode);
   state.delayTone.connect(state.delayReturnGain);
@@ -372,23 +343,6 @@ export function scheduleNote(
     0,
     1,
   );
-  const distortionDriveValue = clamp(
-    voiceParams.distortionDrive * (1 + randomCentered(HUMANIZE.fxSendAmount)),
-    0,
-    1,
-  );
-  const distortionMixValue = clamp(
-    voiceParams.distortionMix * (1 + randomCentered(HUMANIZE.fxSendAmount)),
-    0,
-    1,
-  );
-  const distortionToneValue = clamp(
-    voiceParams.distortionTone *
-      (1 + randomCentered(HUMANIZE.cutoffAmount * 0.5)) *
-      (1 - warmAmount * 0.28 + coldAmount * 0.38),
-    500,
-    12000,
-  );
 
   const oscABaseDetune = -voiceParams.detuneSpread + driftCents;
   const oscBBaseDetune = voiceParams.detuneSpread + driftCents;
@@ -479,41 +433,6 @@ export function scheduleNote(
 
   let voiceOutput = voiceGain;
 
-  if (distortionDriveValue > 0.001 && distortionMixValue > 0.001) {
-    const distortionIn = ctx.createGain();
-    const distortionDry = ctx.createGain();
-    const distortionWet = ctx.createGain();
-    const distortionOut = ctx.createGain();
-    const shaper = ctx.createWaveShaper();
-    const distortionToneFilter = ctx.createBiquadFilter();
-
-    voiceNodes.push(distortionIn, distortionDry, distortionWet, distortionOut, shaper, distortionToneFilter);
-
-      shaper.curve = getDistortionCurve(distortionDriveValue);
-      shaper.oversample = "4x";
-      distortionToneFilter.type = "lowpass";
-      distortionToneFilter.frequency.setValueAtTime(distortionToneValue, time);
-      distortionToneFilter.Q.value = 0.7;
-      // Smooth distortion dry/wet from pre-start and fade out before stop to avoid edge clicks.
-      const distortionFadeOutStart = Math.max(releaseStartTime, voiceFadeOutTime - 0.01);
-      distortionDry.gain.setValueAtTime(0, preStartTime);
-      distortionDry.gain.linearRampToValueAtTime(1 - distortionMixValue, time + gainSmoothTime);
-      distortionDry.gain.setValueAtTime(1 - distortionMixValue, distortionFadeOutStart);
-      distortionDry.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
-      distortionWet.gain.setValueAtTime(0, preStartTime);
-      distortionWet.gain.linearRampToValueAtTime(distortionMixValue, time + gainSmoothTime);
-      distortionWet.gain.setValueAtTime(distortionMixValue, distortionFadeOutStart);
-      distortionWet.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
-
-    voiceGain.connect(distortionIn);
-    distortionIn.connect(distortionDry);
-    distortionIn.connect(shaper);
-    shaper.connect(distortionToneFilter);
-    distortionToneFilter.connect(distortionWet);
-    distortionDry.connect(distortionOut);
-    distortionWet.connect(distortionOut);
-    voiceOutput = distortionOut;
-  }
 
   voiceOutput.connect(toneFilter);
   voiceOutput = toneFilter;

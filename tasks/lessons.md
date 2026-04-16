@@ -37,3 +37,5 @@
 - For modulation-rate controls, prefer logarithmic slider mapping so low values get finer resolution; linear Hz sliders make musically important slow rates hard to dial in.
 - When pure log mapping still feels too linear, add a mild curve exponent and keep the inverse mapping in sync; this increases low-rate precision without breaking stored Hz values.
 - For per-voice distortion paths, ramp dry/wet gains from pre-start and fade both to zero before oscillator stop; abrupt mix-node state changes are a common source of clicks.
+- When removing a sound feature, clean it from all layers at once (preset data, default params, UI controls, and DSP path) to avoid ghost state and regressions.
+- After removing a DSP stage, also delete any now-unused shared nodes and graph links (for example leftover state fields or constructor calls) so initialization cost and maintenance overhead do not linger.

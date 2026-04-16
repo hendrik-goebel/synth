@@ -14,7 +14,6 @@ export const state = {
   compressor: null,
   delayNode: null,
   delayFeedback: null,
-  delayDrive: null,
   delayHighpass: null,
   delayReturnGain: null,
   delayTone: null,
