@@ -1,5 +1,55 @@
 - Pending: run `npm run build` to confirm bundling after the routing change.
 - [ ] Verify by running a project build.
+# Task: Reduce Preset Overdrive And Keep Some Instruments Clean
+
+## Plan
+- [ ] Review current preset `overdrive*` values in `js/constants.js`.
+- [ ] Set multiple presets to explicit no-overdrive defaults.
+- [ ] Reduce overdrive intensity on the remaining driven presets.
+- [ ] Verify with static checks and `npm run build`.
+
+---
+
+# Task: Make Overdrive More Warm And Crunchy
+
+## Plan
+- [x] Inspect the current overdrive curve/filter voicing in `js/audio-engine.js` and `js/constants.js`.
+- [x] Revoice the overdrive DSP toward warmer mids and crunchier clipping with less fizzy top end.
+- [x] Retune overdrive defaults where needed so the warmer voicing is easier to reach.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Revoiced `getOverdriveCurve(...)` in `js/audio-engine.js` so stage one has a grainier crunch emphasis while stage two stays softer and less fizzy.
+- Lowered the overdrive pre/post brightness by reducing the pre-tone and final tone filter ranges, and eased the cold-bias scaling so warm settings stay darker.
+- Shifted the overdrive body emphasis lower in frequency and boosted that low-mid body stage more strongly, which gives the effect more warmth and crunch instead of brittle edge.
+- Retuned `getOverdriveToneFrequency(...)` and several preset/default `overdriveTone` values in `js/constants.js` so the effect lands in a warmer range without needing extreme knob positions.
+
+## Review
+- Static checks on the edited files reported no errors; only existing warnings remain in `js/constants.js`, including the pre-existing unused `DEFAULT_NOTE_IDS` warning.
+- `npm run build` completed successfully after the overdrive warm/crunch voicing update.
+- Webpack compiled without errors and emitted the updated bundle.
+
+---
+
+# Task: Add Overdrive And LFO Defaults To Presets
+
+## Plan
+- [x] Inspect the preset definitions and confirm how per-instrument overdrive/LFO values are sourced.
+- [x] Add sensible `overdrive` and `lfo` settings to the preset instruments in `js/constants.js`.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed `BASE_SOUND_PRESETS` overrides are merged into each instrument through `createInstrumentParams(...)` in `js/presets.js`, so preset-level `overdrive*` and `lfo*` values become the selected instrument defaults automatically.
+- Added explicit `overdriveDrive`, `overdriveTone`, `overdriveMix`, `overdriveOutput`, `lfoTarget`, `lfoRate`, and `lfoDepth` values for every preset in `js/constants.js`.
+- Voiced the presets with different characters: subtle movement for `warm`/`velvet`, stronger filter motion for `acid`/`rubber`, brighter motion for `glass`, and heavier dirt for `bass`/`noisy`.
+
+## Review
+- Static checks on `js/constants.js` reported only existing warnings, including the pre-existing unused `DEFAULT_NOTE_IDS` warning.
+- `npm run build` completed successfully after adding preset-specific overdrive and LFO defaults.
+- Webpack compiled without errors and emitted the updated bundle.
+
+---
+
 # Task: Make Overdrive Drive Easier To Dial In
 
 ## Plan

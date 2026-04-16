@@ -48,19 +48,19 @@ function getOverdriveCurve(driveAmount = 0, stageIndex = 1) {
   const curveLength = 2048;
   const curve = new Float32Array(curveLength);
   const intensity = normalizedStage === 1
-    ? 1.7 + normalizedDrive * 6.5
-    : 2.4 + normalizedDrive * 10.5;
+    ? 1.45 + normalizedDrive * 5.2
+    : 1.9 + normalizedDrive * 7.4;
   const asymmetry = normalizedStage === 1
-    ? 0.18 + normalizedDrive * 0.32
-    : 0.08 + normalizedDrive * 0.18;
-  const edgeBlend = normalizedStage === 1 ? 0.28 : 0.18;
+    ? 0.1 + normalizedDrive * 0.18
+    : 0.04 + normalizedDrive * 0.1;
+  const edgeBlend = normalizedStage === 1 ? 0.36 : 0.12;
   let sum = 0;
 
   for (let i = 0; i < curveLength; i += 1) {
     const x = (i / (curveLength - 1)) * 2 - 1;
     const biased = x + asymmetry * (1 - x * x);
     const soft = Math.tanh(biased * intensity);
-    const grain = biased / (1 + Math.abs(biased) * (0.75 + normalizedDrive * (normalizedStage === 1 ? 1.2 : 2.1)));
+    const grain = biased / (1 + Math.abs(biased) * (0.95 + normalizedDrive * (normalizedStage === 1 ? 1.45 : 1.5)));
     curve[i] = clamp(soft * (1 - edgeBlend) + grain * edgeBlend, -1, 1);
     sum += curve[i];
   }
@@ -386,17 +386,17 @@ export function scheduleNote(
   const overdriveDrive = clamp(overdriveDriveBase * (1 + randomCentered(0.08)), 0, 1);
   const overdriveTone = clamp(overdriveToneBase + randomCentered(0.06), 0, 1);
   const overdriveOutput = clamp(overdriveOutputBase * (1 + randomCentered(0.03)), 0, 1.5);
-  const overdriveHighpassFrequency = clamp(90 + overdriveDrive * 210, 90, 320);
+  const overdriveHighpassFrequency = clamp(55 + overdriveDrive * 130, 55, 190);
   const overdrivePreToneFrequency = clamp(
-    1700 + Math.pow(overdriveTone, 0.8) * 4200 * (1 - warmAmount * 0.08 + coldAmount * 0.12),
-    1200,
-    7600,
+    950 + Math.pow(overdriveTone, 0.82) * 2500 * (1 - warmAmount * 0.14 + coldAmount * 0.08),
+    700,
+    4300,
   );
-  const overdriveBodyFrequency = clamp(650 + overdriveTone * 650, 350, 1600);
+  const overdriveBodyFrequency = clamp(420 + overdriveTone * 420, 320, 980);
   const overdriveToneFrequency = clamp(
-    getOverdriveToneFrequency(overdriveTone) * (1 - warmAmount * 0.28 + coldAmount * 0.18),
-    380,
-    7000,
+    getOverdriveToneFrequency(overdriveTone) * (1 - warmAmount * 0.3 + coldAmount * 0.1),
+    260,
+    4600,
   );
   const reverbSendValue = clamp(
     voiceParams.reverbSend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
@@ -517,7 +517,7 @@ export function scheduleNote(
     const overdriveToneFilter = ctx.createBiquadFilter();
     const overdriveOut = ctx.createGain();
     const overdriveMixAngle = overdriveMix * Math.PI * 0.5;
-    const autoTrim = clamp(1 - overdriveDrive * 0.28, 0.72, 1);
+    const autoTrim = clamp(1 - overdriveDrive * 0.22, 0.78, 1);
 
     voiceNodes.push(
       overdriveDry,
@@ -549,18 +549,18 @@ export function scheduleNote(
 
     overdriveInputHighpass.type = "highpass";
     overdriveInputHighpass.frequency.setValueAtTime(overdriveHighpassFrequency, preStartTime);
-    overdriveInputHighpass.Q.value = 0.35;
+    overdriveInputHighpass.Q.value = 0.22;
     overdriveInputTone.type = "lowpass";
     overdriveInputTone.frequency.setValueAtTime(overdrivePreToneFrequency, preStartTime);
-    overdriveInputTone.Q.value = 0.28;
-    overdrivePreGain.gain.setValueAtTime(1.5 + overdriveDrive * 8, preStartTime);
+    overdriveInputTone.Q.value = 0.18;
+    overdrivePreGain.gain.setValueAtTime(1.35 + overdriveDrive * 6.2, preStartTime);
     overdriveStageOne.curve = getOverdriveCurve(overdriveDrive, 1);
     overdriveStageOne.oversample = "4x";
     overdriveBody.type = "peaking";
     overdriveBody.frequency.setValueAtTime(overdriveBodyFrequency, preStartTime);
-    overdriveBody.Q.value = 0.9;
-    overdriveBody.gain.setValueAtTime(1.5 + overdriveDrive * 5.5, preStartTime);
-    overdriveStageTwoGain.gain.setValueAtTime(1.2 + overdriveDrive * 6.5, preStartTime);
+    overdriveBody.Q.value = 0.75;
+    overdriveBody.gain.setValueAtTime(2.4 + overdriveDrive * 6.4, preStartTime);
+    overdriveStageTwoGain.gain.setValueAtTime(0.95 + overdriveDrive * 4.2, preStartTime);
     overdriveStageTwo.curve = getOverdriveCurve(overdriveDrive, 2);
     overdriveStageTwo.oversample = "4x";
     overdriveDcBlock.type = "highpass";
@@ -568,7 +568,7 @@ export function scheduleNote(
     overdriveDcBlock.Q.value = 0.1;
     overdriveToneFilter.type = "lowpass";
     overdriveToneFilter.frequency.setValueAtTime(overdriveToneFrequency, preStartTime);
-    overdriveToneFilter.Q.value = 0.22;
+    overdriveToneFilter.Q.value = 0.14;
     overdriveOut.gain.setValueAtTime(1, preStartTime);
 
     voiceOutput.connect(overdriveDry);

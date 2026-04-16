@@ -45,3 +45,4 @@
 - When using asymmetric waveshaping, center the curve to limit DC bias and give every new dry/wet/output gain node the same explicit fade-in/fade-out automation as the main voice path; otherwise pops can appear even if the oscillators themselves are click-safe.
 - For wet/dry insert effects, `mix = 0` should be a real bypass: do not instantiate extra branch gain staging or apply output trim to the dry signal when the wet path is effectively off.
 - For sensitive `0..1` drive controls, keep the stored DSP value linear but apply a curved UI mapping at the slider boundary so the low end gets finer resolution without changing audio-engine semantics.
+- For warmer crunch instead of fizzy distortion, bias the first clipping stage toward grain, keep the second stage softer, lower pre/post filter ceilings, and move any body boost into the low-mid range rather than the upper mids.
