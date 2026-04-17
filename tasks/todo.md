@@ -1,3 +1,30 @@
+# Task: Split Effect Code Into Separate Modules
+
+## Plan
+- [x] Audit every delay, reverb, distortion, and post-filter responsibility currently implemented in `js/audio-engine.js`.
+- [x] Extract shared delay graph setup/live-update helpers into `js/effects/delay-effect.js`.
+- [x] Extract reverb graph setup/mix helpers into `js/effects/reverb-effect.js`.
+- [x] Extract distortion helpers (curve cache, feedback bus, and per-voice routing) into `js/effects/distortion-effect.js`.
+- [x] Extract per-voice post-filter routing into `js/effects/post-filter-effect.js`.
+- [x] Reduce `js/audio-engine.js` to effect orchestration plus note scheduling.
+- [x] Verify edited files with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed the current effect logic is centralized in `js/audio-engine.js`, while UI/controller layers already treat effect params generically through `controlConfig`, which keeps the refactor scope mostly inside the engine.
+- Added `js/effects/delay-effect.js` for tempo-synced delay timing, delay graph initialization, timbre-aware tone/high-pass updates, and live delay parameter handling.
+- Added `js/effects/reverb-effect.js` for impulse-response creation, dry/wet routing setup, and live reverb-mix updates.
+- Added `js/effects/distortion-effect.js` for waveshaper curve caching, persistent per-preset feedback bus management, and per-voice distortion routing.
+- Added `js/effects/post-filter-effect.js` for the per-voice post-filter dry/wet stage.
+- Reduced `js/audio-engine.js` from effect implementation + scheduling into a thinner orchestrator that now delegates effect setup/routing/live updates to the dedicated modules.
+- Performed one follow-up cleanup after verification by removing a redundant delay-update branch from `applyLiveAudioUpdates(...)` once the delay module became the single owner of that logic.
+
+## Review
+- `get_errors` reported no errors in the edited JS files after the refactor.
+- `npm run build` completed successfully twice: once after the main extraction and once after the final orchestrator cleanup.
+- Public behavior stayed API-compatible for the rest of the app: `js/audio-state-controller.js` and `js/ui.js` required no effect-specific changes because control/state keys remained unchanged.
+
+---
+
 # Task: Order Delay Times From Slow To Fast In UI
 
 ## Plan
