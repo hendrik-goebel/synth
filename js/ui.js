@@ -1,12 +1,16 @@
 import {
   controlConfig,
+  delayFeedbackFromNormalized,
+  delayDivisionIndexFromUiValue,
   GLOBAL_CONTROL_KEYS,
   lfoRateFromNormalized,
+  normalizedFromDelayFeedback,
   normalizedFromLfoRate,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
   POST_FILTER_TYPE_LABELS,
+  uiValueFromDelayDivisionIndex,
 } from "./constants.js";
 import { statusLabel } from "./dom.js";
 import {
@@ -66,9 +70,14 @@ export function setControlUIValue(controlId, value) {
         input.checked = nextChecked;
       }
     } else {
-      const nextValue = controlId === "lfo-rate"
-        ? String(normalizedFromLfoRate(value))
-        : String(value);
+      let nextValue = String(value);
+      if (controlId === "lfo-rate") {
+        nextValue = String(normalizedFromLfoRate(value));
+      } else if (controlId === "delay-time") {
+        nextValue = String(uiValueFromDelayDivisionIndex(value));
+      } else if (controlId === "delay-feedback") {
+        nextValue = String(normalizedFromDelayFeedback(value));
+      }
       if (input.value !== nextValue) {
         input.value = nextValue;
       }
@@ -242,6 +251,18 @@ export function bindControls() {
       if (controlId === "lfo-rate") {
         const normalized = Number.parseFloat(event.target.value);
         controller.setControlValue(controlId, lfoRateFromNormalized(normalized));
+        return;
+      }
+
+      if (controlId === "delay-time") {
+        const uiValue = Number.parseFloat(event.target.value);
+        controller.setControlValue(controlId, delayDivisionIndexFromUiValue(uiValue));
+        return;
+      }
+
+      if (controlId === "delay-feedback") {
+        const normalized = Number.parseFloat(event.target.value);
+        controller.setControlValue(controlId, delayFeedbackFromNormalized(normalized));
         return;
       }
 

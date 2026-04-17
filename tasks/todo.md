@@ -1,3 +1,60 @@
+# Task: Order Delay Times From Slow To Fast In UI
+
+## Plan
+- [ ] Trace the `delay-time` control flow across `index.html`, `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, and `js/audio-engine.js`.
+- [ ] Reverse only the UI slider ordering so it reads slow → fast while keeping stored delay-division indices unchanged.
+- [ ] Preserve the current default `1/8` delay-time meaning after the UI ordering change.
+- [ ] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed `DELAY_DIVISION_OPTIONS` is already the engine source of truth, ordered fast → slow, so the safest change is to invert only the UI slider position.
+
+## Review
+- Pending.
+
+---
+
+# Task: Make Delay Feedback Scale Logarithmic
+
+## Plan
+- [x] Trace the `delay-feedback` UI/value flow across `index.html`, `js/ui.js`, `js/constants.js`, `js/audio-state-controller.js`, and `js/audio-engine.js`.
+- [x] Add a normalized-to-actual logarithmic mapping for delay feedback while keeping the actual stored/engine value in the `0..1` range.
+- [x] Apply the mapping only at the UI boundary so controller validation and DSP stay unchanged.
+- [x] Align the static slider defaults with the new normalized scale and verify with static checks plus `npm run build`.
+
+## Progress Notes
+- Confirmed the real `delayFeedback` value already flows correctly through controller validation and engine clamping, so only the slider/UI layer needs logarithmic remapping.
+- Added `delayFeedbackFromNormalized(...)` and `normalizedFromDelayFeedback(...)` in `js/constants.js` using a piecewise log mapping with an exact `0` special-case and `0.001` as the lowest positive log point.
+- Updated `js/ui.js` so `setControlUIValue(...)` writes the normalized slider position for `delay-feedback`, while `bindControls()` converts the slider position back to the real feedback value before calling the controller.
+- Updated `index.html` so the `#delay-feedback` slider keeps a normalized `0..1` range, uses `step="0.001"`, and starts at the normalized position (`0.592717`) that corresponds to the existing real default `0.06`.
+- Adjusted the `delay-feedback` label formatter to show three decimals only for very small positive values, so the log-scaled low end remains readable.
+
+## Review
+- `get_errors` found no new errors in the edited files; existing warnings remain unrelated (`DEFAULT_NOTE_IDS` unused in `js/constants.js`, plus pre-existing `js/ui.js` warnings for an unused import/function and an unnecessary trailing `return`).
+- `npm run build` completed successfully after the logarithmic slider change.
+- Manual numeric round-trip verification confirmed `0 → 0`, `0.06 → 0.592717 → 0.06`, and `1 → 1` for the normalized mapping.
+
+---
+
+# Task: Widen Delay Feedback Range To 1.0
+
+## Plan
+- [x] Trace the delay feedback range across `index.html`, `js/constants.js`, `js/audio-state-controller.js`, and `js/audio-engine.js`.
+- [x] Raise the shared delay feedback ceiling from `0.11` to `1` while keeping the default valid.
+- [x] Align the slider markup with the shared range so manual and programmatic control match.
+- [x] Verify edited files with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed the delay feedback ceiling is already centralized through `DELAY_FEEDBACK_MAX`, so changing the shared constant will update both controller validation and engine clamping.
+- Updated `DELAY_FEEDBACK_MAX` in `js/constants.js` from `0.11` to `1`.
+- Updated the `#delay-feedback` slider in `index.html` to `min="0" max="1" step="0.01"` while keeping the existing startup value `0.06`.
+
+## Review
+- `get_errors` reported no errors in `index.html`; `js/constants.js` still has the pre-existing unused `DEFAULT_NOTE_IDS` warning.
+- `npm run build` completed successfully after widening the delay feedback range.
+
+---
+
 # Task: Distortion Feedback Pop Artefacts
 
 ## Plan

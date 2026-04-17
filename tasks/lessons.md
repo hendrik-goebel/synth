@@ -23,10 +23,13 @@
 - When a synth needs more preset variety without UI bloat, add preset-only parameters (for example harmonic balance, filter tracking, and transient attack shaping) to the engine defaults and let presets override them selectively.
 - When adding a global tone color control, keep it in shared synth state and apply it as proportional scaling around each preset's existing parameters instead of replacing preset values outright.
 - When a time-based FX control must stay musical across tempo changes, store the user-facing value as a discrete rhythmic division and derive the actual seconds value centrally from the current BPM.
+- When a discrete musical slider needs a different visual order than the engine enum order, reverse the mapping only at the UI boundary and keep the stored option indices unchanged so defaults and DSP semantics do not drift.
 - When a shared delay sounds too soft, make the repeats more present with return gain, a high-pass stage, and light saturation before reaching for unsafe feedback values.
 - When a shared delay already has boosted return and tone shaping, keep the exposed feedback ceiling conservative in both the engine clamp and the slider UI; otherwise small adjustments feel disproportionately strong.
 - When presets are merged over instrument params, explicitly filter out global and derived shared-control keys (for example `delayFeedback`, `delayDivision`, and derived `delayTime`) so preset data cannot imply ownership it does not actually have.
 - When tightening a sensitive shared-control range like delay feedback, update the default value, UI max, controller validation, and engine clamp together so no layer can drift beyond the intended cap.
+- When widening a shared-control range, prefer changing the shared max constant first and let controller validation plus engine clamping inherit it; then align the HTML slider to that same source-of-truth range.
+- When a slider should feel logarithmic but the stored parameter still needs a real `0` minimum, keep the real value in state and apply a piecewise normalized↔actual mapping only in the UI layer, with an exact `0` special-case.
 - Keep scheduler hot paths allocation-light: avoid per-tick array creation/callback iteration, cache loop values locally, and write shared state back once per scheduling pass.
 - For mixer-like UIs with frequent state changes, cache per-channel DOM references after initial render and patch only changed classes/text to reduce query and reflow overhead.
 - For channel mute controls, apply volume at a dedicated final gain stage (post-voice shaping, pre-routing) and avoid relying on upstream envelope floors/clamps, otherwise `0` may still leak audible signal.

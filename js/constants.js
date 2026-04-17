@@ -14,7 +14,8 @@ export const HUMANIZE = {
 };
 export const MAX_SIMULTANEOUS_PRESETS = 12;
 export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
-export const DELAY_FEEDBACK_MAX = 0.11;
+export const DELAY_FEEDBACK_MAX = 1;
+export const DELAY_FEEDBACK_LOG_MIN = 0.001;
 export const DISTORTION_FEEDBACK_MAX = 0.35;
 export const DELAY_DIVISION_OPTIONS = [
   { label: "1/32", beats: 0.125 },
@@ -53,6 +54,39 @@ export function normalizedFromLfoRate(rateHz) {
   const curved = Math.log(clampedRate / LFO_RATE_MIN_HZ) / Math.log(ratio);
   return Math.pow(curved, 1 / LFO_RATE_CURVE_EXPONENT);
 }
+
+export function delayFeedbackFromNormalized(normalized) {
+  const t = Math.min(1, Math.max(0, Number.isFinite(normalized) ? normalized : 0));
+  if (t === 0) {
+    return 0;
+  }
+
+  const ratio = DELAY_FEEDBACK_MAX / DELAY_FEEDBACK_LOG_MIN;
+  return DELAY_FEEDBACK_LOG_MIN * Math.pow(ratio, t);
+}
+
+export function normalizedFromDelayFeedback(value) {
+  const clampedValue = Math.min(DELAY_FEEDBACK_MAX, Math.max(0, Number.isFinite(value) ? value : 0));
+  if (clampedValue === 0) {
+    return 0;
+  }
+
+  const ratio = DELAY_FEEDBACK_MAX / DELAY_FEEDBACK_LOG_MIN;
+  return Math.log(clampedValue / DELAY_FEEDBACK_LOG_MIN) / Math.log(ratio);
+}
+
+export function delayDivisionIndexFromUiValue(uiValue) {
+  const maxIndex = DELAY_DIVISION_OPTIONS.length - 1;
+  const roundedUiValue = Math.round(Number.isFinite(uiValue) ? uiValue : maxIndex - 4);
+  return Math.max(0, Math.min(maxIndex, maxIndex - roundedUiValue));
+}
+
+export function uiValueFromDelayDivisionIndex(index) {
+  const maxIndex = DELAY_DIVISION_OPTIONS.length - 1;
+  const roundedIndex = Math.round(Number.isFinite(index) ? index : 4);
+  return Math.max(0, Math.min(maxIndex, maxIndex - roundedIndex));
+}
+
 export const DEFAULT_NOTE_IDS = ["note-c4", "note-e4", "note-g4"];
 export const NOTE_OPTIONS = [
   { id: "note-c4", frequency: 261.63 },
@@ -470,7 +504,7 @@ export const controlConfig = {
   "delay-feedback": {
     key: "delayFeedback",
     valueId: "delay-feedback-value",
-    formatter: (value) => value.toFixed(2),
+    formatter: (value) => (value > 0 && value < 0.01 ? value.toFixed(3) : value.toFixed(2)),
   },
   "reverb-mix": {
     key: "reverbMix",
