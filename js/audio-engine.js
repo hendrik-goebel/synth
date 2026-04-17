@@ -448,6 +448,9 @@ export function scheduleInstrumentStackNote(time, layerCount, stepIndex = state.
 
     const patternStepIndex = Math.floor(stepIndex / stepInterval);
     const layerFrequency = pattern[patternStepIndex % pattern.length];
+    if (layerFrequency == null) {
+      continue;
+    }
     scheduleNote(
       layerFrequency,
       time,

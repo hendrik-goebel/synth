@@ -1,5 +1,7 @@
 import {
   controlConfig,
+  DEAD_NOTE_PAUSE_COUNT_MAX,
+  DEAD_NOTE_PAUSE_COUNT_MIN,
   delayFeedbackFromNormalized,
   delayDivisionIndexFromUiValue,
   GLOBAL_CONTROL_KEYS,
@@ -23,6 +25,8 @@ import { clamp } from "./utils.js";
 
 // Cache note button elements once for the lifetime of the page
 let noteButtonElements = null;
+let deadNoteToggleElement = null;
+let deadNoteCountToggleElement = null;
 const mixerChannelCache = new Map();
 const controlElementCache = new Map();
 const controlLabelElementCache = new Map();
@@ -32,6 +36,20 @@ function getNoteButtonElements() {
     noteButtonElements = NOTE_OPTIONS.map(({ id }) => document.getElementById(id)).filter(Boolean);
   }
   return noteButtonElements;
+}
+
+function getDeadNoteToggleElement() {
+  if (!deadNoteToggleElement) {
+    deadNoteToggleElement = document.getElementById("dead-note-toggle");
+  }
+  return deadNoteToggleElement;
+}
+
+function getDeadNoteCountToggleElement() {
+  if (!deadNoteCountToggleElement) {
+    deadNoteCountToggleElement = document.getElementById("dead-note-count-toggle");
+  }
+  return deadNoteCountToggleElement;
 }
 
 // Cache control config entries once
@@ -202,6 +220,32 @@ function updateChannelVolumeSlider(presetId, value) {
   }
 }
 
+export function syncDeadNoteControlsUI(deadNoteEnabled, pauseCount) {
+  const toggleButton = getDeadNoteToggleElement();
+  const countButton = getDeadNoteCountToggleElement();
+  const isActive = Boolean(Number(deadNoteEnabled));
+  const normalizedPauseCount = clamp(
+    Math.round(Number.isFinite(pauseCount) ? pauseCount : DEAD_NOTE_PAUSE_COUNT_MIN),
+    DEAD_NOTE_PAUSE_COUNT_MIN,
+    DEAD_NOTE_PAUSE_COUNT_MAX,
+  );
+
+  if (toggleButton) {
+    toggleButton.value = isActive ? "1" : "0";
+    toggleButton.classList.toggle("is-active", isActive);
+    toggleButton.setAttribute("aria-pressed", String(isActive));
+    toggleButton.textContent = isActive ? "Pause On" : "Pause Off";
+  }
+
+  if (!countButton) {
+    return;
+  }
+
+  countButton.value = String(normalizedPauseCount);
+  countButton.textContent = `${normalizedPauseCount}`;
+  countButton.classList.toggle("is-muted", !isActive);
+}
+
 export function updateTransportUI() {
   renderMixerChannels();
 
@@ -228,6 +272,10 @@ export function syncControlsFromActiveInstrumentPage() {
   });
 
   syncNoteButtonsFromActiveInstrumentPage();
+  syncDeadNoteControlsUI(
+    instrumentParams.deadNoteAtEnd ?? 0,
+    instrumentParams.endPauseCount ?? DEAD_NOTE_PAUSE_COUNT_MIN,
+  );
   updateTransportUI();
 }
 
@@ -320,6 +368,44 @@ export function bindNoteSelector(controller) {
 
   ensureInstrumentNoteState(state.activeInstrumentPresetId);
   syncNoteButtonsFromActiveInstrumentPage();
+}
+
+export function bindDeadNoteToggle(controller) {
+  const toggleButton = getDeadNoteToggleElement();
+  const countButton = getDeadNoteCountToggleElement();
+
+  if (toggleButton) {
+    toggleButton.controllerRef = controller;
+    toggleButton.addEventListener("click", (event) => {
+      const controllerRef = event.currentTarget?.controllerRef;
+      if (!controllerRef) {
+        return;
+      }
+      controllerRef.toggleDeadNoteAtEnd();
+    });
+  }
+
+  if (!countButton) {
+    return;
+  }
+
+  countButton.controllerRef = controller;
+  countButton.addEventListener("click", (event) => {
+    const controllerRef = event.currentTarget?.controllerRef;
+    if (!controllerRef) {
+      return;
+    }
+
+    const currentValue = Number.parseInt(event.currentTarget.value, 10);
+    const safeCurrentValue = Number.isInteger(currentValue)
+      ? currentValue
+      : DEAD_NOTE_PAUSE_COUNT_MIN;
+    const nextValue = safeCurrentValue >= DEAD_NOTE_PAUSE_COUNT_MAX
+      ? DEAD_NOTE_PAUSE_COUNT_MIN
+      : safeCurrentValue + 1;
+
+    controllerRef.setDeadNotePauseCount(nextValue);
+  });
 }
 
 export function bindMixerChannels(controller) {
@@ -439,6 +525,17 @@ export function bindControllerEvents(controller) {
     if (type === "notes-updated") {
       if (presetId === state.activeInstrumentPresetId) {
         syncNoteButtonsFromActiveInstrumentPage();
+      }
+      return;
+    }
+
+    if (type === "dead-note-updated" || type === "dead-note-count-updated") {
+      if (presetId === state.activeInstrumentPresetId) {
+        const instrumentParams = getInstrumentParams(presetId);
+        syncDeadNoteControlsUI(
+          instrumentParams.deadNoteAtEnd ?? 0,
+          instrumentParams.endPauseCount ?? DEAD_NOTE_PAUSE_COUNT_MIN,
+        );
       }
       return;
     }

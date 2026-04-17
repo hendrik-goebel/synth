@@ -1,5 +1,7 @@
 import {
   controlConfig,
+  DEAD_NOTE_PAUSE_COUNT_MAX,
+  DEAD_NOTE_PAUSE_COUNT_MIN,
   DELAY_FEEDBACK_MAX,
   DELAY_DIVISION_OPTIONS,
   DISTORTION_FEEDBACK_MAX,
@@ -158,6 +160,64 @@ export class AudioStateController extends EventTarget {
     this.emitStateChange("notes-updated", {
       presetId,
       activeNoteIds: selectedNoteIds.slice(),
+    });
+    return true;
+  }
+
+  toggleDeadNoteAtEnd(presetId = state.activeInstrumentPresetId) {
+    if (!validPresetIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    ensureInstrumentNoteState(presetId);
+    const instrumentParams = getInstrumentParams(presetId);
+    const nextValue = instrumentParams.deadNoteAtEnd ? 0 : 1;
+    instrumentParams.deadNoteAtEnd = nextValue;
+    rebuildInstrumentPattern(presetId);
+
+    this.emitAction("dead-note-toggled", {
+      presetId,
+      value: nextValue,
+    });
+    this.emitStateChange("dead-note-updated", {
+      presetId,
+      value: nextValue,
+    });
+    return true;
+  }
+
+  setDeadNotePauseCount(value, presetId = state.activeInstrumentPresetId) {
+    if (!validPresetIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const numericValue = Number.parseInt(value, 10);
+    const isValidCount = Number.isInteger(numericValue)
+      && numericValue >= DEAD_NOTE_PAUSE_COUNT_MIN
+      && numericValue <= DEAD_NOTE_PAUSE_COUNT_MAX;
+
+    if (!isValidCount) {
+      this.emitError(
+        `End pause count must stay between ${DEAD_NOTE_PAUSE_COUNT_MIN} and ${DEAD_NOTE_PAUSE_COUNT_MAX}`,
+        { presetId, value },
+      );
+      return false;
+    }
+
+    ensureInstrumentNoteState(presetId);
+    const instrumentParams = getInstrumentParams(presetId);
+    instrumentParams.endPauseCount = numericValue;
+    rebuildInstrumentPattern(presetId);
+
+    this.emitAction("dead-note-count-updated", {
+      presetId,
+      value: numericValue,
+    });
+    this.emitStateChange("dead-note-count-updated", {
+      presetId,
+      value: numericValue,
     });
     return true;
   }

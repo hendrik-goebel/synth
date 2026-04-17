@@ -14,6 +14,8 @@ export const HUMANIZE = {
 };
 export const MAX_SIMULTANEOUS_PRESETS = 12;
 export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
+export const DEAD_NOTE_PAUSE_COUNT_MIN = 1;
+export const DEAD_NOTE_PAUSE_COUNT_MAX = 16;
 export const DELAY_FEEDBACK_MAX = 1;
 export const DELAY_FEEDBACK_LOG_MIN = 0.001;
 export const DISTORTION_FEEDBACK_MAX = 0.35;
@@ -384,6 +386,8 @@ export const INITIAL_SYNTH_PARAMS = {
   oscAWave: "sawtooth",
   oscBWave: "triangle",
   subWave: "sine",
+  deadNoteAtEnd: 0,
+  endPauseCount: DEAD_NOTE_PAUSE_COUNT_MIN,
   noteLength: 8,
   postFilterType: 0,
   postFilterCutoff: 0.534,   // normalized log position → ~800 Hz via 20 * 1000^t

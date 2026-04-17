@@ -1,3 +1,35 @@
+# Task: Add Dead Note Toggle To Arpeggio
+
+## Plan
+- [x] Inspect the current arpeggio note UI, controller flow, and pattern scheduler to find the safest integration points.
+- [x] Add a per-instrument dead-note/end-pause state that persists when switching channels.
+- [x] Add a toggle button below the arpeggio note field and keep its visual state synced with the selected instrument.
+- [x] Append one pause step to the end of the generated arpeggio when the toggle is active.
+- [x] Add a second adjacent button that cycles the end-pause count from `1` to `16` per instrument.
+- [x] Make the generated arpeggio append exactly that many pause steps when end pause is enabled.
+- [x] Verify edited files with static checks, focused runtime checks, and `npm run build`.
+
+## Progress Notes
+- Added a new `deadNoteAtEnd` per-instrument flag via the instrument param defaults so the state persists with each channel instead of being global.
+- Added an `End Pause` toggle button directly below the arpeggio note grid in `index.html` and synced its active/inactive state in `js/ui.js`.
+- Added `toggleDeadNoteAtEnd()` in `js/audio-state-controller.js` so UI clicks and scripted controller usage share the same action/statechange path.
+- Updated `js/patterns.js` so generated arpeggio patterns append a `null` rest sentinel at the end when the toggle is enabled.
+- Updated `js/audio-engine.js` so the scheduler skips `null` pattern steps while preserving timing, creating a real pause instead of trying to play a fake note.
+- Extending this task with a per-instrument pause-count control beside the existing end-pause toggle.
+- Added shared `DEAD_NOTE_PAUSE_COUNT_MIN/MAX` bounds plus per-instrument `endPauseCount` defaults in `js/constants.js`.
+- Added `setDeadNotePauseCount()` in `js/audio-state-controller.js` and a second note-section button in `index.html` / `js/ui.js` that cycles `1 → 16 → 1`.
+- Updated `js/patterns.js` so end pause now appends the configured number of trailing `null` rest steps instead of always appending exactly one.
+- Corrected the core arpeggio loop shape in `js/patterns.js` so the descending leg now excludes both peak and root, removing the repeated root at the loop boundary.
+
+## Review
+- `get_errors` reported no new errors in the edited files; the only reported item was a pre-existing unused-function warning in `js/patterns.js`.
+- `npm run build` completed successfully after the change.
+- Focused runtime checks confirmed `buildArpeggioPattern([261.63, 329.63, 392], true)` appends exactly one trailing `null`, and the single-note edge case produces `[440, null]`.
+- Updated focused runtime checks confirmed `buildArpeggioPattern([261.63, 329.63, 392], 3)` ends with exactly three trailing `null` steps, and `buildArpeggioPattern([440], 16)` ends with sixteen trailing `null` steps.
+- Follow-up verification passed for the new non-repeating loop shape: `[C, E, G, E]` now replaces `[C, E, G, E, C]`, two-note arpeggios now loop as `[C, E]`, and trailing pause counts still append correctly (`[C, E, G, E, null, null, null]`).
+
+---
+
 # Task: Split Effect Code Into Separate Modules
 
 ## Plan

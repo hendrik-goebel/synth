@@ -91,15 +91,24 @@ function getNoteButtonCache() {
   return noteButtonCache;
 }
 
-export function buildArpeggioPattern(notes) {
+export function buildArpeggioPattern(notes, trailingPauseCount = 0) {
+  let pattern;
+
   if (notes.length < 2) {
-    return notes.slice();
+    pattern = notes.slice();
+  } else {
+    const ascending = notes.slice();
+    const descendingWithoutPeakOrRoot = notes.slice(1, -1).reverse();
+
+    pattern = ascending.concat(descendingWithoutPeakOrRoot);
   }
 
-  const ascending = notes.slice();
-  const descendingWithoutPeak = notes.slice(0, -1).reverse();
+  const normalizedPauseCount = Math.max(0, Math.floor(trailingPauseCount));
+  for (let i = 0; i < normalizedPauseCount; i += 1) {
+    pattern.push(null);
+  }
 
-  return ascending.concat(descendingWithoutPeak);
+  return pattern;
 }
 
 export function updateSelectedNotesFromUI() {
@@ -116,11 +125,15 @@ export function updateSelectedNotesFromUI() {
 
 export function rebuildInstrumentPattern(presetId) {
   const selectedNoteIds = state.instrumentNoteIdsByPresetId[presetId] || PENTATONIC_NOTE_IDS.slice(0, 3);
+  const instrumentParams = getInstrumentParams(presetId);
   const selectedFrequencies = selectedNoteIds
     .map((id) => noteFrequencyMap.get(id))
     .filter(Boolean);
 
-  state.instrumentPatternsByPresetId[presetId] = buildArpeggioPattern(selectedFrequencies);
+  state.instrumentPatternsByPresetId[presetId] = buildArpeggioPattern(
+    selectedFrequencies,
+    instrumentParams.deadNoteAtEnd ? instrumentParams.endPauseCount ?? 1 : 0,
+  );
 }
 
 export function createInstrumentNoteVariation(presetId) {
