@@ -15,6 +15,7 @@ export const HUMANIZE = {
 export const MAX_SIMULTANEOUS_PRESETS = 12;
 export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
 export const DELAY_FEEDBACK_MAX = 0.11;
+export const DISTORTION_FEEDBACK_MAX = 0.35;
 export const DELAY_DIVISION_OPTIONS = [
   { label: "1/32", beats: 0.125 },
   { label: "1/16T", beats: 1 / 6 },
@@ -334,6 +335,7 @@ export const INITIAL_SYNTH_PARAMS = {
   distortionDrive: 0.45,
   distortionMix: 0.32,
   distortionTone: 4500,
+  distortionFeedback: 0,
   transientAmount: 0,
   transientDecay: 0.02,
   transientTone: 2200,
@@ -449,6 +451,11 @@ export const controlConfig = {
     key: "distortionTone",
     valueId: "distortion-tone-value",
     formatter: (value) => String(Math.round(value)),
+  },
+  "distortion-feedback": {
+    key: "distortionFeedback",
+    valueId: "distortion-feedback-value",
+    formatter: (value) => value.toFixed(2),
   },
   "delay-send": {
     key: "delaySend",

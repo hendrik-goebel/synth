@@ -2,6 +2,7 @@ import {
   controlConfig,
   DELAY_FEEDBACK_MAX,
   DELAY_DIVISION_OPTIONS,
+  DISTORTION_FEEDBACK_MAX,
   GLOBAL_CONTROL_KEYS,
   LFO_TARGET_OPTIONS,
   NOTE_LENGTH_OPTIONS,
@@ -84,6 +85,14 @@ export class AudioStateController extends EventTarget {
 
     if (controlId === "delay-feedback" && (numericValue < 0 || numericValue > DELAY_FEEDBACK_MAX)) {
       this.emitError(`Delay feedback must stay between 0 and ${DELAY_FEEDBACK_MAX}`, {
+        controlId,
+        value,
+      });
+      return false;
+    }
+
+    if (controlId === "distortion-feedback" && (numericValue < 0 || numericValue > DISTORTION_FEEDBACK_MAX)) {
+      this.emitError(`Distortion feedback must stay between 0 and ${DISTORTION_FEEDBACK_MAX}`, {
         controlId,
         value,
       });

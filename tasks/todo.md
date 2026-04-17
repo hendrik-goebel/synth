@@ -1,3 +1,45 @@
+# Task: Distortion Feedback Pop Artefacts
+
+## Plan
+- [x] Inspect the per-voice distortion feedback loop in `js/audio-engine.js` and identify where the pop is introduced.
+- [x] Make the feedback path engage/disengage more safely and add any minimal loop conditioning needed.
+- [x] Keep the UI/controller range aligned with the safer engine behavior.
+- [x] Verify edited files with static checks and `npm run build`.
+
+## Progress Notes
+- The previous anti-pop tweak was not sufficient because the underlying design was still wrong: a short per-voice loop naturally created fast pulsing and still had note-scoped engage/disconnect edges.
+- Replaced the per-voice distortion feedback loop in `js/audio-engine.js` with a persistent per-instrument feedback bus that survives across notes.
+- The new bus uses a longer delay window derived from note length, plus filtered feedback/return gains, so the effect can accumulate more gradually instead of chattering at voice-loop speed.
+- Each note now only sends a smoothed amount of already-distorted wet signal into that persistent bus; the feedback loop itself is no longer created and destroyed per note.
+- Kept `DISTORTION_FEEDBACK_MAX` at `0.35` in `js/constants.js` and aligned the `index.html` slider ceiling to the same value.
+
+## Review
+- `get_errors` reported no errors in `js/audio-engine.js`, `js/state.js`, `js/constants.js`, and `index.html` after the correction.
+- `npm run build` completed successfully after the architecture change and webpack emitted updated assets without errors.
+
+---
+
+- # Task: Re-Add Distortion Feedback UI Control
+-
+- ## Plan
+- [x] Trace the existing distortion control flow across `index.html`, `js/constants.js`, `js/audio-state-controller.js`, and `js/audio-engine.js`.
+- [x] Re-introduce a per-instrument `distortionFeedback` control in the shared UI/controller pipeline.
+- [x] Apply the new feedback parameter safely in the distortion audio path without destabilizing playback.
+- [x] Verify edited files with static checks and `npm run build`.
+-
+- ## Progress Notes
+- Confirmed the parameter was missing from the shared control registry, so `js/ui.js` could not bind or sync any distortion-feedback UI after the controller refactor.
+- Added `DISTORTION_FEEDBACK_MAX` plus per-instrument `distortionFeedback` defaults and `controlConfig` registration in `js/constants.js`.
+- Added a `distortion-feedback` slider to the Distortion section in `index.html`; the existing generic UI/controller binding now picks it up automatically.
+- Added controller-side range validation in `js/audio-state-controller.js`.
+- Implemented a short delayed feedback loop in the distortion wet path inside `js/audio-engine.js` so the control has an audible effect without creating an unsafe zero-delay cycle.
+-
+- ## Review
+- `get_errors` reported no errors in `js/constants.js`, `js/audio-state-controller.js`, `js/audio-engine.js`, or `index.html` after the change.
+- `npm run build` completed successfully and webpack emitted updated assets without errors.
+-
+- ---
+
 - Pending: run `npm run build` to confirm bundling after the routing change.
 - [ ] Verify by running a project build.
 # Task: Arpeggio Loop App

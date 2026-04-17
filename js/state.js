@@ -22,6 +22,7 @@ export const state = {
   reverbInput: null,
   reverbWetGain: null,
   reverbDryGain: null,
+  distortionFeedbackBusByPresetId: {},
   activePresetIds: Object.keys(BASE_SOUND_PRESETS),
   instrumentParamsByPresetId: {},
   instrumentNoteIdsByPresetId: {},

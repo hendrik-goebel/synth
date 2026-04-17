@@ -37,3 +37,6 @@
 - For modulation-rate controls, prefer logarithmic slider mapping so low values get finer resolution; linear Hz sliders make musically important slow rates hard to dial in.
 - When pure log mapping still feels too linear, add a mild curve exponent and keep the inverse mapping in sync; this increases low-rate precision without breaking stored Hz values.
 - For per-voice distortion paths, ramp dry/wet gains from pre-start and fade both to zero before oscillator stop; abrupt mix-node state changes are a common source of clicks.
+- When re-adding a synth parameter after a UI/controller refactor, register it in `controlConfig`, HTML, controller validation, and the engine together; if one layer is missing, the generic UI binding silently cannot control or sync that parameter.
+- For short per-voice feedback loops, do not open the loop exactly at note start or tear it down right at oscillator stop; ramp the feedback path in later, fade it out earlier, filter low-frequency/DC buildup, and keep node cleanup delayed past several loop times.
+- If an effect is expected to build across multiple notes, do not implement its feedback as a per-voice loop; use a persistent shared bus per instrument instead, otherwise the result tends to pulse at the loop time and click at every voice teardown.
