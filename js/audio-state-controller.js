@@ -247,7 +247,7 @@ export class AudioStateController extends EventTarget {
 
   toggleDeadNoteAtEnd(presetId = state.activeInstrumentPresetId) {
     if (!validPresetIds.has(presetId)) {
-      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });npm
       return false;
     }
 
