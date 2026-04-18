@@ -36,6 +36,7 @@ let settingsNoteButtonElements = null;
 const mixerChannelCache = new Map();
 const controlElementCache = new Map();
 const controlLabelElementCache = new Map();
+const delayToggleControlIds = new Set(["tape-delay-enabled", "clean-delay-enabled"]);
 
 function getNoteButtonElements() {
   if (!noteButtonElements) {
@@ -123,7 +124,13 @@ export function setControlUIValue(controlId, value) {
     }
   }
   if (input) {
-    if (input.type === "checkbox") {
+    if (delayToggleControlIds.has(controlId)) {
+      const isEnabled = Boolean(Number(value));
+      input.value = isEnabled ? "1" : "0";
+      input.textContent = isEnabled ? "On" : "Off";
+      input.classList.toggle("is-active", isEnabled);
+      input.setAttribute("aria-pressed", String(isEnabled));
+    } else if (input.type === "checkbox") {
       const nextChecked = Boolean(Number(value));
       if (input.checked !== nextChecked) {
         input.checked = nextChecked;
@@ -132,7 +139,7 @@ export function setControlUIValue(controlId, value) {
       let nextValue = String(value);
       if (controlId === "lfo-rate") {
         nextValue = String(normalizedFromLfoRate(value));
-      } else if (controlId === "delay-time") {
+      } else if (controlId === "delay-time" || controlId === "clean-delay-time") {
         nextValue = String(uiValueFromDelayDivisionIndex(value));
       } else if (controlId === "delay-feedback") {
         nextValue = String(normalizedFromDelayFeedback(value));
@@ -340,13 +347,19 @@ export function bindControls() {
       controlElementCache.set(controlId, input);
     }
 
-    if (!input || input.type === "checkbox" || input.tagName === "BUTTON") {
+    if (!input || input.tagName === "BUTTON") {
       return;
     }
 
-    input.addEventListener("input", (event) => {
+    const eventName = input.type === "checkbox" ? "change" : "input";
+    input.addEventListener(eventName, (event) => {
       const controller = event.currentTarget?.controllerRef;
       if (!controller) {
+        return;
+      }
+
+      if (input.type === "checkbox") {
+        controller.setControlValue(controlId, event.target.checked ? 1 : 0);
         return;
       }
 
@@ -356,7 +369,7 @@ export function bindControls() {
         return;
       }
 
-      if (controlId === "delay-time") {
+      if (controlId === "delay-time" || controlId === "clean-delay-time") {
         const uiValue = Number.parseFloat(event.target.value);
         controller.setControlValue(controlId, delayDivisionIndexFromUiValue(uiValue));
         return;
@@ -369,6 +382,28 @@ export function bindControls() {
       }
 
       controller.setControlValue(controlId, event.target.value);
+    });
+  });
+}
+
+export function bindDelayToggleButtons(controller) {
+  delayToggleControlIds.forEach((controlId) => {
+    const button = document.getElementById(controlId);
+    if (!button) {
+      return;
+    }
+
+    controlElementCache.set(controlId, button);
+    button.controllerRef = controller;
+    button.addEventListener("click", (event) => {
+      const controllerRef = event.currentTarget?.controllerRef;
+      if (!controllerRef) {
+        return;
+      }
+
+      const currentValue = Number.parseInt(event.currentTarget.value, 10);
+      const nextValue = currentValue === 1 ? 0 : 1;
+      controllerRef.setControlValue(controlId, nextValue);
     });
   });
 }

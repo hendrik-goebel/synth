@@ -1,3 +1,88 @@
+# Task: Replace Clean Delay Feedback With Repetitions
+
+## Plan
+- [x] Inspect the current clean-delay parameter flow across `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/effects/delay-effect.js`, `index.html`, and `README.md`.
+- [x] Replace the clean delay feedback control with a global repetition-count control in state, UI, and controller validation.
+- [x] Derive a safe clean-delay loop gain from the repetition count inside the delay effect implementation.
+- [x] Validate the edited files with static checks and a production build.
+- [x] Record the verification results in this task entry.
+
+## Progress Notes
+- Confirmed the clean delay is already a shared global bus, so the new repetition control should remain global rather than becoming per-instrument.
+- Confirmed the current clean-delay UI/control path still uses the generic delay-feedback normalization helpers, so the clean delay needs to stop sharing that boundary and move to a direct integer slider.
+- Replaced `cleanDelayFeedback` / `clean-delay-feedback` with `cleanDelayRepetitions` / `clean-delay-repetitions` in shared synth params, global control keys, controller validation, UI markup, and README wording.
+- Added bounded repetition constants and moved the clean delay to a direct `1..12` integer slider labeled as repeat count instead of a normalized feedback amount.
+- Updated `js/effects/delay-effect.js` so the clean delay loop gain is now derived internally from repetition count using a capped decay curve, while the tape delay still uses the direct feedback control.
+- Updated `js/ui.js` so only tape delay keeps the normalized feedback slider mapping; clean delay repetitions now flow through as plain integer values.
+
+## Review
+- `get_errors` reported no errors in the edited JS, HTML, README, and task files.
+- `npm run build` completed successfully after replacing clean delay feedback with repetitions, and webpack emitted the updated production bundle without errors.
+
+---
+
+# Task: Make Delay Toggle Buttons Smaller
+
+## Plan
+- [x] Confirm the delay enable controls are isolated behind the `.delay-enabled-toggle` selector.
+- [x] Reduce only the delay toggle button footprint in `css/style.css` without changing shared `.control-toggle-btn` sizing.
+- [x] Validate the edited files with static checks and record the result here.
+
+## Progress Notes
+- Confirmed `Tape Delay` and `Clean Delay` enable buttons already share the dedicated `.delay-enabled-toggle` class, so the size change can stay CSS-only and fully scoped.
+- Added a scoped `.delay-enabled-toggle` size override in `css/style.css` with smaller `min-width`, `padding`, and `font-size` so only those two buttons shrink.
+
+## Review
+- `get_errors` reported no errors in the edited `css/style.css` and `tasks/todo.md` files.
+
+---
+
+# Task: Add On/Off Switches For Both Delays
+
+## Plan
+- [x] Inspect the current tape-delay and clean-delay control/audio flow across `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/audio-engine.js`, `js/effects/delay-effect.js`, and `index.html`.
+- [x] Add global on/off controls for both delay paths and wire them through the existing generic controller/UI pipeline.
+- [x] Make the audio layer stop fresh sends and mute feedback/return when either delay is disabled.
+- [x] Validate the edited files with static checks and a production build.
+- [x] Record the verification results in this task entry.
+
+## Progress Notes
+- Confirmed both delays are global buses, so their on/off state should also be global rather than per instrument.
+- Confirmed `js/ui.js` already supports syncing checkbox state in `setControlUIValue(...)`, so the missing piece is binding checkbox input events generically and applying the enabled state inside the delay DSP.
+- User report confirmed the previous checkbox→button change had not landed in the actual source files: `index.html` still contained `input type="checkbox"` markup and `js/app.js` was not initializing any dedicated delay-toggle button binding.
+- Replaced the real source markup with button toggles in `index.html`, added dedicated delay-toggle button handling in `js/ui.js`, and wired it into the bootstrap in `js/app.js`.
+- Added explicit `.delay-enabled-toggle` styling in `css/style.css` so the controls now render and read like the rest of the app's button-based toggles.
+
+## Review
+- `get_errors` reported no errors in the corrected HTML, CSS, JS, and task-tracking files.
+- `npm run build` completed successfully after fixing the actual source files, and webpack emitted the updated bundle with the delay toggles rendered from button markup.
+
+---
+
+# Task: Add Clean Delay Alongside Tape Delay
+
+## Plan
+- [x] Inspect the current single-delay control flow across `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/audio-engine.js`, `js/effects/delay-effect.js`, `js/state.js`, and `index.html`.
+- [x] Rename the existing delay UI to `Tape Delay` while preserving its current tape-style DSP path.
+- [x] Add a second global `Clean Delay` path with independent time/feedback controls and a per-instrument send.
+- [x] Validate the edited files with static checks and a production build.
+- [x] Record the review results in this task entry.
+
+## Progress Notes
+- Confirmed the current delay is a single global bus in `js/effects/delay-effect.js` with drive + high-pass + low-pass shaping, so it already behaves like a tape-style delay.
+- Confirmed the current control flow is generic: `controlConfig` → `js/ui.js` bindings → `AudioStateController.setControlValue(...)` → `applyLiveAudioUpdates(...)`, which means a second delay can be added by extending the same pipeline.
+- Kept the existing internal `delay*` parameter names as the tape-delay path to minimize code churn, but renamed the user-facing UI labels to `Tape Delay` / `Tape Delay Send`.
+- Added new global control keys and defaults for `cleanDelayDivision`, `cleanDelayFeedback`, and derived `cleanDelayTime`, plus a new per-instrument `cleanDelaySend` control.
+- Extended `js/effects/delay-effect.js` so `initializeDelayEffectGraph()` now creates both the original tape-style driven delay bus and a second clean delay bus without drive/filter coloration.
+- Updated `js/audio-engine.js` so each voice now creates both `tapeDelaySend` and `cleanDelaySend`, with both sends routed through the panner/output path and into their matching global buses.
+- Updated `README.md` to reflect the new tape-delay + clean-delay feature set.
+
+## Review
+- `get_errors` reported no errors in the edited JS/HTML/task files, and the final README touch also passed focused static checks.
+- `npm run build` completed successfully after the dual-delay implementation, and webpack emitted the updated production bundle without errors.
+
+---
+
 # Task: Implement New Distortion Effect Module
 
 ## Plan

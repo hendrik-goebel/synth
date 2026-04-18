@@ -18,6 +18,8 @@ export const DEAD_NOTE_PAUSE_COUNT_MIN = 1;
 export const DEAD_NOTE_PAUSE_COUNT_MAX = 16;
 export const DELAY_FEEDBACK_MAX = 1;
 export const DELAY_FEEDBACK_LOG_MIN = 0.001;
+export const CLEAN_DELAY_REPETITIONS_MIN = 1;
+export const CLEAN_DELAY_REPETITIONS_MAX = 12;
 export const DISTORTION_FEEDBACK_MAX = 0.35;
 export const DELAY_DIVISION_OPTIONS = [
   { label: "1/32", beats: 0.125 },
@@ -359,8 +361,12 @@ export const GLOBAL_CONTROL_KEYS = new Set([
   "lfoDepth",
   "masterVolume",
   "reverbMix",
+  "tapeDelayEnabled",
   "delayDivision",
   "delayFeedback",
+  "cleanDelayEnabled",
+  "cleanDelayDivision",
+  "cleanDelayRepetitions",
 ]);
 
 export const POST_FILTER_TYPE_OPTIONS = [0, 1, 2, 3];
@@ -391,10 +397,16 @@ export const INITIAL_SYNTH_PARAMS = {
   transientDecay: 0.02,
   transientTone: 2200,
   pitchDropCents: 0,
+  tapeDelayEnabled: 1,
   delaySend: 0.35,
+  cleanDelaySend: 0,
   delayDivision: 4,
   delayTime: 0.25,
   delayFeedback: 0.06,
+  cleanDelayEnabled: 1,
+  cleanDelayDivision: 4,
+  cleanDelayTime: 0.25,
+  cleanDelayRepetitions: 4,
   reverbMix: 0.4,
   reverbSend: 0.35,
   masterVolume: 0.75,
@@ -449,6 +461,11 @@ export const controlConfig = {
     key: "tempoBpm",
     valueId: "tempo-bpm-value",
     formatter: (value) => String(Math.round(value)),
+  },
+  "tape-delay-enabled": {
+    key: "tapeDelayEnabled",
+    valueId: "tape-delay-enabled-value",
+    formatter: (value) => (Number(value) ? "On" : "Off"),
   },
   attack: {
     key: "attack",
@@ -515,6 +532,11 @@ export const controlConfig = {
     valueId: "delay-send-value",
     formatter: (value) => value.toFixed(2),
   },
+  "clean-delay-send": {
+    key: "cleanDelaySend",
+    valueId: "clean-delay-send-value",
+    formatter: (value) => value.toFixed(2),
+  },
   "delay-time": {
     key: "delayDivision",
     valueId: "delay-time-value",
@@ -524,6 +546,24 @@ export const controlConfig = {
     key: "delayFeedback",
     valueId: "delay-feedback-value",
     formatter: (value) => (value > 0 && value < 0.01 ? value.toFixed(3) : value.toFixed(2)),
+  },
+  "clean-delay-time": {
+    key: "cleanDelayDivision",
+    valueId: "clean-delay-time-value",
+    formatter: (value) => DELAY_DIVISION_OPTIONS[Math.round(value)]?.label || DELAY_DIVISION_OPTIONS[4].label,
+  },
+  "clean-delay-repetitions": {
+    key: "cleanDelayRepetitions",
+    valueId: "clean-delay-repetitions-value",
+    formatter: (value) => {
+      const repetitions = Math.round(value);
+      return `${repetitions} ${repetitions === 1 ? "repeat" : "repeats"}`;
+    },
+  },
+  "clean-delay-enabled": {
+    key: "cleanDelayEnabled",
+    valueId: "clean-delay-enabled-value",
+    formatter: (value) => (Number(value) ? "On" : "Off"),
   },
   "reverb-mix": {
     key: "reverbMix",

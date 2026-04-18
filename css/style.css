@@ -687,6 +687,26 @@ body {
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35), 0 0 14px rgba(245, 158, 11, 0.18);
 }
 
+.delay-enabled-toggle {
+  min-width: 3.35rem;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.76rem;
+}
+
+.delay-enabled-toggle.is-active,
+.delay-enabled-toggle[aria-pressed="true"] {
+  border-color: #22c55e;
+  background: #14532d;
+  color: #dcfce7;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35), 0 0 14px rgba(34, 197, 94, 0.16);
+}
+
+.delay-enabled-toggle:not(.is-active):not([aria-pressed="true"]) {
+  border-color: #4b5563;
+  background: #111827;
+  color: #cbd5e1;
+}
+
 .dead-note-toggle:hover {
   border-color: #fbbf24;
 }

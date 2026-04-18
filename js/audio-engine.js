@@ -129,7 +129,8 @@ export function scheduleNote(
   const upperMix = ctx.createGain();
   const subMix = ctx.createGain();
   const toneFilter = ctx.createBiquadFilter();
-  const delaySend = ctx.createGain();
+  const tapeDelaySend = ctx.createGain();
+  const cleanDelaySend = ctx.createGain();
   const reverbSend = ctx.createGain();
   const channelOutputGain = ctx.createGain();
   const stereoPanner = ctx.createStereoPanner
@@ -145,7 +146,8 @@ export function scheduleNote(
     upperMix,
     subMix,
     toneFilter,
-    delaySend,
+    tapeDelaySend,
+    cleanDelaySend,
     reverbSend,
     channelOutputGain,
   ];
@@ -241,11 +243,20 @@ export function scheduleNote(
   if (lfoModulation.key === "filterQ") {
     filterQValue = clamp(filterQValue + lfoModulation.amount * 2.5, 0.2, 12);
   }
-  const delaySendValue = clamp(
-    voiceParams.delaySend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
-    0,
-    1,
-  );
+  const tapeDelaySendValue = Number(state.synthParams.tapeDelayEnabled)
+    ? clamp(
+      voiceParams.delaySend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
+      0,
+      1,
+    )
+    : 0;
+  const cleanDelaySendValue = Number(state.synthParams.cleanDelayEnabled)
+    ? clamp(
+      (voiceParams.cleanDelaySend ?? 0) * (1 + randomCentered(HUMANIZE.fxSendAmount)),
+      0,
+      1,
+    )
+    : 0;
   const reverbSendValue = clamp(
     voiceParams.reverbSend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
     0,
@@ -282,8 +293,10 @@ export function scheduleNote(
     subMix.gain.setValueAtTime(0, preStartTime);
    subMix.gain.linearRampToValueAtTime(subLevel, time + gainSmoothTime);
 
-    delaySend.gain.setValueAtTime(0, preStartTime);
-   delaySend.gain.linearRampToValueAtTime(delaySendValue, time + gainSmoothTime);
+    tapeDelaySend.gain.setValueAtTime(0, preStartTime);
+   tapeDelaySend.gain.linearRampToValueAtTime(tapeDelaySendValue, time + gainSmoothTime);
+    cleanDelaySend.gain.setValueAtTime(0, preStartTime);
+   cleanDelaySend.gain.linearRampToValueAtTime(cleanDelaySendValue, time + gainSmoothTime);
     reverbSend.gain.setValueAtTime(0, preStartTime);
    reverbSend.gain.linearRampToValueAtTime(reverbSendValue, time + gainSmoothTime);
 
@@ -386,14 +399,19 @@ export function scheduleNote(
     );
     voiceOutput.connect(stereoPanner);
     stereoPanner.connect(state.masterGain);
-    stereoPanner.connect(delaySend);
+    stereoPanner.connect(tapeDelaySend);
+    stereoPanner.connect(cleanDelaySend);
     stereoPanner.connect(reverbSend);
   } else {
     voiceOutput.connect(state.masterGain);
-    voiceOutput.connect(delaySend);
+    voiceOutput.connect(tapeDelaySend);
+    voiceOutput.connect(cleanDelaySend);
     voiceOutput.connect(reverbSend);
   }
-  delaySend.connect(state.delayNode);
+  tapeDelaySend.connect(state.delayNode);
+  if (state.cleanDelayNode) {
+    cleanDelaySend.connect(state.cleanDelayNode);
+  }
   reverbSend.connect(state.reverbInput);
 
   oscA.start(preStartTime);

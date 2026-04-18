@@ -4,7 +4,7 @@ import { state } from "./state.js";
 const presetLabelCache = new Map();
 const presetPanCache = new Map();
 const presetOverrideCache = new Map();
-const NON_PRESET_PARAM_KEYS = new Set([...GLOBAL_CONTROL_KEYS, "delayTime"]);
+const NON_PRESET_PARAM_KEYS = new Set([...GLOBAL_CONTROL_KEYS, "delayTime", "cleanDelayTime"]);
 const PRESET_IDS = Object.keys(BASE_SOUND_PRESETS);
 
 function getPresetOverrides(presetId) {

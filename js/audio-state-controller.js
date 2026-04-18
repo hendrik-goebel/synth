@@ -1,4 +1,6 @@
 import {
+  CLEAN_DELAY_REPETITIONS_MAX,
+  CLEAN_DELAY_REPETITIONS_MIN,
   controlConfig,
   DEAD_NOTE_PAUSE_COUNT_MAX,
   DEAD_NOTE_PAUSE_COUNT_MIN,
@@ -29,6 +31,7 @@ const validPresetIds = new Set(getPresetIds());
 const validNoteIds = new Set(NOTE_OPTIONS.map(({ id }) => id));
 const validNoteLengths = new Set(NOTE_LENGTH_OPTIONS);
 const validDelayDivisionIndices = new Set(DELAY_DIVISION_OPTIONS.map((_, index) => index));
+const validToggleValues = new Set([0, 1]);
 const validLfoTargetIndices = new Set(LFO_TARGET_OPTIONS.map((_, index) => index));
 const validPitchClassKeys = new Set(PITCH_CLASS_OPTIONS.map(({ key }) => key));
 const validPostFilterTypes = new Set(POST_FILTER_TYPE_OPTIONS);
@@ -84,8 +87,28 @@ export class AudioStateController extends EventTarget {
       return false;
     }
 
-    if (controlId === "delay-time" && !validDelayDivisionIndices.has(numericValue)) {
+    if ((controlId === "delay-time" || controlId === "clean-delay-time") && !validDelayDivisionIndices.has(numericValue)) {
       this.emitError(`Invalid delay division value for ${controlId}`, { controlId, value });
+      return false;
+    }
+
+    if (controlId === "clean-delay-repetitions") {
+      const isValidRepetitionCount = Number.isInteger(numericValue)
+        && numericValue >= CLEAN_DELAY_REPETITIONS_MIN
+        && numericValue <= CLEAN_DELAY_REPETITIONS_MAX;
+
+      if (!isValidRepetitionCount) {
+        this.emitError(
+          `Clean delay repetitions must stay between ${CLEAN_DELAY_REPETITIONS_MIN} and ${CLEAN_DELAY_REPETITIONS_MAX}`,
+          { controlId, value },
+        );
+        return false;
+      }
+    }
+
+    if ((controlId === "tape-delay-enabled" || controlId === "clean-delay-enabled")
+      && !validToggleValues.has(numericValue)) {
+      this.emitError(`Invalid toggle value for ${controlId}`, { controlId, value });
       return false;
     }
 
@@ -94,7 +117,8 @@ export class AudioStateController extends EventTarget {
       return false;
     }
 
-    if (controlId === "delay-feedback" && (numericValue < 0 || numericValue > DELAY_FEEDBACK_MAX)) {
+    if (controlId === "delay-feedback"
+      && (numericValue < 0 || numericValue > DELAY_FEEDBACK_MAX)) {
       this.emitError(`Delay feedback must stay between 0 and ${DELAY_FEEDBACK_MAX}`, {
         controlId,
         value,

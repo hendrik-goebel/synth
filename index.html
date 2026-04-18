@@ -44,8 +44,20 @@
           </div>
 
           <div class="control-group">
-            <h3 class="control-group-title">Delay</h3>
+            <h3 class="control-group-title">Tape Delay</h3>
             <div class="control-group-items">
+              <div class="control-item">
+                <label for="tape-delay-enabled">Enabled (<span id="tape-delay-enabled-value">On</span>)</label>
+                <button
+                  id="tape-delay-enabled"
+                  type="button"
+                  class="control-toggle-btn delay-enabled-toggle is-active"
+                  value="1"
+                  aria-pressed="true"
+                >
+                  On
+                </button>
+              </div>
               <div class="control-item">
                 <label for="delay-time">Time (<span id="delay-time-value">1/8</span>)</label>
                 <input id="delay-time" type="range" min="0" max="7" step="1" value="3">
@@ -53,6 +65,32 @@
               <div class="control-item">
                 <label for="delay-feedback">Feedback (<span id="delay-feedback-value">0.06</span>)</label>
                 <input id="delay-feedback" type="range" min="0" max="1" step="0.001" value="0.592717">
+              </div>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <h3 class="control-group-title">Clean Delay</h3>
+            <div class="control-group-items">
+              <div class="control-item">
+                <label for="clean-delay-enabled">Enabled (<span id="clean-delay-enabled-value">On</span>)</label>
+                <button
+                  id="clean-delay-enabled"
+                  type="button"
+                  class="control-toggle-btn delay-enabled-toggle is-active"
+                  value="1"
+                  aria-pressed="true"
+                >
+                  On
+                </button>
+              </div>
+              <div class="control-item">
+                <label for="clean-delay-time">Time (<span id="clean-delay-time-value">1/8</span>)</label>
+                <input id="clean-delay-time" type="range" min="0" max="7" step="1" value="3">
+              </div>
+              <div class="control-item">
+                <label for="clean-delay-repetitions">Repetitions (<span id="clean-delay-repetitions-value">4 repeats</span>)</label>
+                <input id="clean-delay-repetitions" type="range" min="1" max="12" step="1" value="4">
               </div>
             </div>
           </div>
@@ -257,9 +295,13 @@
         <h3 class="control-group-title">Send &amp; Pan</h3>
         <div class="control-group-items">
           <div class="control-item">
-            <label for="delay-send">Delay Send (<span id="delay-send-value">0.20</span>)</label>
+                <label for="delay-send">Tape Delay Send (<span id="delay-send-value">0.20</span>)</label>
             <input id="delay-send" type="range" min="0" max="0.6" step="0.01" value="0.2">
           </div>
+              <div class="control-item">
+                <label for="clean-delay-send">Clean Delay Send (<span id="clean-delay-send-value">0.00</span>)</label>
+                <input id="clean-delay-send" type="range" min="0" max="0.6" step="0.01" value="0">
+              </div>
           <div class="control-item">
             <label for="reverb-send">Reverb Send (<span id="reverb-send-value">0.24</span>)</label>
             <input id="reverb-send" type="range" min="0" max="0.8" step="0.01" value="0.24">
