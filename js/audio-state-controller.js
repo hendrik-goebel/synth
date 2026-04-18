@@ -23,7 +23,12 @@ import {
   regenerateInstrumentRandomNoteIds,
   rebuildInstrumentPattern,
 } from "./patterns.js";
-import { getInstrumentParams, getPresetIds } from "./presets.js";
+import {
+  applyAssignedPresetToChannel,
+  getAssignedPresetId,
+  getInstrumentParams,
+  getPresetIds,
+} from "./presets.js";
 import { state } from "./state.js";
 
 const validControlIds = new Set(Object.keys(controlConfig));
@@ -66,6 +71,40 @@ export class AudioStateController extends EventTarget {
     this.emitStateChange("instrument-selected", {
       presetId,
       activeInstrumentPresetId: state.activeInstrumentPresetId,
+    });
+    return true;
+  }
+
+  setChannelInstrument(channelId, assignedPresetId) {
+    if (!validPresetIds.has(channelId)) {
+      this.emitError(`Unknown preset id: ${channelId}`, { presetId: channelId });
+      return false;
+    }
+
+    if (!validPresetIds.has(assignedPresetId)) {
+      this.emitError(`Unknown preset id: ${assignedPresetId}`, { presetId: assignedPresetId, channelId });
+      return false;
+    }
+
+    const previousAssignedPresetId = getAssignedPresetId(channelId);
+    if (previousAssignedPresetId === assignedPresetId) {
+      return true;
+    }
+
+    const instrumentParams = applyAssignedPresetToChannel(channelId, assignedPresetId);
+    rebuildInstrumentPattern(channelId);
+
+    this.emitAction("channel-instrument-updated", {
+      presetId: channelId,
+      assignedPresetId,
+      previousAssignedPresetId,
+    });
+    this.emitStateChange("channel-instrument-updated", {
+      presetId: channelId,
+      assignedPresetId,
+      previousAssignedPresetId,
+      noteLength: instrumentParams.noteLength,
+      channelVolume: instrumentParams.channelVolume,
     });
     return true;
   }

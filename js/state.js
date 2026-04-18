@@ -27,6 +27,9 @@ export const state = {
   reverbDryGain: null,
   distortionFeedbackBusByPresetId: {},
   activePresetIds: Object.keys(BASE_SOUND_PRESETS),
+  channelAssignedPresetIdById: Object.fromEntries(
+    Object.keys(BASE_SOUND_PRESETS).map((presetId) => [presetId, presetId]),
+  ),
   instrumentParamsByPresetId: {},
   instrumentArpeggioPitchClassesByPresetId: {},
   instrumentNoteIdsByPresetId: {},

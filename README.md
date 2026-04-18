@@ -5,6 +5,7 @@ Small Web Audio demo that plays a C major arpeggio up and down in a loop.
 ## Features
 - Start/Stop playback button
 - Button-based instrument stack (up to 12 presets at once)
+- Per-channel instrument select box so each channel can load any available instrument sound independently
 - The last clicked stack button becomes the current instrument for controls and Start/Stop
 - Event-driven action layer (`window.audioStateController`) so every UI action can also be triggered programmatically
 - Per-instrument note-length cycle control with `8`, `16`, `6`, `4`, and `3` timing values
@@ -39,6 +40,7 @@ The app exposes `window.audioStateController` (an `EventTarget`) after startup.
 
 Supported actions:
 - `selectInstrument(presetId)`
+- `setChannelInstrument(channelId, presetId)`
 - `setControlValue(controlId, value)`
 - `toggleNote(noteId)`
 - `createNoteVariation(presetId?)`
@@ -57,9 +59,10 @@ controller.addEventListener("statechange", (event) => {
   console.log(event.detail);
 });
 
-controller.selectInstrument("acid-bite");
+controller.selectInstrument("acid");
+controller.setChannelInstrument("warm", "bass");
 controller.setControlValue("filter-cutoff", 2200);
 controller.toggleNote("note-c5");
-controller.togglePlayback("acid-bite");
+controller.togglePlayback("acid");
 ```
 # synth

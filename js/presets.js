@@ -6,6 +6,13 @@ const presetPanCache = new Map();
 const presetOverrideCache = new Map();
 const NON_PRESET_PARAM_KEYS = new Set([...GLOBAL_CONTROL_KEYS, "delayTime", "cleanDelayTime"]);
 const PRESET_IDS = Object.keys(BASE_SOUND_PRESETS);
+const CHANNEL_LOCAL_PARAM_KEYS = [
+  "channelVolume",
+  "stereoPan",
+  "noteLength",
+  "deadNoteAtEnd",
+  "endPauseCount",
+];
 
 function getPresetOverrides(presetId) {
   if (presetOverrideCache.has(presetId)) {
@@ -59,17 +66,43 @@ export function getPresetIds() {
   return PRESET_IDS;
 }
 
-export function createInstrumentParams(presetId) {
-  const presetOverrides = getPresetOverrides(presetId);
+export function getAssignedPresetId(channelId) {
+  return state.channelAssignedPresetIdById[channelId] || channelId;
+}
+
+export function createInstrumentParams(channelId, assignedPresetId = getAssignedPresetId(channelId), previousParams = null) {
+  const presetOverrides = getPresetOverrides(assignedPresetId);
+  const preservedParams = previousParams || {};
 
   return {
     ...state.synthParams,
     ...presetOverrides,
     // Keep shared controls global; presets should only contribute instrument-scoped defaults.
     // Ensure every instrument starts at a unique panorama position.
-    channelVolume: 1,
-    stereoPan: getInitialStereoPan(presetId),
+    channelVolume: preservedParams.channelVolume ?? 1,
+    stereoPan: preservedParams.stereoPan ?? getInitialStereoPan(channelId),
+    ...(preservedParams.noteLength !== undefined ? { noteLength: preservedParams.noteLength } : {}),
+    ...(preservedParams.deadNoteAtEnd !== undefined ? { deadNoteAtEnd: preservedParams.deadNoteAtEnd } : {}),
+    ...(preservedParams.endPauseCount !== undefined ? { endPauseCount: preservedParams.endPauseCount } : {}),
   };
+}
+
+export function applyAssignedPresetToChannel(channelId, assignedPresetId) {
+  const previousParams = state.instrumentParamsByPresetId[channelId]
+    ? CHANNEL_LOCAL_PARAM_KEYS.reduce((result, key) => {
+      result[key] = state.instrumentParamsByPresetId[channelId][key];
+      return result;
+    }, {})
+    : null;
+
+  state.channelAssignedPresetIdById[channelId] = assignedPresetId;
+  state.instrumentParamsByPresetId[channelId] = createInstrumentParams(
+    channelId,
+    assignedPresetId,
+    previousParams,
+  );
+
+  return state.instrumentParamsByPresetId[channelId];
 }
 
 export function getInstrumentParams(presetId) {

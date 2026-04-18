@@ -1,3 +1,20 @@
+# Task: Add Per-Channel Instrument Selectors
+
+## Plan
+- [ ] Inspect the current mixer/channel flow and separate stable channel identity from assignable instrument sound selection.
+- [ ] Add per-channel assigned-instrument state plus controller helpers so a channel can switch sounds without losing its channel-local notes/transport state.
+- [ ] Render an instrument `<select>` above each channel strip and wire its change events through the controller.
+- [ ] Update audio/preset lookup paths so playback uses each channel's assigned instrument defaults while keeping channel-local edits and playback ownership intact.
+- [ ] Verify with focused static checks, a controller-level runtime check, and `npm run build`.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
 # Task: Replace Clean Delay Feedback With Repetitions
 
 ## Plan

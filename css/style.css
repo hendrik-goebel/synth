@@ -153,6 +153,22 @@ body {
   box-shadow: 0 0 0 2px rgba(252, 211, 77, 0.3), inset 0 0 0 1px #fcd34d;
 }
 
+.channel-instrument-select {
+  width: 100%;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid #475569;
+  border-radius: 0.35rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.channel-instrument-select:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
 .channel-name {
   font-size: 0.75rem;
   font-weight: 600;

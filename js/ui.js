@@ -20,7 +20,7 @@ import {
   getEnabledArpeggioPitchClasses,
   syncNoteButtonsFromActiveInstrumentPage,
 } from "./patterns.js";
-import { getInstrumentParams, getPresetIds, getPresetLabel } from "./presets.js";
+import { getAssignedPresetId, getInstrumentParams, getPresetIds, getPresetLabel } from "./presets.js";
 import { state } from "./state.js";
 import { clamp } from "./utils.js";
 
@@ -160,12 +160,16 @@ export function renderMixerChannels() {
 
   // Incremental update: if channels are already rendered, only patch class state
   if (mixerChannelCache.size > 0) {
-    mixerChannelCache.forEach(({ strip, indicator, playBtn }, presetId) => {
+    mixerChannelCache.forEach(({ strip, indicator, instrumentSelect, playBtn }, presetId) => {
       const isPlaying = state.playingPresetIds.has(presetId);
       const isCurrent = presetId === state.activeInstrumentPresetId;
+      const assignedPresetId = getAssignedPresetId(presetId);
 
       strip.classList.toggle("is-current", isCurrent);
       indicator.classList.toggle("is-playing", isPlaying);
+      if (instrumentSelect && instrumentSelect.value !== assignedPresetId) {
+        instrumentSelect.value = assignedPresetId;
+      }
 
       const nextPlayLabel = isPlaying ? "Stop" : "Play";
       if (playBtn.textContent !== nextPlayLabel) {
@@ -178,7 +182,9 @@ export function renderMixerChannels() {
 
   // Full initial render (runs only once)
   mixerChannelCache.clear();
-  getPresetIds().forEach((presetId) => {
+  const presetIds = getPresetIds();
+  presetIds.forEach((presetId, index) => {
+    const assignedPresetId = getAssignedPresetId(presetId);
     const channelStrip = document.createElement("div");
     channelStrip.className = "channel-strip";
     channelStrip.dataset.presetId = presetId;
@@ -187,9 +193,22 @@ export function renderMixerChannels() {
       channelStrip.classList.add("is-current");
     }
 
+    const instrumentSelect = document.createElement("select");
+    instrumentSelect.className = "channel-instrument-select";
+    instrumentSelect.dataset.presetId = presetId;
+    instrumentSelect.setAttribute("aria-label", `Instrument for channel ${index + 1}`);
+
+    presetIds.forEach((optionPresetId) => {
+      const option = document.createElement("option");
+      option.value = optionPresetId;
+      option.textContent = getPresetLabel(optionPresetId);
+      instrumentSelect.append(option);
+    });
+    instrumentSelect.value = assignedPresetId;
+
     const nameDiv = document.createElement("div");
     nameDiv.className = "channel-name";
-    nameDiv.textContent = getPresetLabel(presetId);
+    nameDiv.textContent = `Channel ${index + 1}`;
 
     const indicator = document.createElement("div");
     indicator.className = "channel-indicator";
@@ -236,12 +255,13 @@ export function renderMixerChannels() {
     volumeSlider.dataset.presetId = presetId;
 
     buttonsDiv.append(playBtn, variationBtn, noteLengthBtn, volumeSlider);
-    channelStrip.append(nameDiv, indicator, buttonsDiv);
+    channelStrip.append(instrumentSelect, nameDiv, indicator, buttonsDiv);
     mixerChannelsContainer.append(channelStrip);
 
     mixerChannelCache.set(presetId, {
       strip: channelStrip,
       indicator,
+      instrumentSelect,
       playBtn,
       noteLengthBtn,
       volumeSlider,
@@ -574,6 +594,24 @@ export function bindMixerChannels(controller) {
     return;
   }
 
+  mixerChannelsContainer.addEventListener("change", (event) => {
+    if (!event.target.classList.contains("channel-instrument-select")) {
+      return;
+    }
+
+    const channelId = event.target.dataset.presetId;
+    const assignedPresetId = event.target.value;
+    if (!channelId || !assignedPresetId) {
+      return;
+    }
+
+    if (state.activeInstrumentPresetId !== channelId) {
+      controller.selectInstrument(channelId);
+    }
+
+    controller.setChannelInstrument(channelId, assignedPresetId);
+  });
+
   // Volume slider input (separate handler to avoid stopPropagation issues)
   mixerChannelsContainer.addEventListener("input", (event) => {
     if (!event.target.classList.contains("channel-volume-slider")) {
@@ -585,6 +623,10 @@ export function bindMixerChannels(controller) {
   });
 
   mixerChannelsContainer.addEventListener("click", async (event) => {
+    if (event.target.closest(".channel-instrument-select")) {
+      return;
+    }
+
     const strip = event.target.closest(".channel-strip");
     if (!strip) {
       return;
@@ -678,6 +720,16 @@ export function bindControllerEvents(controller) {
       }
       if (controlId === "note-length-toggle") {
         updateChannelNoteLengthButton(presetId, value);
+      }
+      return;
+    }
+
+    if (type === "channel-instrument-updated") {
+      renderMixerChannels();
+      updateChannelNoteLengthButton(presetId, event.detail.noteLength ?? getInstrumentParams(presetId).noteLength ?? 8);
+      updateChannelVolumeSlider(presetId, event.detail.channelVolume ?? getInstrumentParams(presetId).channelVolume ?? 1);
+      if (presetId === state.activeInstrumentPresetId) {
+        syncControlsFromActiveInstrumentPage();
       }
       return;
     }
