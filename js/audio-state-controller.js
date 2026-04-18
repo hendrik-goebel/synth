@@ -25,6 +25,7 @@ import {
 } from "./patterns.js";
 import {
   applyAssignedPresetToChannel,
+  getAvailablePresetIds,
   getAssignedPresetId,
   getInstrumentParams,
   getPresetIds,
@@ -32,7 +33,8 @@ import {
 import { state } from "./state.js";
 
 const validControlIds = new Set(Object.keys(controlConfig));
-const validPresetIds = new Set(getPresetIds());
+const validChannelIds = new Set(getPresetIds());
+const validAssignablePresetIds = new Set(getAvailablePresetIds());
 const validNoteIds = new Set(NOTE_OPTIONS.map(({ id }) => id));
 const validNoteLengths = new Set(NOTE_LENGTH_OPTIONS);
 const validDelayDivisionIndices = new Set(DELAY_DIVISION_OPTIONS.map((_, index) => index));
@@ -59,7 +61,7 @@ export class AudioStateController extends EventTarget {
   }
 
   selectInstrument(presetId) {
-    if (!validPresetIds.has(presetId)) {
+    if (!validChannelIds.has(presetId)) {
       this.emitError(`Unknown preset id: ${presetId}`, { presetId });
       return false;
     }
@@ -76,12 +78,12 @@ export class AudioStateController extends EventTarget {
   }
 
   setChannelInstrument(channelId, assignedPresetId) {
-    if (!validPresetIds.has(channelId)) {
+    if (!validChannelIds.has(channelId)) {
       this.emitError(`Unknown preset id: ${channelId}`, { presetId: channelId });
       return false;
     }
 
-    if (!validPresetIds.has(assignedPresetId)) {
+    if (!validAssignablePresetIds.has(assignedPresetId)) {
       this.emitError(`Unknown preset id: ${assignedPresetId}`, { presetId: assignedPresetId, channelId });
       return false;
     }
@@ -237,7 +239,7 @@ export class AudioStateController extends EventTarget {
   }
 
   toggleArpeggioPitchClass(pitchClassKey, presetId = state.activeInstrumentPresetId) {
-    if (!validPresetIds.has(presetId)) {
+    if (!validChannelIds.has(presetId)) {
       this.emitError(`Unknown preset id: ${presetId}`, { presetId });
       return false;
     }
@@ -309,8 +311,8 @@ export class AudioStateController extends EventTarget {
   }
 
   toggleDeadNoteAtEnd(presetId = state.activeInstrumentPresetId) {
-    if (!validPresetIds.has(presetId)) {
-      this.emitError(`Unknown preset id: ${presetId}`, { presetId });npm
+    if (!validChannelIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
       return false;
     }
 
@@ -332,7 +334,7 @@ export class AudioStateController extends EventTarget {
   }
 
   setDeadNotePauseCount(value, presetId = state.activeInstrumentPresetId) {
-    if (!validPresetIds.has(presetId)) {
+    if (!validChannelIds.has(presetId)) {
       this.emitError(`Unknown preset id: ${presetId}`, { presetId });
       return false;
     }
@@ -367,7 +369,7 @@ export class AudioStateController extends EventTarget {
   }
 
   createNoteVariation(presetId = state.activeInstrumentPresetId) {
-    if (!validPresetIds.has(presetId)) {
+    if (!validChannelIds.has(presetId)) {
       this.emitError(`Unknown preset id: ${presetId}`, { presetId });
       return false;
     }
@@ -390,7 +392,7 @@ export class AudioStateController extends EventTarget {
   }
 
   setChannelVolume(presetId, value) {
-    if (!validPresetIds.has(presetId)) {
+    if (!validChannelIds.has(presetId)) {
       this.emitError(`Unknown preset id: ${presetId}`, { presetId });
       return false;
     }
@@ -404,7 +406,7 @@ export class AudioStateController extends EventTarget {
   }
 
   async togglePlayback(presetId) {
-    if (!validPresetIds.has(presetId)) {
+    if (!validChannelIds.has(presetId)) {
       this.emitError(`Unknown preset id: ${presetId}`, { presetId });
       return false;
     }

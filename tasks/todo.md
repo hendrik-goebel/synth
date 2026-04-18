@@ -1,3 +1,43 @@
+# Task: Remove Percussion Presets And Warm/Darken The Library
+
+## Plan
+- [ ] Remove the percussion preset group and related metadata from `js/constants.js`.
+- [ ] Retune the remaining presets and shared defaults toward darker, warmer sounds without changing the 8 channel IDs.
+- [ ] Update focused preset-library verification and README wording to match the new grouped catalog.
+- [ ] Validate with static checks, focused runtime tests, and `npm run build`.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
+# Task: Expand Preset Library And Group It By Category
+
+## Plan
+- [x] Trace the current preset/channel ownership in `js/constants.js`, `js/presets.js`, `js/state.js`, and `js/ui.js` so preset-library growth does not inflate mixer channels.
+- [x] Add a larger categorized sound library in `js/constants.js` with grouped metadata (for example Bass, Pads, Percussion, Keys & Plucks, Textures).
+- [x] Decouple the available sound library from mixer channel IDs so the UI stays at 8 channels while each channel can still load any preset.
+- [x] Render grouped preset options in the channel instrument selectors and expose readable preset labels/category helpers in `js/presets.js`.
+- [x] Update documentation/task notes, add a focused preset-library verification check, and run static/build validation.
+
+## Progress Notes
+- Confirmed the current mixer still derives channel IDs from `Object.keys(BASE_SOUND_PRESETS)`, so simply adding many presets would have increased the mixer strip count and broken the requested grouped-library UX.
+- Expanded `BASE_SOUND_PRESETS` with 15 new sounds across Bass, Pads, Keys & Plucks, Percussion, and Textures, and added parallel preset metadata for human-readable labels/category grouping.
+- Added dedicated `MIXER_CHANNEL_IDS` so the app now keeps 8 stable mixer channels (`warm`, `pluck`, `organ`, `bass`, `glass`, `acid`, `noisy`, `deep`) while every channel can assign any preset from the larger library.
+- Updated `js/presets.js` and `js/ui.js` so channel instrument selectors now render categorized `<optgroup>` sections instead of one long flat list.
+- Added `tasks/preset-library-test.mjs` to verify that channel count stays at 8, category groups contain the new sounds, and controller assignment can load new presets onto existing channels.
+
+## Review
+- `get_errors` reported no new errors in the edited JS/README/task files; only the pre-existing unused `DEFAULT_NOTE_IDS` warning remains in `js/constants.js`.
+- `node --experimental-default-type=module tasks/preset-library-test.mjs` passed.
+- `node --experimental-default-type=module tasks/channel-assignment-test.mjs` passed.
+- `npm run build` completed successfully after the categorized preset-library expansion and 8-channel decoupling.
+
+---
+
 # Task: Add Per-Channel Instrument Selectors
 
 ## Plan

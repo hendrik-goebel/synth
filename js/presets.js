@@ -1,11 +1,21 @@
-import { BASE_SOUND_PRESETS, DEFAULT_PRESET_ID, GLOBAL_CONTROL_KEYS } from "./constants.js";
+import {
+  BASE_SOUND_PRESETS,
+  DEFAULT_PRESET_ID,
+  GLOBAL_CONTROL_KEYS,
+  MIXER_CHANNEL_IDS,
+  PRESET_CATEGORY_LABELS,
+  PRESET_CATEGORY_ORDER,
+  PRESET_METADATA,
+} from "./constants.js";
 import { state } from "./state.js";
 
 const presetLabelCache = new Map();
 const presetPanCache = new Map();
 const presetOverrideCache = new Map();
 const NON_PRESET_PARAM_KEYS = new Set([...GLOBAL_CONTROL_KEYS, "delayTime", "cleanDelayTime"]);
-const PRESET_IDS = Object.keys(BASE_SOUND_PRESETS);
+const AVAILABLE_PRESET_IDS = Object.keys(BASE_SOUND_PRESETS);
+const CHANNEL_IDS = MIXER_CHANNEL_IDS.slice();
+const AVAILABLE_PRESET_GROUPS = buildAvailablePresetGroups();
 const CHANNEL_LOCAL_PARAM_KEYS = [
   "channelVolume",
   "stereoPan",
@@ -13,6 +23,37 @@ const CHANNEL_LOCAL_PARAM_KEYS = [
   "deadNoteAtEnd",
   "endPauseCount",
 ];
+
+function buildAvailablePresetGroups() {
+  const groupedPresetIds = new Map();
+
+  AVAILABLE_PRESET_IDS.forEach((presetId) => {
+    const categoryKey = PRESET_METADATA[presetId]?.categoryKey || "textures";
+    if (!groupedPresetIds.has(categoryKey)) {
+      groupedPresetIds.set(categoryKey, []);
+    }
+    groupedPresetIds.get(categoryKey).push(presetId);
+  });
+
+  const orderedGroups = PRESET_CATEGORY_ORDER
+    .filter((categoryKey) => groupedPresetIds.has(categoryKey))
+    .map((categoryKey) => ({
+      key: categoryKey,
+      label: PRESET_CATEGORY_LABELS[categoryKey] || categoryKey,
+      presetIds: groupedPresetIds.get(categoryKey),
+    }));
+
+  const unorderedGroups = Array.from(groupedPresetIds.keys())
+    .filter((categoryKey) => !PRESET_CATEGORY_ORDER.includes(categoryKey))
+    .sort((left, right) => left.localeCompare(right))
+    .map((categoryKey) => ({
+      key: categoryKey,
+      label: PRESET_CATEGORY_LABELS[categoryKey] || categoryKey,
+      presetIds: groupedPresetIds.get(categoryKey),
+    }));
+
+  return [...orderedGroups, ...unorderedGroups];
+}
 
 function getPresetOverrides(presetId) {
   if (presetOverrideCache.has(presetId)) {
@@ -54,7 +95,7 @@ export function getPresetLabel(presetId) {
   if (presetLabelCache.has(presetId)) {
     return presetLabelCache.get(presetId);
   }
-  const label = presetId
+  const label = PRESET_METADATA[presetId]?.label || presetId
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
@@ -63,7 +104,24 @@ export function getPresetLabel(presetId) {
 }
 
 export function getPresetIds() {
-  return PRESET_IDS;
+  return CHANNEL_IDS;
+}
+
+export function getAvailablePresetIds() {
+  return AVAILABLE_PRESET_IDS;
+}
+
+export function getPresetCategoryKey(presetId) {
+  return PRESET_METADATA[presetId]?.categoryKey || "textures";
+}
+
+export function getPresetCategoryLabel(presetId) {
+  const categoryKey = getPresetCategoryKey(presetId);
+  return PRESET_CATEGORY_LABELS[categoryKey] || categoryKey;
+}
+
+export function getAvailablePresetGroups() {
+  return AVAILABLE_PRESET_GROUPS;
 }
 
 export function getAssignedPresetId(channelId) {

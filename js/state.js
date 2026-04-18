@@ -1,7 +1,7 @@
 import {
-  BASE_SOUND_PRESETS,
   DEFAULT_PRESET_ID,
   INITIAL_SYNTH_PARAMS,
+  MIXER_CHANNEL_IDS,
 } from "./constants.js";
 export const state = {
   synthParams: { ...INITIAL_SYNTH_PARAMS },
@@ -26,9 +26,9 @@ export const state = {
   reverbWetGain: null,
   reverbDryGain: null,
   distortionFeedbackBusByPresetId: {},
-  activePresetIds: Object.keys(BASE_SOUND_PRESETS),
+  activePresetIds: MIXER_CHANNEL_IDS.slice(),
   channelAssignedPresetIdById: Object.fromEntries(
-    Object.keys(BASE_SOUND_PRESETS).map((presetId) => [presetId, presetId]),
+    MIXER_CHANNEL_IDS.map((presetId) => [presetId, presetId]),
   ),
   instrumentParamsByPresetId: {},
   instrumentArpeggioPitchClassesByPresetId: {},

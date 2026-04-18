@@ -20,7 +20,13 @@ import {
   getEnabledArpeggioPitchClasses,
   syncNoteButtonsFromActiveInstrumentPage,
 } from "./patterns.js";
-import { getAssignedPresetId, getInstrumentParams, getPresetIds, getPresetLabel } from "./presets.js";
+import {
+  getAssignedPresetId,
+  getAvailablePresetGroups,
+  getInstrumentParams,
+  getPresetIds,
+  getPresetLabel,
+} from "./presets.js";
 import { state } from "./state.js";
 import { clamp } from "./utils.js";
 
@@ -183,6 +189,7 @@ export function renderMixerChannels() {
   // Full initial render (runs only once)
   mixerChannelCache.clear();
   const presetIds = getPresetIds();
+  const availablePresetGroups = getAvailablePresetGroups();
   presetIds.forEach((presetId, index) => {
     const assignedPresetId = getAssignedPresetId(presetId);
     const channelStrip = document.createElement("div");
@@ -198,11 +205,18 @@ export function renderMixerChannels() {
     instrumentSelect.dataset.presetId = presetId;
     instrumentSelect.setAttribute("aria-label", `Instrument for channel ${index + 1}`);
 
-    presetIds.forEach((optionPresetId) => {
-      const option = document.createElement("option");
-      option.value = optionPresetId;
-      option.textContent = getPresetLabel(optionPresetId);
-      instrumentSelect.append(option);
+    availablePresetGroups.forEach(({ label, presetIds: groupedPresetIds }) => {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = label;
+
+      groupedPresetIds.forEach((optionPresetId) => {
+        const option = document.createElement("option");
+        option.value = optionPresetId;
+        option.textContent = getPresetLabel(optionPresetId);
+        optgroup.append(option);
+      });
+
+      instrumentSelect.append(optgroup);
     });
     instrumentSelect.value = assignedPresetId;
 
