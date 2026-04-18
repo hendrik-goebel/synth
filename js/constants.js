@@ -90,6 +90,21 @@ export function uiValueFromDelayDivisionIndex(index) {
 }
 
 export const DEFAULT_NOTE_IDS = ["note-c4", "note-e4", "note-g4"];
+export const PITCH_CLASS_OPTIONS = [
+  { key: "c", label: "C" },
+  { key: "cs", label: "C#" },
+  { key: "d", label: "D" },
+  { key: "ds", label: "D#" },
+  { key: "e", label: "E" },
+  { key: "f", label: "F" },
+  { key: "fs", label: "F#" },
+  { key: "g", label: "G" },
+  { key: "gs", label: "G#" },
+  { key: "a", label: "A" },
+  { key: "as", label: "A#" },
+  { key: "b", label: "B" },
+];
+export const DEFAULT_RANDOM_PITCH_CLASS_KEYS = ["c", "d", "e", "g", "a"];
 export const NOTE_OPTIONS = [
   { id: "note-c4", frequency: 261.63 },
   { id: "note-cs4", frequency: 277.18 },
@@ -118,7 +133,7 @@ export const NOTE_OPTIONS = [
 ];
 
 const PENTATONIC_PITCH_CLASSES = new Set(["c", "d", "e", "g", "a"]);
-function extractPitchClass(noteId) {
+export function extractPitchClass(noteId) {
   return noteId.replace("note-", "").replace(/[0-9]+$/, "");
 }
 export const PENTATONIC_NOTE_IDS = NOTE_OPTIONS
@@ -335,7 +350,7 @@ export const BASE_SOUND_PRESETS = {
     distortionTone: 1700,
   },
 };
-export const DEFAULT_PRESET_ID = "warm-pad";
+export const DEFAULT_PRESET_ID = "warm";
 export const GLOBAL_CONTROL_KEYS = new Set([
   "tempoBpm",
   "globalTimbre",

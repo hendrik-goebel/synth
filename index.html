@@ -24,6 +24,7 @@
 
 <body>
   <main class="app">
+    <p id="status">Stopped</p>
     <section class="controls" aria-label="Synth controls">
 
       <div class="controls-top-row">
@@ -105,8 +106,46 @@
         <div class="note-selector-actions">
           <button id="dead-note-toggle" type="button" class="control-toggle-btn dead-note-toggle" aria-pressed="false" value="0">Pause</button>
           <button id="dead-note-count-toggle" type="button" class="control-toggle-btn dead-note-count-toggle" value="1">Pause Count: 1</button>
+          <button
+            id="arpeggio-settings-toggle"
+            type="button"
+            class="control-toggle-btn note-settings-toggle"
+            aria-haspopup="dialog"
+            aria-controls="arpeggio-settings-dialog"
+          >
+            Settings
+          </button>
         </div>
        </fieldset>
+
+       <dialog id="arpeggio-settings-dialog" class="settings-dialog" aria-labelledby="arpeggio-settings-title">
+         <div class="settings-dialog-content">
+           <div class="settings-dialog-header">
+             <h2 id="arpeggio-settings-title">Arpeggio Settings</h2>
+             <button id="arpeggio-settings-close" type="button" class="settings-dialog-close" aria-label="Close settings dialog">×</button>
+           </div>
+           <section class="settings-dialog-section" aria-labelledby="arpeggio-settings-notes-title">
+             <h3 id="arpeggio-settings-notes-title" class="settings-dialog-section-title">Notes</h3>
+             <div class="settings-note-grid" aria-label="Chromatic note buttons">
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="c" aria-pressed="false">C</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="cs" aria-pressed="false">C#</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="d" aria-pressed="false">D</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="ds" aria-pressed="false">D#</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="e" aria-pressed="false">E</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="f" aria-pressed="false">F</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="fs" aria-pressed="false">F#</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="g" aria-pressed="false">G</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="gs" aria-pressed="false">G#</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="a" aria-pressed="false">A</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="as" aria-pressed="false">A#</button>
+               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="b" aria-pressed="false">B</button>
+             </div>
+           </section>
+           <div class="settings-dialog-actions">
+             <button id="arpeggio-settings-apply" type="button" class="control-toggle-btn settings-apply-btn">Apply</button>
+           </div>
+         </div>
+       </dialog>
 
 
       </div>

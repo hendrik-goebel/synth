@@ -9,10 +9,18 @@ import {
   LFO_TARGET_OPTIONS,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
+  PITCH_CLASS_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
 } from "./constants.js";
 import { applyLiveAudioUpdates, ensureAudioContext, startPresetPlayback, stopPresetPlayback } from "./audio-engine.js";
-import { createInstrumentNoteVariation, ensureInstrumentNoteState, rebuildInstrumentPattern } from "./patterns.js";
+import {
+  createInstrumentNoteVariation,
+  ensureInstrumentNoteState,
+  getEnabledArpeggioPitchClasses,
+  getEligibleRandomNotePoolFromPitchClasses,
+  regenerateInstrumentRandomNoteIds,
+  rebuildInstrumentPattern,
+} from "./patterns.js";
 import { getInstrumentParams, getPresetIds } from "./presets.js";
 import { state } from "./state.js";
 
@@ -22,6 +30,7 @@ const validNoteIds = new Set(NOTE_OPTIONS.map(({ id }) => id));
 const validNoteLengths = new Set(NOTE_LENGTH_OPTIONS);
 const validDelayDivisionIndices = new Set(DELAY_DIVISION_OPTIONS.map((_, index) => index));
 const validLfoTargetIndices = new Set(LFO_TARGET_OPTIONS.map((_, index) => index));
+const validPitchClassKeys = new Set(PITCH_CLASS_OPTIONS.map(({ key }) => key));
 const validPostFilterTypes = new Set(POST_FILTER_TYPE_OPTIONS);
 
 function toNumber(value) {
@@ -164,6 +173,78 @@ export class AudioStateController extends EventTarget {
     return true;
   }
 
+  toggleArpeggioPitchClass(pitchClassKey, presetId = state.activeInstrumentPresetId) {
+    if (!validPresetIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    if (!validPitchClassKeys.has(pitchClassKey)) {
+      this.emitError(`Unknown pitch class key: ${pitchClassKey}`, { pitchClassKey, presetId });
+      return false;
+    }
+
+    ensureInstrumentNoteState(presetId);
+    const enabledPitchClasses = getEnabledArpeggioPitchClasses(presetId);
+    const pitchClassIndex = enabledPitchClasses.indexOf(pitchClassKey);
+
+    if (pitchClassIndex === -1) {
+      enabledPitchClasses.push(pitchClassKey);
+    } else if (enabledPitchClasses.length > 1) {
+      enabledPitchClasses.splice(pitchClassIndex, 1);
+    } else {
+      this.emitError("At least one settings note must stay enabled", { presetId, pitchClassKey });
+      return false;
+    }
+
+    state.instrumentArpeggioPitchClassesByPresetId[presetId] = enabledPitchClasses;
+
+    this.emitAction("arpeggio-settings-updated", {
+      presetId,
+      enabledPitchClasses: enabledPitchClasses.slice(),
+    });
+    this.emitStateChange("arpeggio-settings-updated", {
+      presetId,
+      enabledPitchClasses: enabledPitchClasses.slice(),
+    });
+    return true;
+  }
+
+  applyActiveArpeggioSettingsToAllInstruments() {
+    const sourcePresetId = state.activeInstrumentPresetId;
+    ensureInstrumentNoteState(sourcePresetId);
+
+    const sourcePitchClasses = getEnabledArpeggioPitchClasses(sourcePresetId);
+    const eligibleNotePool = getEligibleRandomNotePoolFromPitchClasses(sourcePitchClasses);
+    const instrumentNoteCounts = getPresetIds().map((presetId) => {
+      ensureInstrumentNoteState(presetId);
+      return {
+        presetId,
+        noteCount: state.instrumentNoteIdsByPresetId[presetId]?.length ?? 0,
+      };
+    });
+
+    instrumentNoteCounts.forEach(({ presetId, noteCount }) => {
+      state.instrumentArpeggioPitchClassesByPresetId[presetId] = sourcePitchClasses.slice();
+      regenerateInstrumentRandomNoteIds(
+        presetId,
+        Math.min(noteCount, eligibleNotePool.length),
+      );
+    });
+
+    this.emitAction("arpeggio-settings-applied-to-all", {
+      sourcePresetId,
+      enabledPitchClasses: sourcePitchClasses.slice(),
+      updatedPresetIds: instrumentNoteCounts.map(({ presetId }) => presetId),
+    });
+    this.emitStateChange("arpeggio-settings-applied-to-all", {
+      sourcePresetId,
+      enabledPitchClasses: sourcePitchClasses.slice(),
+      updatedPresetIds: instrumentNoteCounts.map(({ presetId }) => presetId),
+    });
+    return true;
+  }
+
   toggleDeadNoteAtEnd(presetId = state.activeInstrumentPresetId) {
     if (!validPresetIds.has(presetId)) {
       this.emitError(`Unknown preset id: ${presetId}`, { presetId });
@@ -230,7 +311,7 @@ export class AudioStateController extends EventTarget {
 
     const result = createInstrumentNoteVariation(presetId);
     if (!result.changed) {
-      this.emitError("No eligible pentatonic notes available for variation", { presetId });
+      this.emitError("No eligible enabled settings notes available for variation", { presetId });
       return false;
     }
 

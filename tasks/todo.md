@@ -1,3 +1,160 @@
+# Task: Clamp Apply-To-All Arpeggio Counts To Available Notes
+
+## Plan
+- [x] Trace the current Apply-to-all arpeggio settings flow and confirm where the insufficient-note guard rejects the action.
+- [x] Remove the rejection and clamp each instrument's regenerated note-count to the number of notes actually available from the enabled settings pool.
+- [x] Keep the existing bulk settings copy and statechange/action events unchanged.
+- [x] Verify with static checks, a focused runtime check, and `npm run build`.
+
+## Progress Notes
+- Confirmed `applyActiveArpeggioSettingsToAllInstruments()` in `js/audio-state-controller.js` currently blocks the whole action when any instrument's existing note-count is larger than the source settings pool.
+- The desired behavior is now to apply anyway and reduce each instrument's regenerated note-count to `min(currentCount, availableCount)` instead of emitting an error.
+- Removed the global `requiredMaxCount` rejection in `js/audio-state-controller.js` and changed the regeneration call so every instrument now applies with `Math.min(noteCount, eligibleNotePool.length)`.
+- Kept the existing bulk action/statechange events unchanged so the rest of the UI continues to respond through the same path.
+
+## Review
+- `get_errors` reported no new errors in `js/audio-state-controller.js`.
+- Focused runtime verification confirmed that with only four eligible notes available, instruments that previously had five notes now regenerate with four notes instead of rejecting the apply, while smaller note-counts remain unchanged and all regenerated notes stay inside the enabled settings pool.
+- `npm run build` completed successfully after changing Apply-to-all from reject to clamp behavior.
+
+---
+
+# Task: Fix Legacy Default Preset ID
+
+## Plan
+- [x] Trace the `Unknown preset id: warm-pad` error back to the preset source of truth and default preset initialization.
+- [x] Replace the stale legacy default preset ID with the current preset key used by `BASE_SOUND_PRESETS`.
+- [x] Verify with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed the current preset registry uses single-word IDs such as `warm`, `pluck`, and `organ`, while `DEFAULT_PRESET_ID` in `js/constants.js` still pointed at legacy `warm-pad`.
+- Confirmed both `js/state.js` and `js/presets.js` derive their fallback/initial active instrument from `DEFAULT_PRESET_ID`, which explains the immediate controller validation error.
+- Updated `DEFAULT_PRESET_ID` in `js/constants.js` from `warm-pad` to `warm` so initialization now matches the actual preset registry.
+
+## Review
+- `get_errors` reported no new errors in `js/constants.js`; only the pre-existing unused `DEFAULT_NOTE_IDS` warning remains unrelated.
+- `npm run build` completed successfully after changing the default preset ID from `warm-pad` to `warm`.
+
+---
+
+# Task: Fix Settings Dialog Note/Apply Interaction Regression
+
+## Plan
+- [x] Inspect the settings-dialog markup, bootstrap wiring, and controller click paths for the note buttons and Apply button.
+- [x] Restore visible feedback for dialog errors and actions by adding a real `#status` target to `index.html`.
+- [x] Make successful settings-note toggles and Apply clicks resync the visible UI immediately in `js/ui.js`, instead of relying only on indirect controller event handling.
+- [x] Verify with static checks, focused runtime checks, and `npm run build`.
+
+## Progress Notes
+- Confirmed the dialog bindings in `js/app.js` / `js/ui.js` were still present, but all controller errors were effectively invisible because `js/dom.js` points at `#status` and `index.html` did not contain that element.
+- Added `<p id="status">Stopped</p>` near the top of `index.html` so settings-dialog failures (for example impossible Apply constraints) are now shown instead of feeling like no-ops.
+- Updated `bindSettingsDialog(...)` in `js/ui.js` so a successful note-button click immediately resyncs the settings-note button state, and a successful Apply immediately resyncs both the settings buttons and the active instrument note grid.
+- Added a short success message after Apply so the bulk action has visible confirmation.
+
+## Review
+- `get_errors` reported no new errors in the edited files; only pre-existing warnings remain unrelated in `js/ui.js`.
+- Focused runtime verification confirmed that settings-note toggles still change controller state, Apply still regenerates note sets while preserving counts, and blocked Apply cases now emit an explicit visible error message targetable through `#status`.
+- `npm run build` completed successfully after the settings-dialog interaction regression fix.
+
+---
+
+# Task: Apply Active Settings Notes To All Instruments
+
+## Plan
+- [x] Trace the current settings-dialog note flow plus the random-note generation helpers used by each instrument.
+- [x] Add an `Apply` button to the settings dialog in `index.html` and style it in `css/style.css`.
+- [x] Add a count-preserving random-note regeneration helper in `js/patterns.js` that can rebuild one instrument from its enabled settings notes.
+- [x] Add a controller action that copies the active instrument's enabled settings notes to all instruments, regenerates each note set, and preserves each instrument's prior note-count.
+- [x] Guard the bulk apply if the enabled settings notes do not provide enough distinct octave notes to preserve every instrument's current note-count.
+- [x] Sync the active instrument UI after the bulk apply and verify with static checks, focused runtime checks, and `npm run build`.
+
+## Progress Notes
+- Confirmed the active instrument's settings-note state already lives in `state.instrumentArpeggioPitchClassesByPresetId`, while each instrument's current arpeggio size can be derived from `state.instrumentNoteIdsByPresetId[presetId].length` after `ensureInstrumentNoteState(...)`.
+- Confirmed the current random-note helper picks a random note-count itself, so a new fixed-count helper is needed to satisfy the requirement that every instrument keeps its previous number of notes during bulk apply.
+- Added `#arpeggio-settings-apply` to the settings dialog in `index.html` plus `.settings-dialog-actions` / `.settings-apply-btn` styling in `css/style.css` so the bulk action is clearly available in the modal.
+- Extended `js/patterns.js` with `getEligibleRandomNotePoolFromPitchClasses(...)`, an exported preset-scoped pool helper, and `regenerateInstrumentRandomNoteIds(...)` so one instrument can be rebuilt from its enabled settings notes while keeping an exact requested note-count.
+- Added `applyActiveArpeggioSettingsToAllInstruments()` in `js/audio-state-controller.js`; it copies the active instrument's enabled pitch classes to every preset, regenerates each preset's note IDs, rebuilds patterns, and emits a bulk statechange/action event.
+- Added a validation guard in `js/audio-state-controller.js` that rejects bulk apply when the currently enabled settings notes do not offer enough distinct octave note IDs to preserve the largest existing instrument note-count.
+- Updated `js/ui.js` so the new Apply button triggers the controller action and the active instrument's note grid plus settings-note buttons resync immediately after the bulk apply completes.
+
+## Review
+- `get_errors` reported no new errors in the edited files; only pre-existing warnings remain unrelated (`DEFAULT_NOTE_IDS`, an unused helper export, and older `ui.js` warnings).
+- Focused runtime verification confirmed that pressing Apply can copy the active settings notes to all instruments, regenerate new note sets using only those enabled pitch classes, preserve each instrument's previous note-count, and reject impossible applies when the enabled pool is too small.
+- `npm run build` completed successfully after adding the settings-dialog Apply action.
+
+---
+
+# Task: Restrict Random Arpeggio Selection To Enabled Settings Notes
+
+## Plan
+- [x] Trace the current random arpeggio note paths in `js/patterns.js` and the current settings-dialog UI flow in `js/ui.js` / `js/audio-state-controller.js`.
+- [x] Add a per-instrument enabled pitch-class source of truth that the settings dialog can edit.
+- [x] Restrict startup random note seeding and note variation to octave note IDs whose pitch class is enabled in the settings dialog.
+- [x] Sync the settings-dialog note buttons with the currently selected instrument and route clicks through the controller.
+- [x] Keep existing selected arpeggio notes untouched when settings change; only future random generation should be constrained.
+- [x] Verify with static checks, focused runtime checks, and `npm run build`.
+
+## Progress Notes
+- Confirmed the current random paths are `getRandomPentatonicNoteIds()` for first-time seeding and `createInstrumentNoteVariation()` for the `Var` action, both currently hard-coded to `PENTATONIC_NOTE_IDS`.
+- Confirmed the current settings dialog note buttons are only local UI state, so they need a real per-instrument source of truth before they can influence the random generator.
+- Added shared pitch-class metadata in `js/constants.js` (`PITCH_CLASS_OPTIONS`, `DEFAULT_RANDOM_PITCH_CLASS_KEYS`, and exported `extractPitchClass(...)`) plus a new per-instrument `instrumentArpeggioPitchClassesByPresetId` store in `js/state.js`.
+- Updated `js/patterns.js` so first-time note seeding and note variation derive eligible octave note IDs by filtering `NOTE_OPTIONS` through the enabled pitch classes for the current preset, while preserving the existing pentatonic default via the initial enabled pitch-class set.
+- Added `toggleArpeggioPitchClass(...)` to `js/audio-state-controller.js` so the settings dialog uses the same event-driven action/statechange path as the rest of the UI and enforces that at least one settings note stays enabled.
+- Updated `index.html`, `js/ui.js`, and `js/app.js` so the settings-dialog buttons use canonical pitch-class keys, sync to the active instrument, and change real per-instrument settings state instead of only toggling local CSS.
+- Left existing selected arpeggio notes untouched when settings change; the new settings only constrain future random seeding and variation, matching the requested scope.
+
+## Review
+- `get_errors` reported no new errors in the edited files; only pre-existing warnings remain unrelated (`DEFAULT_NOTE_IDS`, an unused helper export, and older `ui.js` warnings).
+- Focused runtime verification confirmed that default startup seeding stays inside the default enabled pitch classes (`c`, `d`, `e`, `g`, `a`), and that restricting a preset to `cs` + `f` produces only `C#`/`F` notes for both first-time seeding and note variation.
+- `npm run build` completed successfully after the settings-driven random-note filtering change.
+
+---
+
+# Task: Add Chromatic Note Buttons To Arpeggio Settings Dialog
+
+## Plan
+- [x] Inspect the existing settings dialog markup plus the current note source data to avoid colliding with the main octave-specific note controls.
+- [x] Add a dialog-local chromatic note button grid (`C` through `B`) in `index.html`.
+- [x] Add minimal dialog styling in `css/style.css`, reusing the existing note-button look where practical.
+- [x] Keep the new dialog buttons UI-local for now instead of wiring them into the octave-specific arpeggio state.
+- [x] Verify edited files with static checks and `npm run build`.
+
+## Progress Notes
+- Confirmed `NOTE_OPTIONS` in `js/constants.js` is octave-specific (`C4–B5`), so the safest first pass is a dialog-local pitch-class button grid with distinct IDs/data attributes instead of reusing the main note-selection wiring.
+- Added a `Notes` section to `#arpeggio-settings-dialog` in `index.html` with 12 chromatic buttons from `C` through `B`.
+- Reused the existing `.note-toggle` visual language and added small dialog-specific layout classes in `css/style.css` for a compact 4-column grid.
+- Extended `bindSettingsDialog()` in `js/ui.js` so these dialog note buttons toggle their own pressed/active state locally without touching the main octave-based arpeggio selection flow.
+
+## Review
+- `get_errors` reported no new errors in the edited files; only pre-existing `js/ui.js` warnings remain unrelated.
+- `npm run build` completed successfully after adding the dialog-local chromatic note buttons.
+
+---
+
+# Task: Add Arpeggio Settings Dialog Entry Point
+
+## Plan
+- [x] Inspect the arpeggio-note UI area and existing UI bootstrap to find the smallest integration points.
+- [x] Add a new `Settings` button below the arpeggio note controls in `index.html`.
+- [x] Add a placeholder dialog window for future arpeggio settings content.
+- [x] Bind open/close dialog behavior in `js/ui.js` and wire it from `js/app.js`.
+- [x] Add minimal dialog styling in `css/style.css` so it matches the current UI.
+- [x] Verify edited files with static checks and `npm run build`.
+
+## Progress Notes
+- Added a dedicated `Settings` button row directly below the existing pause controls inside the arpeggio note fieldset in `index.html`.
+- Added a native `dialog` placeholder (`#arpeggio-settings-dialog`) with title, close button, and copy stating that settings controls will be added later.
+- Added `bindSettingsDialog()` in `js/ui.js` with open, close, Escape, and backdrop-click handling plus a small fallback for browsers without `showModal()`.
+- Updated the app bootstrap in `js/app.js` to initialize the settings dialog binding alongside the other UI bindings.
+- Added matching styles in `css/style.css` for the new settings row/button and the modal surface/backdrop.
+- Follow-up correction: moved the `Settings` button into the same `.note-selector-actions` row as the pause controls and right-aligned it there, instead of leaving it on its own row.
+
+## Review
+- `get_errors` reported no new errors in the edited files; only pre-existing `js/ui.js` warnings remain unrelated.
+- `npm run build` completed successfully after the follow-up layout adjustment, so the Settings-button repositioning bundles cleanly.
+
+---
+
 # Task: Add Dead Note Toggle To Arpeggio
 
 ## Plan

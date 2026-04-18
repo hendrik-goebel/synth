@@ -17,6 +17,7 @@ import {
 import { statusLabel } from "./dom.js";
 import {
   ensureInstrumentNoteState,
+  getEnabledArpeggioPitchClasses,
   syncNoteButtonsFromActiveInstrumentPage,
 } from "./patterns.js";
 import { getInstrumentParams, getPresetIds, getPresetLabel } from "./presets.js";
@@ -27,6 +28,11 @@ import { clamp } from "./utils.js";
 let noteButtonElements = null;
 let deadNoteToggleElement = null;
 let deadNoteCountToggleElement = null;
+let arpeggioSettingsToggleElement = null;
+let arpeggioSettingsDialogElement = null;
+let arpeggioSettingsCloseElement = null;
+let arpeggioSettingsApplyElement = null;
+let settingsNoteButtonElements = null;
 const mixerChannelCache = new Map();
 const controlElementCache = new Map();
 const controlLabelElementCache = new Map();
@@ -50,6 +56,41 @@ function getDeadNoteCountToggleElement() {
     deadNoteCountToggleElement = document.getElementById("dead-note-count-toggle");
   }
   return deadNoteCountToggleElement;
+}
+
+function getArpeggioSettingsToggleElement() {
+  if (!arpeggioSettingsToggleElement) {
+    arpeggioSettingsToggleElement = document.getElementById("arpeggio-settings-toggle");
+  }
+  return arpeggioSettingsToggleElement;
+}
+
+function getArpeggioSettingsDialogElement() {
+  if (!arpeggioSettingsDialogElement) {
+    arpeggioSettingsDialogElement = document.getElementById("arpeggio-settings-dialog");
+  }
+  return arpeggioSettingsDialogElement;
+}
+
+function getArpeggioSettingsCloseElement() {
+  if (!arpeggioSettingsCloseElement) {
+    arpeggioSettingsCloseElement = document.getElementById("arpeggio-settings-close");
+  }
+  return arpeggioSettingsCloseElement;
+}
+
+function getArpeggioSettingsApplyElement() {
+  if (!arpeggioSettingsApplyElement) {
+    arpeggioSettingsApplyElement = document.getElementById("arpeggio-settings-apply");
+  }
+  return arpeggioSettingsApplyElement;
+}
+
+function getSettingsNoteButtonElements() {
+  if (!settingsNoteButtonElements) {
+    settingsNoteButtonElements = Array.from(document.querySelectorAll(".settings-note-toggle"));
+  }
+  return settingsNoteButtonElements;
 }
 
 // Cache control config entries once
@@ -261,6 +302,18 @@ export function updateTransportUI() {
   statusLabel.textContent = `Playing ${state.playingPresetIds.size} instruments`;
 }
 
+export function syncArpeggioSettingsNoteButtons(presetId = state.activeInstrumentPresetId) {
+  ensureInstrumentNoteState(presetId);
+  const enabledPitchClasses = new Set(getEnabledArpeggioPitchClasses(presetId));
+
+  getSettingsNoteButtonElements().forEach((button) => {
+    const pitchClassKey = button.dataset.pitchClassKey;
+    const isActive = enabledPitchClasses.has(pitchClassKey);
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
 export function syncControlsFromActiveInstrumentPage() {
   const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
 
@@ -276,6 +329,7 @@ export function syncControlsFromActiveInstrumentPage() {
     instrumentParams.deadNoteAtEnd ?? 0,
     instrumentParams.endPauseCount ?? DEAD_NOTE_PAUSE_COUNT_MIN,
   );
+  syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
   updateTransportUI();
 }
 
@@ -408,6 +462,77 @@ export function bindDeadNoteToggle(controller) {
   });
 }
 
+export function bindSettingsDialog(controller) {
+  const toggleButton = getArpeggioSettingsToggleElement();
+  const dialog = getArpeggioSettingsDialogElement();
+  const closeButton = getArpeggioSettingsCloseElement();
+  const applyButton = getArpeggioSettingsApplyElement();
+
+  if (!toggleButton || !dialog) {
+    return;
+  }
+
+  const openDialog = () => {
+    syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+
+    if (typeof dialog.showModal === "function") {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+      return;
+    }
+
+    dialog.setAttribute("open", "open");
+  };
+
+  const closeDialog = () => {
+    if (typeof dialog.close === "function") {
+      dialog.close();
+      return;
+    }
+
+    dialog.removeAttribute("open");
+  };
+
+  toggleButton.addEventListener("click", openDialog);
+  closeButton?.addEventListener("click", closeDialog);
+  applyButton?.addEventListener("click", () => {
+    const applied = controller?.applyActiveArpeggioSettingsToAllInstruments();
+    if (!applied) {
+      return;
+    }
+
+    syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+    syncNoteButtonsFromActiveInstrumentPage();
+    if (statusLabel) {
+      statusLabel.textContent = "Applied settings notes to all instruments";
+    }
+  });
+  dialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeDialog();
+  });
+  dialog.addEventListener("click", (event) => {
+    const settingsNoteButton = event.target.closest(".settings-note-toggle");
+    if (settingsNoteButton) {
+      const pitchClassKey = settingsNoteButton.dataset.pitchClassKey;
+      if (!pitchClassKey) {
+        return;
+      }
+
+      const changed = controller?.toggleArpeggioPitchClass(pitchClassKey);
+      if (changed) {
+        syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+      }
+      return;
+    }
+
+    if (event.target === dialog) {
+      closeDialog();
+    }
+  });
+}
+
 export function bindMixerChannels(controller) {
   const mixerChannelsContainer = document.getElementById("mixer-channels");
   if (!mixerChannelsContainer) {
@@ -526,6 +651,19 @@ export function bindControllerEvents(controller) {
       if (presetId === state.activeInstrumentPresetId) {
         syncNoteButtonsFromActiveInstrumentPage();
       }
+      return;
+    }
+
+    if (type === "arpeggio-settings-updated") {
+      if (presetId === state.activeInstrumentPresetId) {
+        syncArpeggioSettingsNoteButtons(presetId);
+      }
+      return;
+    }
+
+    if (type === "arpeggio-settings-applied-to-all") {
+      syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+      syncNoteButtonsFromActiveInstrumentPage();
       return;
     }
 

@@ -25,6 +25,7 @@ export const state = {
   distortionFeedbackBusByPresetId: {},
   activePresetIds: Object.keys(BASE_SOUND_PRESETS),
   instrumentParamsByPresetId: {},
+  instrumentArpeggioPitchClassesByPresetId: {},
   instrumentNoteIdsByPresetId: {},
   instrumentNoteLengthInitializedByPresetId: {},
   instrumentPatternsByPresetId: {},

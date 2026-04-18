@@ -565,6 +565,120 @@ body {
   flex-wrap: wrap;
 }
 
+.note-settings-toggle {
+  margin-left: auto;
+  border-color: #6366f1;
+  background: #1e1b4b;
+  color: #c7d2fe;
+}
+
+.note-settings-toggle:hover {
+  border-color: #818cf8;
+  background: #312e81;
+  color: #e0e7ff;
+}
+
+.settings-dialog {
+  width: min(28rem, calc(100vw - 2rem));
+  padding: 0;
+  border: 1px solid #3b82f6;
+  border-radius: 0.8rem;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.settings-dialog::backdrop {
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.settings-dialog-content {
+  padding: 1rem 1.05rem 1.1rem;
+}
+
+.settings-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.settings-dialog-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: #dbeafe;
+}
+
+.settings-dialog-close {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #475569;
+  border-radius: 999px;
+  background: #111827;
+  color: #e2e8f0;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-dialog-close:hover {
+  border-color: #93c5fd;
+  background: #1e293b;
+}
+
+.settings-dialog-close:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.settings-dialog-copy {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+.settings-dialog-section {
+  margin-top: 1rem;
+}
+
+.settings-dialog-section-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #93c5fd;
+}
+
+.settings-note-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.settings-note-toggle {
+  padding: 0.45rem 0;
+}
+
+.settings-dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-apply-btn {
+  border-color: #10b981;
+  background: #064e3b;
+  color: #d1fae5;
+}
+
+.settings-apply-btn:hover {
+  border-color: #34d399;
+  background: #065f46;
+  color: #ecfdf5;
+}
+
 .dead-note-toggle.is-active,
 .dead-note-toggle[aria-pressed="true"] {
   border-color: #f59e0b;
