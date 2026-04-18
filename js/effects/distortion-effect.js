@@ -2,56 +2,80 @@ import { DISTORTION_FEEDBACK_MAX, HUMANIZE } from "../constants.js";
 import { state } from "../state.js";
 import { clamp, randomCentered } from "../utils.js";
 
-const DISTORTION_CURVE_STEPS = 100;
-const DISTORTION_FEEDBACK_MIN_DELAY_SECONDS = 0.06;
-const DISTORTION_FEEDBACK_MAX_DELAY_SECONDS = 0.16;
-const DISTORTION_FEEDBACK_HIGHPASS_HZ = 45;
-const DISTORTION_FEEDBACK_LOOP_MAX = 0.32;
-const DISTORTION_FEEDBACK_SEND_MAX = 0.22;
-const DISTORTION_FEEDBACK_RETURN_MAX = 0.28;
+const DISTORTION_CURVE_BUCKETS = 96;
+const DISTORTION_CURVE_SAMPLES = 4096;
+const DISTORTION_FEEDBACK_DELAY_MIN_SECONDS = 0.075;
+const DISTORTION_FEEDBACK_DELAY_MAX_SECONDS = 0.22;
+const DISTORTION_FEEDBACK_HIGHPASS_HZ = 55;
+const DISTORTION_FEEDBACK_SEND_MAX = 0.24;
+const DISTORTION_FEEDBACK_LOOP_MAX = 0.29;
+const DISTORTION_FEEDBACK_RETURN_MAX = 0.2;
+
 const distortionCurveCache = new Map();
 
-function getDistortionCurve(amount) {
-  const clamped = clamp(amount, 0, 1);
-  const bucket = Math.round(clamped * DISTORTION_CURVE_STEPS);
+function disconnectNode(node) {
+  if (!node || typeof node.disconnect !== "function") {
+    return;
+  }
 
+  try {
+    node.disconnect();
+  } catch (_) {
+    // Ignore already-disconnected nodes.
+  }
+}
+
+function resetBus(bus) {
+  if (!bus) {
+    return;
+  }
+
+  disconnectNode(bus.inputGain);
+  disconnectNode(bus.dcFilter);
+  disconnectNode(bus.delayNode);
+  disconnectNode(bus.dampingFilter);
+  disconnectNode(bus.feedbackGain);
+  disconnectNode(bus.returnGain);
+  disconnectNode(bus.saturator);
+}
+
+function getDistortionCurve(drive) {
+  const bucket = Math.round(clamp(drive, 0, 1) * DISTORTION_CURVE_BUCKETS);
   if (distortionCurveCache.has(bucket)) {
     return distortionCurveCache.get(bucket);
   }
 
-  const normalized = bucket / DISTORTION_CURVE_STEPS;
-  const k = normalized * 500;
-  const samples = 2048;
-  const curve = new Float32Array(samples);
-  const deg = Math.PI / 180;
+  const normalizedDrive = bucket / DISTORTION_CURVE_BUCKETS;
+  const intensity = 1 + normalizedDrive * 80;
+  const curve = new Float32Array(DISTORTION_CURVE_SAMPLES);
 
-  for (let i = 0; i < samples; i += 1) {
-    const x = (i * 2) / samples - 1;
-    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+  for (let i = 0; i < DISTORTION_CURVE_SAMPLES; i += 1) {
+    const x = (i / (DISTORTION_CURVE_SAMPLES - 1)) * 2 - 1;
+    curve[i] = Math.tanh(intensity * x) / Math.tanh(intensity);
   }
 
   distortionCurveCache.set(bucket, curve);
   return curve;
 }
 
-function getDistortionFeedbackDelayTime(noteDurationSeconds) {
+function getFeedbackDelayTime(noteDurationSeconds) {
   return clamp(
-    noteDurationSeconds * 0.45,
-    DISTORTION_FEEDBACK_MIN_DELAY_SECONDS,
-    DISTORTION_FEEDBACK_MAX_DELAY_SECONDS,
+    noteDurationSeconds * 0.38,
+    DISTORTION_FEEDBACK_DELAY_MIN_SECONDS,
+    DISTORTION_FEEDBACK_DELAY_MAX_SECONDS,
   );
 }
 
-function getDistortionFeedbackLoopGain(value) {
-  return clamp(value * 0.9, 0, DISTORTION_FEEDBACK_LOOP_MAX);
+function getFeedbackLoopGain(feedbackAmount) {
+  return clamp(feedbackAmount * 0.82, 0, DISTORTION_FEEDBACK_LOOP_MAX);
 }
 
-function getDistortionFeedbackSendGain(value, mix = 1) {
-  return clamp(value * mix * 0.7, 0, DISTORTION_FEEDBACK_SEND_MAX);
+function getFeedbackSendGain(feedbackAmount, mixAmount) {
+  return clamp(feedbackAmount * mixAmount * 0.95, 0, DISTORTION_FEEDBACK_SEND_MAX);
 }
 
-function getDistortionFeedbackReturnGain(value) {
-  return clamp(value * 0.8, 0, DISTORTION_FEEDBACK_RETURN_MAX);
+function getFeedbackReturnGain(feedbackAmount) {
+  return clamp(feedbackAmount * 0.72, 0, DISTORTION_FEEDBACK_RETURN_MAX);
 }
 
 function ensureDistortionFeedbackBus(presetId) {
@@ -64,36 +88,41 @@ function ensureDistortionFeedbackBus(presetId) {
   }
 
   const inputGain = state.audioContext.createGain();
-  const delayNode = state.audioContext.createDelay(DISTORTION_FEEDBACK_MAX_DELAY_SECONDS + 0.05);
-  const highpass = state.audioContext.createBiquadFilter();
-  const toneFilter = state.audioContext.createBiquadFilter();
+  const dcFilter = state.audioContext.createBiquadFilter();
+  const delayNode = state.audioContext.createDelay(DISTORTION_FEEDBACK_DELAY_MAX_SECONDS + 0.05);
+  const dampingFilter = state.audioContext.createBiquadFilter();
+  const saturator = state.audioContext.createWaveShaper();
   const feedbackGain = state.audioContext.createGain();
   const returnGain = state.audioContext.createGain();
 
   inputGain.gain.value = 1;
-  delayNode.delayTime.value = DISTORTION_FEEDBACK_MIN_DELAY_SECONDS;
-  highpass.type = "highpass";
-  highpass.frequency.value = DISTORTION_FEEDBACK_HIGHPASS_HZ;
-  highpass.Q.value = 0.35;
-  toneFilter.type = "lowpass";
-  toneFilter.frequency.value = 2400;
-  toneFilter.Q.value = 0.6;
+  dcFilter.type = "highpass";
+  dcFilter.frequency.value = DISTORTION_FEEDBACK_HIGHPASS_HZ;
+  dcFilter.Q.value = 0.25;
+  delayNode.delayTime.value = DISTORTION_FEEDBACK_DELAY_MIN_SECONDS;
+  dampingFilter.type = "lowpass";
+  dampingFilter.frequency.value = 2200;
+  dampingFilter.Q.value = 0.55;
+  saturator.curve = getDistortionCurve(0.18);
+  saturator.oversample = "4x";
   feedbackGain.gain.value = 0;
   returnGain.gain.value = 0;
 
-  inputGain.connect(delayNode);
-  delayNode.connect(highpass);
-  highpass.connect(toneFilter);
-  toneFilter.connect(feedbackGain);
+  inputGain.connect(dcFilter);
+  dcFilter.connect(delayNode);
+  delayNode.connect(dampingFilter);
+  dampingFilter.connect(saturator);
+  saturator.connect(feedbackGain);
   feedbackGain.connect(delayNode);
-  toneFilter.connect(returnGain);
+  saturator.connect(returnGain);
   returnGain.connect(state.masterGain);
 
   const bus = {
     inputGain,
+    dcFilter,
     delayNode,
-    highpass,
-    toneFilter,
+    dampingFilter,
+    saturator,
     feedbackGain,
     returnGain,
   };
@@ -102,12 +131,7 @@ function ensureDistortionFeedbackBus(presetId) {
   return bus;
 }
 
-function updateDistortionFeedbackBus(
-  presetId,
-  distortionFeedbackValue,
-  distortionToneValue,
-  noteDurationSeconds,
-) {
+function updateDistortionFeedbackBus(presetId, feedbackAmount, toneHz, noteDurationSeconds) {
   const bus = ensureDistortionFeedbackBus(presetId);
   if (!bus || !state.audioContext) {
     return null;
@@ -115,31 +139,32 @@ function updateDistortionFeedbackBus(
 
   const now = state.audioContext.currentTime;
 
-  bus.delayNode.delayTime.setTargetAtTime(getDistortionFeedbackDelayTime(noteDurationSeconds), now, 0.04);
-  bus.highpass.frequency.setTargetAtTime(DISTORTION_FEEDBACK_HIGHPASS_HZ, now, 0.04);
-  bus.toneFilter.frequency.setTargetAtTime(clamp(distortionToneValue * 0.72, 900, 5200), now, 0.04);
-  bus.feedbackGain.gain.setTargetAtTime(getDistortionFeedbackLoopGain(distortionFeedbackValue), now, 0.08);
-  bus.returnGain.gain.setTargetAtTime(getDistortionFeedbackReturnGain(distortionFeedbackValue), now, 0.08);
+  bus.delayNode.delayTime.setTargetAtTime(getFeedbackDelayTime(noteDurationSeconds), now, 0.03);
+  bus.dampingFilter.frequency.setTargetAtTime(clamp(toneHz * 0.62, 700, 4800), now, 0.04);
+  bus.feedbackGain.gain.setTargetAtTime(getFeedbackLoopGain(feedbackAmount), now, 0.08);
+  bus.returnGain.gain.setTargetAtTime(getFeedbackReturnGain(feedbackAmount), now, 0.08);
 
   return bus;
 }
 
 function getDistortionSettings(voiceParams, warmAmount, coldAmount) {
+  const driveBase = clamp(voiceParams.distortionDrive ?? 0, 0, 1);
+  const mixBase = clamp(voiceParams.distortionMix ?? 0, 0, 1);
+  const toneBase = clamp(voiceParams.distortionTone ?? 4500, 500, 12000);
+
   return {
     drive: clamp(
-      (voiceParams.distortionDrive ?? 0) * (1 + randomCentered(HUMANIZE.fxSendAmount)),
+      driveBase *
+        (1 + randomCentered(HUMANIZE.fxSendAmount * 0.75)) *
+        (1 + warmAmount * 0.08 + coldAmount * 0.04),
       0,
       1,
     ),
-    mix: clamp(
-      (voiceParams.distortionMix ?? 0) * (1 + randomCentered(HUMANIZE.fxSendAmount)),
-      0,
-      1,
-    ),
+    mix: clamp(mixBase * (1 + randomCentered(HUMANIZE.fxSendAmount * 0.65)), 0, 1),
     tone: clamp(
-      (voiceParams.distortionTone ?? 4500) *
-        (1 + randomCentered(HUMANIZE.cutoffAmount * 0.5)) *
-        (1 - warmAmount * 0.28 + coldAmount * 0.38),
+      toneBase *
+        (1 + randomCentered(HUMANIZE.cutoffAmount * 0.35)) *
+        (1 - warmAmount * 0.3 + coldAmount * 0.34),
       500,
       12000,
     ),
@@ -148,6 +173,7 @@ function getDistortionSettings(voiceParams, warmAmount, coldAmount) {
 }
 
 export function resetDistortionEffectState() {
+  Object.values(state.distortionFeedbackBusByPresetId).forEach(resetBus);
   state.distortionFeedbackBusByPresetId = {};
 }
 
@@ -172,61 +198,71 @@ export function applyDistortionEffect({
     return voiceOutput;
   }
 
-  const distortionIn = ctx.createGain();
-  const distortionDry = ctx.createGain();
-  const distortionWet = ctx.createGain();
-  const distortionOut = ctx.createGain();
+  const splitGain = ctx.createGain();
+  const dryGain = ctx.createGain();
   const shaper = ctx.createWaveShaper();
-  const distortionToneFilter = ctx.createBiquadFilter();
-  const distortionFeedbackBus = updateDistortionFeedbackBus(
-    presetId,
-    distortion.feedback,
-    distortion.tone,
-    noteDurationSeconds,
-  );
+  const toneFilter = ctx.createBiquadFilter();
+  const wetTrim = ctx.createGain();
+  const wetGain = ctx.createGain();
+  const outputGain = ctx.createGain();
 
-  voiceNodes.push(distortionIn, distortionDry, distortionWet, distortionOut, shaper, distortionToneFilter);
+  voiceNodes.push(splitGain, dryGain, shaper, toneFilter, wetTrim, wetGain, outputGain);
 
   shaper.curve = getDistortionCurve(distortion.drive);
   shaper.oversample = "4x";
-  distortionToneFilter.type = "lowpass";
-  distortionToneFilter.frequency.setValueAtTime(distortion.tone, time);
-  distortionToneFilter.Q.value = 0.7;
+  toneFilter.type = "lowpass";
+  toneFilter.frequency.setValueAtTime(distortion.tone, preStartTime);
+  toneFilter.Q.value = 0.7;
+  wetTrim.gain.setValueAtTime(clamp(0.9 - distortion.drive * 0.28, 0.5, 0.9), preStartTime);
 
-  const distortionFadeOutStart = Math.max(releaseStartTime, voiceFadeOutTime - 0.01);
-  distortionDry.gain.setValueAtTime(0, preStartTime);
-  distortionDry.gain.linearRampToValueAtTime(1 - distortion.mix, time + gainSmoothTime);
-  distortionDry.gain.setValueAtTime(1 - distortion.mix, distortionFadeOutStart);
-  distortionDry.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
-  distortionWet.gain.setValueAtTime(0, preStartTime);
-  distortionWet.gain.linearRampToValueAtTime(distortion.mix, time + gainSmoothTime);
-  distortionWet.gain.setValueAtTime(distortion.mix, distortionFadeOutStart);
-  distortionWet.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
+  const dryLevel = 1 - distortion.mix;
+  const wetLevel = distortion.mix;
+  const fadeOutStart = Math.max(releaseStartTime, voiceFadeOutTime - 0.012);
 
-  if (distortionFeedbackBus) {
-    const distortionFeedbackSend = ctx.createGain();
-    const distortionFeedbackSendEnd = time + Math.max(0.03, attackTime * 0.9, gainSmoothTime * 8);
-    const feedbackSendGain = getDistortionFeedbackSendGain(distortion.feedback, distortion.mix);
+  dryGain.gain.setValueAtTime(0, preStartTime);
+  dryGain.gain.linearRampToValueAtTime(dryLevel, time + gainSmoothTime);
+  dryGain.gain.setValueAtTime(dryLevel, fadeOutStart);
+  dryGain.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
 
-    voiceNodes.push(distortionFeedbackSend);
+  wetGain.gain.setValueAtTime(0, preStartTime);
+  wetGain.gain.linearRampToValueAtTime(wetLevel, time + gainSmoothTime);
+  wetGain.gain.setValueAtTime(wetLevel, fadeOutStart);
+  wetGain.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
 
-    distortionFeedbackSend.gain.setValueAtTime(0, preStartTime);
-    distortionFeedbackSend.gain.linearRampToValueAtTime(feedbackSendGain, distortionFeedbackSendEnd);
-    distortionFeedbackSend.gain.setValueAtTime(feedbackSendGain, distortionFadeOutStart);
-    distortionFeedbackSend.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
+  voiceOutput.connect(splitGain);
+  splitGain.connect(dryGain);
+  splitGain.connect(shaper);
+  shaper.connect(toneFilter);
+  toneFilter.connect(wetTrim);
+  wetTrim.connect(wetGain);
+  dryGain.connect(outputGain);
+  wetGain.connect(outputGain);
 
-    distortionWet.connect(distortionFeedbackSend);
-    distortionFeedbackSend.connect(distortionFeedbackBus.inputGain);
+  if (distortion.feedback > 0.001) {
+    const feedbackBus = updateDistortionFeedbackBus(
+      presetId,
+      distortion.feedback,
+      distortion.tone,
+      noteDurationSeconds,
+    );
+
+    if (feedbackBus) {
+      const feedbackSend = ctx.createGain();
+      const feedbackRampEnd = time + Math.max(0.025, Math.min(0.09, attackTime * 0.7 + gainSmoothTime * 6));
+      const feedbackSendLevel = getFeedbackSendGain(distortion.feedback, distortion.mix);
+
+      voiceNodes.push(feedbackSend);
+
+      feedbackSend.gain.setValueAtTime(0, preStartTime);
+      feedbackSend.gain.linearRampToValueAtTime(feedbackSendLevel, feedbackRampEnd);
+      feedbackSend.gain.setValueAtTime(feedbackSendLevel, fadeOutStart);
+      feedbackSend.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
+
+      wetTrim.connect(feedbackSend);
+      feedbackSend.connect(feedbackBus.inputGain);
+    }
   }
 
-  voiceOutput.connect(distortionIn);
-  distortionIn.connect(distortionDry);
-  distortionIn.connect(shaper);
-  shaper.connect(distortionToneFilter);
-  distortionToneFilter.connect(distortionWet);
-  distortionDry.connect(distortionOut);
-  distortionWet.connect(distortionOut);
-
-  return distortionOut;
+  return outputGain;
 }
 

@@ -1,3 +1,25 @@
+# Task: Implement New Distortion Effect Module
+
+## Plan
+- [x] Inspect the distortion call contract in `js/audio-engine.js`, shared state in `js/state.js`, and related constants/controller wiring.
+- [x] Implement a new `js/effects/distortion-effect.js` from scratch with the expected exported helpers for per-voice waveshaping, dry/wet routing, tone shaping, and persistent per-preset feedback buses.
+- [x] Validate the edited files with static checks and a production build.
+- [x] Record the verification outcome in this task entry and add a lesson for the course correction.
+
+## Progress Notes
+- Confirmed `js/effects/distortion-effect.js` is currently empty while `js/audio-engine.js` still imports `applyDistortionEffect(...)` and `resetDistortionEffectState(...)`.
+- Confirmed the rest of the app already exposes `distortionDrive`, `distortionMix`, `distortionTone`, and `distortionFeedback`, so the missing work is the DSP module itself rather than additional UI/controller wiring.
+- User clarified that the file should be implemented new rather than restored from git history, so the historical version is now only a contract reference and not the target implementation.
+- Implemented a fresh distortion design in `js/effects/distortion-effect.js` with cached tanh-based waveshaper curves, per-voice dry/wet routing, wet-level compensation, tone low-pass shaping, and smoothed start/end gain automation to fit the existing anti-click envelope timing.
+- Implemented a persistent per-preset feedback bus that uses a filtered delayed loop with soft saturation, note-length-aware delay timing, and reset-time node cleanup via `resetDistortionEffectState()`.
+- Added a correction note to `tasks/lessons.md` so future missing-module work distinguishes between restoring historical code and writing a new compatible implementation.
+
+## Review
+- `get_errors` reported no errors in `js/effects/distortion-effect.js`, `tasks/todo.md`, or `tasks/lessons.md`.
+- `npm run build` completed successfully after the new distortion module was implemented, and webpack emitted the production bundle without errors.
+
+---
+
 # Task: Clamp Apply-To-All Arpeggio Counts To Available Notes
 
 ## Plan
