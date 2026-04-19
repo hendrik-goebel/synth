@@ -1,3 +1,135 @@
+# Task: Move Transpose Buttons Below Dialog Key Controls
+
+## Plan
+- [x] Verify the user-intended placement and treat the current global-panel placement as incorrect if the request clearly refers to the key section inside the arpeggio settings dialog.
+- [x] Move the existing transpose buttons below the dialog key `- / +` controls in `index.html` while keeping their IDs so the existing bindings continue to work.
+- [x] Update `css/style.css` so the transpose row is clearly visible inside the dialog and remove/repurpose any now-unused global-panel transpose styling.
+- [x] Validate with static checks, built-output inspection, and `npm run build`, then record the review and lesson.
+
+## Progress Notes
+- Confirmed the user meant the `Key` section inside `#arpeggio-settings-dialog`, not the separate global settings panel on the right.
+- Moved the existing `t+` / `t-` controls from the global key panel into the dialog's `Key` section, directly below the existing `-` / `+` key-step controls, while preserving their IDs so the current JS bindings still work.
+- Replaced the old global-panel transpose styling with dialog-specific transpose-row styles and a visible `Transpose active notes` label inside the modal.
+- Verified the rebuilt `dist/index.html` now places `#global-key-transpose-up` and `#global-key-transpose-down` under the dialog key controls exactly as requested.
+
+## Review
+- `get_errors` reported no errors in the edited HTML, CSS, and task files.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-note-transpose-test.mjs` passed.
+- `npm run build` completed successfully after moving the transpose controls into the dialog key section.
+
+---
+
+# Task: Make Global Transpose Buttons Clearly Visible
+
+## Plan
+- [x] Verify whether the transpose buttons are actually present in source/build output and treat the issue as a visibility/discoverability fix if they are.
+- [x] Update the global key panel markup and styling so the transpose controls are clearly labeled and visually distinct.
+- [x] Rebuild and verify the buttons are present in the built output as well as the existing runtime tests.
+- [x] Record the review and a correction lesson in the task files.
+
+## Progress Notes
+- Confirmed the transpose controls already existed in both `/index.html` and `dist/index.html`, so the user-visible problem was not missing implementation but poor discoverability in the compact global key panel.
+- Added a visible `Transpose active notes` label above the button row and strengthened the transpose button styling with clearer size, color, and focus/hover states.
+- Re-verified the built output now contains the labeled transpose row plus the `t+` and `t-` buttons in the shipped `dist/index.html`.
+
+## Review
+- `get_errors` reported no errors in the edited HTML, CSS, and task files.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-note-transpose-test.mjs` passed.
+- `npm run build` completed successfully after making the transpose controls more visible.
+
+---
+
+# Task: Add Global Key-Aware Transpose Buttons
+
+## Plan
+- [x] Inspect the current global key panel plus the active-instrument note state flow so the new transpose buttons reuse the existing selected-note model.
+- [x] Add `t+` and `t-` buttons below the global key display in `index.html` and style them in `css/style.css`.
+- [x] Implement a controller action that moves the active instrument's current note selection up or down diatonically inside the current global key.
+- [x] Rebuild the affected arpeggio pattern, refresh the visible note buttons, and keep range limits safe when notes cannot move farther.
+- [x] Validate with static checks, a focused runtime test, and `npm run build`, then record review notes and a lesson.
+
+## Progress Notes
+- Confirmed the existing state model is still per active instrument for the visible note grid, so the new transpose buttons now target `state.activeInstrumentPresetId` rather than all mixer channels.
+- Added `t+` and `t-` buttons below the global key note display in the right-hand settings panel and wired them through a new `bindGlobalKeyActions(...)` UI binding in `js/ui.js`.
+- Added `transposeInstrumentActiveNotesByKeyStep(...)` in `js/patterns.js` to move the active note set through the current key's eligible two-octave note pool while preserving note order and keeping range saturation safe.
+- Added `AudioStateController.transposeActiveNotesByKeyStep(...)` so button clicks and programmatic use share the same validation, error, and `notes-updated` event flow.
+- Added `tasks/global-note-transpose-test.mjs` to verify diatonic transpose behavior in both C major and G major plus top-of-range rejection behavior.
+
+## Review
+- `get_errors` reported no new errors in the edited source, task, and test files.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-note-transpose-test.mjs` passed.
+- `npm run build` completed successfully after adding the key-aware transpose controls.
+
+---
+
+# Task: Make Arpeggio Settings Notes A Single Row
+
+## Plan
+- [x] Confirm the arpeggio settings dialog already has the correct 12 pitch-class buttons and identify the current CSS that forces them into multiple rows.
+- [x] Update the dialog styling in `css/style.css` so the `C` through `B` settings-note buttons render in one single horizontal row.
+- [x] Adjust dialog/button sizing only as much as needed so the single-row layout remains usable.
+- [x] Validate the edited files with static checks plus `npm run build`, then record the review and correction lesson.
+
+## Progress Notes
+- Confirmed the dialog markup was already correct; the actual root cause was purely CSS: `.settings-note-grid` still used a 4-column grid and `.settings-dialog` was capped at `28rem`.
+- Updated the settings dialog notes layout to a no-wrap horizontal strip so `C, C#, D, D#, ... B` now sit in one single row.
+- Slightly widened the dialog and gave each settings-note button a fixed compact width so the row remains readable while still fitting the existing modal design.
+
+## Review
+- `get_errors` reported no errors in the edited CSS and task-tracking file.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `npm run build` completed successfully after changing the dialog note-button layout.
+
+---
+
+# Task: Show Global Key Notes In Global Settings
+
+## Plan
+- [x] Inspect the current global settings panel and reuse the existing global arpeggio key helpers/UI sync path instead of adding a second source of truth.
+- [x] Add a compact read-only global key display to `index.html` that shows the current tonic plus all notes of the current key next to each other.
+- [x] Extend `js/ui.js` so the global display updates whenever the shared circle-of-fifths key changes.
+- [x] Add minimal scoped styling in `css/style.css` so the key notes stay on one row and fit the existing global-panel layout.
+- [x] Validate the edited files with static checks, the focused key test, and `npm run build`, then record the review and lesson.
+
+## Progress Notes
+- Reused the existing `syncGlobalArpeggioKeyUI()` path instead of creating a separate global-panel update flow, so the dialog and global panel now stay synchronized from the same statechange events.
+- Added a new `Global Key` read-only block to the right-hand global settings panel that shows the tonic and all seven notes of the current major key inline.
+- Added `getPitchClassLabel(...)` in `js/constants.js` so both tonic and note badges render from the same sharp-based pitch-class label map already used by the circle-of-fifths helpers.
+- Styled the new note row as compact inline chips that stay next to each other inside the narrow global panel.
+
+## Review
+- `get_errors` reported no new errors in the edited files; only the pre-existing unused `DEFAULT_NOTE_IDS` warning remains in `js/constants.js`.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `npm run build` completed successfully after adding the inline global key note display.
+
+---
+
+# Task: Add Global Arpeggio Key Controls
+
+## Plan
+- [x] Trace the arpeggio settings dialog flow and the existing pitch-class state helpers so the new global key logic reuses the current note-button model.
+- [x] Add a global circle-of-fifths key source of truth plus helpers for current-key labels and in-key pitch classes.
+- [x] Add a `Key` section with `-` / `+` controls to the arpeggio settings dialog and wire it through the controller/UI event flow.
+- [x] Highlight pitch classes that belong to the current global key inside the arpeggio settings note buttons without breaking their existing active state.
+- [x] Validate edited files with focused checks and `npm run build`, then record review notes and lessons learned.
+
+## Progress Notes
+- Confirmed the arpeggio settings dialog already owns the pitch-class buttons, so the new feature could stay scoped to `index.html`, `js/ui.js`, `js/audio-state-controller.js`, `js/state.js`, and shared pitch-class helpers in `js/constants.js`.
+- Added a shared circle-of-fifths model in `js/constants.js` plus `state.globalArpeggioKeyIndex` so the highlighted key stays global while enabled arpeggio notes remain per-channel.
+- Added a new `Key` section to `#arpeggio-settings-dialog` with `-` / `+` buttons and a live current-key label, then routed both buttons through `AudioStateController.stepGlobalArpeggioKey(...)`.
+- Extended `syncArpeggioSettingsNoteButtons(...)` so dialog note buttons now carry a secondary `.is-in-key` state derived from the current major key, while existing `.is-active` still reflects the enabled-note selection.
+- Added `tasks/global-arpeggio-key-test.mjs` to verify circle-of-fifths stepping, key wrapping, major-scale pitch-class mapping, and controller event emission without needing the browser UI.
+
+## Review
+- `get_errors` reported no new errors in the edited JS, HTML, CSS, README, and task files; only the pre-existing unused `DEFAULT_NOTE_IDS` warning remains in `js/constants.js`.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `npm run build` completed successfully after the new key controls and note-highlighting changes.
+
+---
+
 # Task: Remove Percussion Presets And Warm/Darken The Library
 
 ## Plan

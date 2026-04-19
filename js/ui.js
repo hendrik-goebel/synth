@@ -4,6 +4,9 @@ import {
   DEAD_NOTE_PAUSE_COUNT_MIN,
   delayFeedbackFromNormalized,
   delayDivisionIndexFromUiValue,
+  getCircleOfFifthsKeyLabel,
+  getPitchClassLabel,
+  getPitchClassesForMajorKey,
   GLOBAL_CONTROL_KEYS,
   lfoRateFromNormalized,
   normalizedFromDelayFeedback,
@@ -38,6 +41,13 @@ let arpeggioSettingsToggleElement = null;
 let arpeggioSettingsDialogElement = null;
 let arpeggioSettingsCloseElement = null;
 let arpeggioSettingsApplyElement = null;
+let arpeggioSettingsKeyPrevElement = null;
+let arpeggioSettingsKeyNextElement = null;
+let arpeggioSettingsKeyValueElement = null;
+let globalKeyValueElement = null;
+let globalKeyNoteListElement = null;
+let globalKeyTransposeUpElement = null;
+let globalKeyTransposeDownElement = null;
 let settingsNoteButtonElements = null;
 const mixerChannelCache = new Map();
 const controlElementCache = new Map();
@@ -91,6 +101,55 @@ function getArpeggioSettingsApplyElement() {
     arpeggioSettingsApplyElement = document.getElementById("arpeggio-settings-apply");
   }
   return arpeggioSettingsApplyElement;
+}
+
+function getArpeggioSettingsKeyPrevElement() {
+  if (!arpeggioSettingsKeyPrevElement) {
+    arpeggioSettingsKeyPrevElement = document.getElementById("arpeggio-settings-key-prev");
+  }
+  return arpeggioSettingsKeyPrevElement;
+}
+
+function getArpeggioSettingsKeyNextElement() {
+  if (!arpeggioSettingsKeyNextElement) {
+    arpeggioSettingsKeyNextElement = document.getElementById("arpeggio-settings-key-next");
+  }
+  return arpeggioSettingsKeyNextElement;
+}
+
+function getArpeggioSettingsKeyValueElement() {
+  if (!arpeggioSettingsKeyValueElement) {
+    arpeggioSettingsKeyValueElement = document.getElementById("arpeggio-settings-key-value");
+  }
+  return arpeggioSettingsKeyValueElement;
+}
+
+function getGlobalKeyValueElement() {
+  if (!globalKeyValueElement) {
+    globalKeyValueElement = document.getElementById("global-key-value");
+  }
+  return globalKeyValueElement;
+}
+
+function getGlobalKeyNoteListElement() {
+  if (!globalKeyNoteListElement) {
+    globalKeyNoteListElement = document.getElementById("global-key-note-list");
+  }
+  return globalKeyNoteListElement;
+}
+
+function getGlobalKeyTransposeUpElement() {
+  if (!globalKeyTransposeUpElement) {
+    globalKeyTransposeUpElement = document.getElementById("global-key-transpose-up");
+  }
+  return globalKeyTransposeUpElement;
+}
+
+function getGlobalKeyTransposeDownElement() {
+  if (!globalKeyTransposeDownElement) {
+    globalKeyTransposeDownElement = document.getElementById("global-key-transpose-down");
+  }
+  return globalKeyTransposeDownElement;
 }
 
 function getSettingsNoteButtonElements() {
@@ -343,14 +402,44 @@ export function updateTransportUI() {
   statusLabel.textContent = `Playing ${state.playingPresetIds.size} instruments`;
 }
 
+export function syncGlobalArpeggioKeyUI() {
+  const keyLabel = getCircleOfFifthsKeyLabel(state.globalArpeggioKeyIndex);
+  const keyPitchClasses = getPitchClassesForMajorKey(state.globalArpeggioKeyIndex);
+  const keyValueElement = getArpeggioSettingsKeyValueElement();
+  const globalKeyLabelElement = getGlobalKeyValueElement();
+  const globalKeyNotesElement = getGlobalKeyNoteListElement();
+
+  if (keyValueElement) {
+    keyValueElement.textContent = keyLabel;
+  }
+
+  if (globalKeyLabelElement) {
+    globalKeyLabelElement.textContent = keyLabel;
+  }
+
+  if (globalKeyNotesElement) {
+    globalKeyNotesElement.replaceChildren(
+      ...keyPitchClasses.map((pitchClassKey) => {
+        const noteTag = document.createElement("span");
+        noteTag.className = "global-key-note-chip";
+        noteTag.textContent = getPitchClassLabel(pitchClassKey);
+        return noteTag;
+      }),
+    );
+  }
+}
+
 export function syncArpeggioSettingsNoteButtons(presetId = state.activeInstrumentPresetId) {
   ensureInstrumentNoteState(presetId);
   const enabledPitchClasses = new Set(getEnabledArpeggioPitchClasses(presetId));
+  const inKeyPitchClasses = new Set(getPitchClassesForMajorKey(state.globalArpeggioKeyIndex));
 
   getSettingsNoteButtonElements().forEach((button) => {
     const pitchClassKey = button.dataset.pitchClassKey;
     const isActive = enabledPitchClasses.has(pitchClassKey);
+    const isInKey = inKeyPitchClasses.has(pitchClassKey);
     button.classList.toggle("is-active", isActive);
+    button.classList.toggle("is-in-key", isInKey);
     button.setAttribute("aria-pressed", String(isActive));
   });
 }
@@ -370,6 +459,7 @@ export function syncControlsFromActiveInstrumentPage() {
     instrumentParams.deadNoteAtEnd ?? 0,
     instrumentParams.endPauseCount ?? DEAD_NOTE_PAUSE_COUNT_MIN,
   );
+  syncGlobalArpeggioKeyUI();
   syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
   updateTransportUI();
 }
@@ -439,6 +529,18 @@ export function bindDelayToggleButtons(controller) {
       const nextValue = currentValue === 1 ? 0 : 1;
       controllerRef.setControlValue(controlId, nextValue);
     });
+  });
+}
+
+export function bindGlobalKeyActions(controller) {
+  const transposeUpButton = getGlobalKeyTransposeUpElement();
+  const transposeDownButton = getGlobalKeyTransposeDownElement();
+
+  transposeUpButton?.addEventListener("click", () => {
+    controller.transposeArpeggioSettingsByKeyStep(1);
+  });
+  transposeDownButton?.addEventListener("click", () => {
+    controller.transposeArpeggioSettingsByKeyStep(-1);
   });
 }
 
@@ -536,12 +638,15 @@ export function bindSettingsDialog(controller) {
   const dialog = getArpeggioSettingsDialogElement();
   const closeButton = getArpeggioSettingsCloseElement();
   const applyButton = getArpeggioSettingsApplyElement();
+  const keyPrevButton = getArpeggioSettingsKeyPrevElement();
+  const keyNextButton = getArpeggioSettingsKeyNextElement();
 
   if (!toggleButton || !dialog) {
     return;
   }
 
   const openDialog = () => {
+    syncGlobalArpeggioKeyUI();
     syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
 
     if (typeof dialog.showModal === "function") {
@@ -565,6 +670,12 @@ export function bindSettingsDialog(controller) {
 
   toggleButton.addEventListener("click", openDialog);
   closeButton?.addEventListener("click", closeDialog);
+  keyPrevButton?.addEventListener("click", () => {
+    controller?.stepGlobalArpeggioKey(-1);
+  });
+  keyNextButton?.addEventListener("click", () => {
+    controller?.stepGlobalArpeggioKey(1);
+  });
   applyButton?.addEventListener("click", () => {
     const applied = controller?.applyActiveArpeggioSettingsToAllInstruments();
     if (!applied) {
@@ -759,6 +870,12 @@ export function bindControllerEvents(controller) {
       if (presetId === state.activeInstrumentPresetId) {
         syncArpeggioSettingsNoteButtons(presetId);
       }
+      return;
+    }
+
+    if (type === "global-arpeggio-key-updated") {
+      syncGlobalArpeggioKeyUI();
+      syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
       return;
     }
 

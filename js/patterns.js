@@ -1,7 +1,9 @@
 import {
   DEFAULT_RANDOM_PITCH_CLASS_KEYS,
   extractPitchClass,
+  getPitchClassesForMajorKey,
   NOTE_OPTIONS,
+  PITCH_CLASS_OPTIONS,
   PENTATONIC_NOTE_IDS,
 } from "./constants.js";
 import { getInstrumentParams } from "./presets.js";
@@ -10,6 +12,8 @@ import { state } from "./state.js";
 // Pre-built Map for O(1) frequency lookups instead of linear NOTE_OPTIONS.find()
 const noteFrequencyMap = new Map(NOTE_OPTIONS.map(({ id, frequency }) => [id, frequency]));
 const noteOrderIndexMap = new Map(NOTE_OPTIONS.map(({ id }, index) => [id, index]));
+const pitchClassOrder = PITCH_CLASS_OPTIONS.map(({ key }) => key);
+const pitchClassOrderIndexMap = new Map(pitchClassOrder.map((key, index) => [key, index]));
 
 function shuffle(array) {
   const clone = array.slice();
@@ -218,6 +222,68 @@ export function createInstrumentNoteVariation(presetId) {
   rebuildInstrumentPattern(presetId);
 
   return { changed: true, noteIds: normalized };
+}
+
+export function transposeInstrumentArpeggioPitchClassesByKeyStep(presetId, step) {
+  ensureInstrumentNoteState(presetId);
+
+  const normalizedStep = Number.parseInt(step, 10);
+  if (!Number.isInteger(normalizedStep) || normalizedStep === 0) {
+    return {
+      changed: false,
+      pitchClassKeys: getEnabledArpeggioPitchClasses(presetId),
+      reason: "Transpose step must be a non-zero integer",
+    };
+  }
+
+  const currentPitchClasses = getEnabledArpeggioPitchClasses(presetId)
+    .slice()
+    .sort((left, right) => pitchClassOrderIndexMap.get(left) - pitchClassOrderIndexMap.get(right));
+
+  if (currentPitchClasses.length === 0) {
+    return {
+      changed: false,
+      pitchClassKeys: [],
+      reason: "No settings notes available to transpose",
+    };
+  }
+
+  const keyPitchClasses = getPitchClassesForMajorKey(state.globalArpeggioKeyIndex);
+  const keyPitchClassSet = new Set(keyPitchClasses);
+
+  const shiftPitchClass = (pitchClassKey) => {
+    const startIndex = pitchClassOrderIndexMap.get(pitchClassKey);
+    const safeStartIndex = Number.isInteger(startIndex) ? startIndex : 0;
+
+    if (keyPitchClassSet.has(pitchClassKey)) {
+      const keyIndex = keyPitchClasses.indexOf(pitchClassKey);
+      const nextKeyIndex = (keyIndex + normalizedStep + keyPitchClasses.length) % keyPitchClasses.length;
+      return keyPitchClasses[nextKeyIndex];
+    }
+
+    for (let offset = 1; offset <= pitchClassOrder.length; offset += 1) {
+      const nextIndex = (safeStartIndex + (normalizedStep > 0 ? offset : -offset) + pitchClassOrder.length) % pitchClassOrder.length;
+      const candidate = pitchClassOrder[nextIndex];
+      if (keyPitchClassSet.has(candidate)) {
+        return candidate;
+      }
+    }
+
+    return keyPitchClasses[0] || pitchClassKey;
+  };
+
+  const nextPitchClasses = Array.from(new Set(currentPitchClasses.map(shiftPitchClass)))
+    .sort((left, right) => pitchClassOrderIndexMap.get(left) - pitchClassOrderIndexMap.get(right));
+
+  const unchanged = nextPitchClasses.length === currentPitchClasses.length
+    && nextPitchClasses.every((pitchClassKey, index) => pitchClassKey === currentPitchClasses[index]);
+
+  state.instrumentArpeggioPitchClassesByPresetId[presetId] = nextPitchClasses;
+
+  return {
+    changed: !unchanged,
+    pitchClassKeys: nextPitchClasses,
+  };
 }
 
 export function regenerateInstrumentRandomNoteIds(presetId, desiredCount) {

@@ -4,6 +4,7 @@ import {
   bindControls,
   bindDeadNoteToggle,
   bindDelayToggleButtons,
+  bindGlobalKeyActions,
   bindNoteSelector,
   bindMixerChannels,
   bindKeyboardShortcuts,
@@ -16,6 +17,7 @@ const audioStateController = new AudioStateController();
 bindControllerEvents(audioStateController);
 bindControls();
 bindDelayToggleButtons(audioStateController);
+bindGlobalKeyActions(audioStateController);
 bindNoteSelector(audioStateController);
 bindDeadNoteToggle(audioStateController);
 bindSettingsDialog(audioStateController);

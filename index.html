@@ -43,6 +43,17 @@
             </div>
           </div>
 
+          <div class="control-group control-group--global-key">
+            <h3 class="control-group-title">Global Key</h3>
+            <div class="global-key-panel" aria-live="polite">
+              <div class="global-key-header">
+                <span class="global-key-tonic-label">Key</span>
+                <span class="global-key-tonic-value" id="global-key-value">C</span>
+              </div>
+              <div class="global-key-note-list" id="global-key-note-list" aria-label="Current key notes"></div>
+            </div>
+          </div>
+
           <div class="control-group">
             <h3 class="control-group-title">Tape Delay</h3>
             <div class="control-group-items">
@@ -177,6 +188,24 @@
                <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="a" aria-pressed="false">A</button>
                <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="as" aria-pressed="false">A#</button>
                <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="b" aria-pressed="false">B</button>
+             </div>
+           </section>
+           <section class="settings-dialog-section" aria-labelledby="arpeggio-settings-key-title">
+             <h3 id="arpeggio-settings-key-title" class="settings-dialog-section-title">Key</h3>
+             <div class="settings-key-controls" aria-label="Global arpeggio key controls">
+               <button id="arpeggio-settings-key-prev" type="button" class="control-toggle-btn settings-key-step-btn" aria-label="Previous key in circle of fifths">-</button>
+               <div class="settings-key-display">
+                 <span class="settings-key-value" id="arpeggio-settings-key-value">C</span>
+                 <span class="settings-key-caption"></span>
+               </div>
+               <button id="arpeggio-settings-key-next" type="button" class="control-toggle-btn settings-key-step-btn" aria-label="Next key in circle of fifths">+</button>
+             </div>
+             <div class="settings-key-transpose" aria-label="Shift selected settings notes within current key">
+               <span class="settings-key-transpose-label">Shift selected notes</span>
+               <div class="settings-key-transpose-actions">
+                 <button id="global-key-transpose-down" type="button" class="control-toggle-btn settings-key-transpose-btn" title="Shift selected settings notes down within the current key">t-</button>
+                 <button id="global-key-transpose-up" type="button" class="control-toggle-btn settings-key-transpose-btn" title="Shift selected settings notes up within the current key">t+</button>
+               </div>
              </div>
            </section>
            <div class="settings-dialog-actions">

@@ -1,6 +1,6 @@
 # Arpeggio Loop
 
-Small Web Audio demo that plays a C major arpeggio up and down in a loop.
+Small Web Audio demo that plays an up-and-down arpeggio loop with a shared circle-of-fifths key guide.
 
 ## Features
 - Start/Stop playback button
@@ -13,6 +13,8 @@ Small Web Audio demo that plays a C major arpeggio up and down in a loop.
 - LFO in the Filter section with assignable target (Filter Cutoff / Filter Resonance), adjustable rate, and modulation depth
 - Randomized initial note length per instrument, weighted by note-count density (fewer notes favor slower lengths)
 - Per-instrument arpeggio notes (note buttons are saved per selected instrument)
+- Global arpeggio key stepping (`-` / `+`) in the settings dialog, following the circle of fifths and highlighting in-key pitch classes
+- Global `t+` / `t-` buttons in the settings panel that transpose the active instrument's selected notes up or down inside the current key
 - Per-instrument "Var" action that mutates only a random fraction of current notes using pentatonic replacements
 - Per-instrument transport control: Start/Stop affects only the currently selected instrument
 - Up-and-down arpeggio pattern initialized per instrument from a random pentatonic note set (2-5 notes)
@@ -43,6 +45,8 @@ Supported actions:
 - `setChannelInstrument(channelId, presetId)`
 - `setControlValue(controlId, value)`
 - `toggleNote(noteId)`
+- `stepGlobalArpeggioKey(step)`
+- `transposeActiveNotesByKeyStep(step, presetId?)`
 - `createNoteVariation(presetId?)`
 - `togglePlayback(presetId)`
 

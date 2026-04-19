@@ -1,4 +1,5 @@
 import {
+  DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX,
   DEFAULT_PRESET_ID,
   INITIAL_SYNTH_PARAMS,
   MIXER_CHANNEL_IDS,
@@ -35,6 +36,7 @@ export const state = {
   instrumentNoteIdsByPresetId: {},
   instrumentNoteLengthInitializedByPresetId: {},
   instrumentPatternsByPresetId: {},
+  globalArpeggioKeyIndex: DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX,
   activeInstrumentPresetId: DEFAULT_PRESET_ID,
   playingPresetIds: new Set(),
 };

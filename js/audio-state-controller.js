@@ -2,6 +2,7 @@ import {
   CLEAN_DELAY_REPETITIONS_MAX,
   CLEAN_DELAY_REPETITIONS_MIN,
   controlConfig,
+  getCircleOfFifthsKeyLabel,
   DEAD_NOTE_PAUSE_COUNT_MAX,
   DEAD_NOTE_PAUSE_COUNT_MIN,
   DELAY_FEEDBACK_MAX,
@@ -11,6 +12,7 @@ import {
   LFO_TARGET_OPTIONS,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
+  normalizeCircleOfFifthsKeyIndex,
   PITCH_CLASS_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
 } from "./constants.js";
@@ -22,6 +24,7 @@ import {
   getEligibleRandomNotePoolFromPitchClasses,
   regenerateInstrumentRandomNoteIds,
   rebuildInstrumentPattern,
+  transposeInstrumentArpeggioPitchClassesByKeyStep,
 } from "./patterns.js";
 import {
   applyAssignedPresetToChannel,
@@ -275,6 +278,27 @@ export class AudioStateController extends EventTarget {
     return true;
   }
 
+  stepGlobalArpeggioKey(step) {
+    const numericStep = Number.parseInt(step, 10);
+    if (!Number.isInteger(numericStep) || numericStep === 0) {
+      this.emitError("Arpeggio key step must be a non-zero integer", { step });
+      return false;
+    }
+
+    const nextIndex = normalizeCircleOfFifthsKeyIndex(state.globalArpeggioKeyIndex + numericStep);
+    state.globalArpeggioKeyIndex = nextIndex;
+
+    this.emitAction("global-arpeggio-key-updated", {
+      value: nextIndex,
+      keyLabel: getCircleOfFifthsKeyLabel(nextIndex),
+    });
+    this.emitStateChange("global-arpeggio-key-updated", {
+      value: nextIndex,
+      keyLabel: getCircleOfFifthsKeyLabel(nextIndex),
+    });
+    return true;
+  }
+
   applyActiveArpeggioSettingsToAllInstruments() {
     const sourcePresetId = state.activeInstrumentPresetId;
     ensureInstrumentNoteState(sourcePresetId);
@@ -389,6 +413,40 @@ export class AudioStateController extends EventTarget {
       activeNoteIds: result.noteIds,
     });
     return true;
+  }
+
+  transposeArpeggioSettingsByKeyStep(step, presetId = state.activeInstrumentPresetId) {
+    if (!validChannelIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const numericStep = Number.parseInt(step, 10);
+    if (!Number.isInteger(numericStep) || numericStep === 0) {
+      this.emitError("Transpose step must be a non-zero integer", { step, presetId });
+      return false;
+    }
+
+    const result = transposeInstrumentArpeggioPitchClassesByKeyStep(presetId, numericStep);
+    if (result.reason) {
+      this.emitError(result.reason, { presetId, step: numericStep });
+      return false;
+    }
+
+    this.emitAction("arpeggio-settings-transposed", {
+      presetId,
+      step: numericStep,
+      enabledPitchClasses: result.pitchClassKeys,
+    });
+    this.emitStateChange("arpeggio-settings-updated", {
+      presetId,
+      enabledPitchClasses: result.pitchClassKeys,
+    });
+    return true;
+  }
+
+  transposeActiveNotesByKeyStep(step, presetId = state.activeInstrumentPresetId) {
+    return this.transposeArpeggioSettingsByKeyStep(step, presetId);
   }
 
   setChannelVolume(presetId, value) {

@@ -106,6 +106,42 @@ export const PITCH_CLASS_OPTIONS = [
   { key: "as", label: "A#" },
   { key: "b", label: "B" },
 ];
+export const CIRCLE_OF_FIFTHS_KEY_ORDER = ["c", "g", "d", "a", "e", "b", "fs", "cs", "gs", "ds", "as", "f"];
+export const DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX = 0;
+
+const MAJOR_KEY_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+const PITCH_CLASS_KEY_ORDER = PITCH_CLASS_OPTIONS.map(({ key }) => key);
+const PITCH_CLASS_LABEL_BY_KEY = new Map(PITCH_CLASS_OPTIONS.map(({ key, label }) => [key, label]));
+
+export function normalizeCircleOfFifthsKeyIndex(index) {
+  const total = CIRCLE_OF_FIFTHS_KEY_ORDER.length;
+  const numeric = Number.isFinite(index) ? Math.round(index) : DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX;
+  return ((numeric % total) + total) % total;
+}
+
+export function getCircleOfFifthsKey(index) {
+  return CIRCLE_OF_FIFTHS_KEY_ORDER[normalizeCircleOfFifthsKeyIndex(index)];
+}
+
+export function getCircleOfFifthsKeyLabel(index) {
+  return PITCH_CLASS_LABEL_BY_KEY.get(getCircleOfFifthsKey(index)) || "C";
+}
+
+export function getPitchClassLabel(key) {
+  return PITCH_CLASS_LABEL_BY_KEY.get(key) || "C";
+}
+
+export function getPitchClassesForMajorKey(keyOrIndex) {
+  const tonicKey = typeof keyOrIndex === "string"
+    ? keyOrIndex
+    : getCircleOfFifthsKey(keyOrIndex);
+  const tonicIndex = PITCH_CLASS_KEY_ORDER.indexOf(tonicKey);
+  const normalizedTonicIndex = tonicIndex === -1 ? 0 : tonicIndex;
+  return MAJOR_KEY_SCALE_INTERVALS.map(
+    (interval) => PITCH_CLASS_KEY_ORDER[(normalizedTonicIndex + interval) % PITCH_CLASS_KEY_ORDER.length],
+  );
+}
+
 export const DEFAULT_RANDOM_PITCH_CLASS_KEYS = ["c", "d", "e", "g", "a"];
 export const NOTE_OPTIONS = [
   { id: "note-c4", frequency: 261.63 },
