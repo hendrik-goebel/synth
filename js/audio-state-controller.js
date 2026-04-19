@@ -1,7 +1,9 @@
 import {
+  ARPEGGIO_OCTAVE_OPTIONS,
   CLEAN_DELAY_REPETITIONS_MAX,
   CLEAN_DELAY_REPETITIONS_MIN,
   controlConfig,
+  extractOctave,
   getCircleOfFifthsKeyLabel,
   DEAD_NOTE_PAUSE_COUNT_MAX,
   DEAD_NOTE_PAUSE_COUNT_MIN,
@@ -21,7 +23,9 @@ import {
   createInstrumentNoteVariation,
   ensureInstrumentNoteState,
   getEnabledArpeggioPitchClasses,
+  getEnabledArpeggioOctaves,
   getEligibleRandomNotePoolFromPitchClasses,
+  getSelectedInstrumentNoteIds,
   regenerateInstrumentRandomNoteIds,
   rebuildInstrumentPattern,
   transposeInstrumentArpeggioPitchClassesByKeyStep,
@@ -45,6 +49,7 @@ const validToggleValues = new Set([0, 1]);
 const validLfoTargetIndices = new Set(LFO_TARGET_OPTIONS.map((_, index) => index));
 const validPitchClassKeys = new Set(PITCH_CLASS_OPTIONS.map(({ key }) => key));
 const validPostFilterTypes = new Set(POST_FILTER_TYPE_OPTIONS);
+const validArpeggioOctaves = new Set(ARPEGGIO_OCTAVE_OPTIONS);
 
 function toNumber(value) {
   const numeric = Number.parseFloat(value);
@@ -215,6 +220,17 @@ export class AudioStateController extends EventTarget {
 
     const presetId = state.activeInstrumentPresetId;
     ensureInstrumentNoteState(presetId);
+    const noteOctave = extractOctave(noteId);
+    const enabledOctaves = getEnabledArpeggioOctaves(presetId);
+    if (!enabledOctaves.includes(noteOctave)) {
+      this.emitError(`Enable octave ${noteOctave} before selecting notes in that row`, {
+        presetId,
+        noteId,
+        octave: noteOctave,
+      });
+      return false;
+    }
+
     const selectedNoteIds = state.instrumentNoteIdsByPresetId[presetId];
 
     const noteIndex = selectedNoteIds.indexOf(noteId);
@@ -237,6 +253,47 @@ export class AudioStateController extends EventTarget {
     this.emitStateChange("notes-updated", {
       presetId,
       activeNoteIds: selectedNoteIds.slice(),
+    });
+    return true;
+  }
+
+  toggleArpeggioOctaveRow(octave, presetId = state.activeInstrumentPresetId) {
+    if (!validChannelIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const numericOctave = Number.parseInt(octave, 10);
+    if (!validArpeggioOctaves.has(numericOctave)) {
+      this.emitError(`Unknown arpeggio octave row: ${octave}`, { presetId, octave });
+      return false;
+    }
+
+    ensureInstrumentNoteState(presetId);
+    const enabledOctaves = getEnabledArpeggioOctaves(presetId);
+    const octaveIndex = enabledOctaves.indexOf(numericOctave);
+
+    if (octaveIndex === -1) {
+      enabledOctaves.push(numericOctave);
+    } else {
+      enabledOctaves.splice(octaveIndex, 1);
+    }
+
+    state.instrumentArpeggioOctavesByPresetId[presetId] = enabledOctaves.sort((left, right) => left - right);
+    const activeNoteIds = getSelectedInstrumentNoteIds(presetId);
+    rebuildInstrumentPattern(presetId);
+
+    this.emitAction("arpeggio-octave-row-toggled", {
+      presetId,
+      octave: numericOctave,
+      enabledOctaves: state.instrumentArpeggioOctavesByPresetId[presetId].slice(),
+      activeNoteIds,
+    });
+    this.emitStateChange("arpeggio-octave-rows-updated", {
+      presetId,
+      octave: numericOctave,
+      enabledOctaves: state.instrumentArpeggioOctavesByPresetId[presetId].slice(),
+      activeNoteIds,
     });
     return true;
   }
@@ -321,20 +378,22 @@ export class AudioStateController extends EventTarget {
     ensureInstrumentNoteState(sourcePresetId);
 
     const sourcePitchClasses = getEnabledArpeggioPitchClasses(sourcePresetId);
-    const eligibleNotePool = getEligibleRandomNotePoolFromPitchClasses(sourcePitchClasses);
     const instrumentNoteCounts = normalizedTargetPresetIds.map((presetId) => {
       ensureInstrumentNoteState(presetId);
+      const enabledOctaves = getEnabledArpeggioOctaves(presetId);
+      const eligibleNotePool = getEligibleRandomNotePoolFromPitchClasses(sourcePitchClasses, enabledOctaves);
       return {
         presetId,
-        noteCount: state.instrumentNoteIdsByPresetId[presetId]?.length ?? 0,
+        noteCount: getSelectedInstrumentNoteIds(presetId).length,
+        eligibleNotePoolLength: eligibleNotePool.length,
       };
     });
 
-    instrumentNoteCounts.forEach(({ presetId, noteCount }) => {
+    instrumentNoteCounts.forEach(({ presetId, noteCount, eligibleNotePoolLength }) => {
       state.instrumentArpeggioPitchClassesByPresetId[presetId] = sourcePitchClasses.slice();
       regenerateInstrumentRandomNoteIds(
         presetId,
-        Math.min(noteCount, eligibleNotePool.length),
+        Math.min(noteCount, eligibleNotePoolLength),
       );
     });
 

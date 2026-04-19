@@ -43,16 +43,7 @@
             </div>
           </div>
 
-          <div class="control-group control-group--global-key">
-            <h3 class="control-group-title">Global Key</h3>
-            <div class="global-key-panel" aria-live="polite">
-              <div class="global-key-header">
-                <span class="global-key-tonic-label">Key</span>
-                <span class="global-key-tonic-value" id="global-key-value">C</span>
-              </div>
-              <div class="global-key-note-list" id="global-key-note-list" aria-label="Current key notes"></div>
-            </div>
-          </div>
+
 
           <div class="control-group">
             <h3 class="control-group-title">Tape Delay</h3>
@@ -125,32 +116,84 @@
           </div>
         </section>
        <fieldset class="note-selector">
-         <legend>Arpeggio Notes (C4–B5)</legend>
-         <div class="note-grid" id="note-grid">
-          <button id="note-c4" data-note-id="note-c4" type="button" class="note-toggle is-active" aria-pressed="true">C4</button>
-          <button id="note-cs4" data-note-id="note-cs4" type="button" class="note-toggle" aria-pressed="false">C#4</button>
-          <button id="note-d4" data-note-id="note-d4" type="button" class="note-toggle" aria-pressed="false">D4</button>
-          <button id="note-ds4" data-note-id="note-ds4" type="button" class="note-toggle" aria-pressed="false">D#4</button>
-          <button id="note-e4" data-note-id="note-e4" type="button" class="note-toggle is-active" aria-pressed="true">E4</button>
-          <button id="note-f4" data-note-id="note-f4" type="button" class="note-toggle" aria-pressed="false">F4</button>
-          <button id="note-fs4" data-note-id="note-fs4" type="button" class="note-toggle" aria-pressed="false">F#4</button>
-          <button id="note-g4" data-note-id="note-g4" type="button" class="note-toggle is-active" aria-pressed="true">G4</button>
-          <button id="note-gs4" data-note-id="note-gs4" type="button" class="note-toggle" aria-pressed="false">G#4</button>
-          <button id="note-a4" data-note-id="note-a4" type="button" class="note-toggle" aria-pressed="false">A4</button>
-          <button id="note-as4" data-note-id="note-as4" type="button" class="note-toggle" aria-pressed="false">A#4</button>
-          <button id="note-b4" data-note-id="note-b4" type="button" class="note-toggle" aria-pressed="false">B4</button>
-          <button id="note-c5" data-note-id="note-c5" type="button" class="note-toggle" aria-pressed="false">C5</button>
-          <button id="note-cs5" data-note-id="note-cs5" type="button" class="note-toggle" aria-pressed="false">C#5</button>
-          <button id="note-d5" data-note-id="note-d5" type="button" class="note-toggle" aria-pressed="false">D5</button>
-          <button id="note-ds5" data-note-id="note-ds5" type="button" class="note-toggle" aria-pressed="false">D#5</button>
-          <button id="note-e5" data-note-id="note-e5" type="button" class="note-toggle" aria-pressed="false">E5</button>
-          <button id="note-f5" data-note-id="note-f5" type="button" class="note-toggle" aria-pressed="false">F5</button>
-          <button id="note-fs5" data-note-id="note-fs5" type="button" class="note-toggle" aria-pressed="false">F#5</button>
-          <button id="note-g5" data-note-id="note-g5" type="button" class="note-toggle" aria-pressed="false">G5</button>
-          <button id="note-gs5" data-note-id="note-gs5" type="button" class="note-toggle" aria-pressed="false">G#5</button>
-          <button id="note-a5" data-note-id="note-a5" type="button" class="note-toggle" aria-pressed="false">A5</button>
-          <button id="note-as5" data-note-id="note-as5" type="button" class="note-toggle" aria-pressed="false">A#5</button>
-          <button id="note-b5" data-note-id="note-b5" type="button" class="note-toggle" aria-pressed="false">B5</button>
+         <legend>Arpeggio Notes (C3–B6)</legend>
+         <div class="note-grid-rows" id="note-grid">
+           <div class="note-row" data-note-octave="3">
+             <div class="note-row-side">
+               <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="3" value="1" aria-pressed="true">On</button>
+             </div>
+             <div class="note-row-buttons">
+               <button id="note-c3" data-note-id="note-c3" type="button" class="note-toggle" aria-pressed="false">C3</button>
+               <button id="note-cs3" data-note-id="note-cs3" type="button" class="note-toggle" aria-pressed="false">C#3</button>
+               <button id="note-d3" data-note-id="note-d3" type="button" class="note-toggle" aria-pressed="false">D3</button>
+               <button id="note-ds3" data-note-id="note-ds3" type="button" class="note-toggle" aria-pressed="false">D#3</button>
+               <button id="note-e3" data-note-id="note-e3" type="button" class="note-toggle" aria-pressed="false">E3</button>
+               <button id="note-f3" data-note-id="note-f3" type="button" class="note-toggle" aria-pressed="false">F3</button>
+               <button id="note-fs3" data-note-id="note-fs3" type="button" class="note-toggle" aria-pressed="false">F#3</button>
+               <button id="note-g3" data-note-id="note-g3" type="button" class="note-toggle" aria-pressed="false">G3</button>
+               <button id="note-gs3" data-note-id="note-gs3" type="button" class="note-toggle" aria-pressed="false">G#3</button>
+               <button id="note-a3" data-note-id="note-a3" type="button" class="note-toggle" aria-pressed="false">A3</button>
+               <button id="note-as3" data-note-id="note-as3" type="button" class="note-toggle" aria-pressed="false">A#3</button>
+               <button id="note-b3" data-note-id="note-b3" type="button" class="note-toggle" aria-pressed="false">B3</button>
+             </div>
+           </div>
+           <div class="note-row" data-note-octave="4">
+             <div class="note-row-side">
+               <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="4" value="1" aria-pressed="true">On</button>
+             </div>
+             <div class="note-row-buttons">
+               <button id="note-c4" data-note-id="note-c4" type="button" class="note-toggle is-active" aria-pressed="true">C4</button>
+               <button id="note-cs4" data-note-id="note-cs4" type="button" class="note-toggle" aria-pressed="false">C#4</button>
+               <button id="note-d4" data-note-id="note-d4" type="button" class="note-toggle" aria-pressed="false">D4</button>
+               <button id="note-ds4" data-note-id="note-ds4" type="button" class="note-toggle" aria-pressed="false">D#4</button>
+               <button id="note-e4" data-note-id="note-e4" type="button" class="note-toggle is-active" aria-pressed="true">E4</button>
+               <button id="note-f4" data-note-id="note-f4" type="button" class="note-toggle" aria-pressed="false">F4</button>
+               <button id="note-fs4" data-note-id="note-fs4" type="button" class="note-toggle" aria-pressed="false">F#4</button>
+               <button id="note-g4" data-note-id="note-g4" type="button" class="note-toggle is-active" aria-pressed="true">G4</button>
+               <button id="note-gs4" data-note-id="note-gs4" type="button" class="note-toggle" aria-pressed="false">G#4</button>
+               <button id="note-a4" data-note-id="note-a4" type="button" class="note-toggle" aria-pressed="false">A4</button>
+               <button id="note-as4" data-note-id="note-as4" type="button" class="note-toggle" aria-pressed="false">A#4</button>
+               <button id="note-b4" data-note-id="note-b4" type="button" class="note-toggle" aria-pressed="false">B4</button>
+             </div>
+           </div>
+           <div class="note-row" data-note-octave="5">
+             <div class="note-row-side">
+               <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="5" value="1" aria-pressed="true">On</button>
+             </div>
+             <div class="note-row-buttons">
+               <button id="note-c5" data-note-id="note-c5" type="button" class="note-toggle" aria-pressed="false">C5</button>
+               <button id="note-cs5" data-note-id="note-cs5" type="button" class="note-toggle" aria-pressed="false">C#5</button>
+               <button id="note-d5" data-note-id="note-d5" type="button" class="note-toggle" aria-pressed="false">D5</button>
+               <button id="note-ds5" data-note-id="note-ds5" type="button" class="note-toggle" aria-pressed="false">D#5</button>
+               <button id="note-e5" data-note-id="note-e5" type="button" class="note-toggle" aria-pressed="false">E5</button>
+               <button id="note-f5" data-note-id="note-f5" type="button" class="note-toggle" aria-pressed="false">F5</button>
+               <button id="note-fs5" data-note-id="note-fs5" type="button" class="note-toggle" aria-pressed="false">F#5</button>
+               <button id="note-g5" data-note-id="note-g5" type="button" class="note-toggle" aria-pressed="false">G5</button>
+               <button id="note-gs5" data-note-id="note-gs5" type="button" class="note-toggle" aria-pressed="false">G#5</button>
+               <button id="note-a5" data-note-id="note-a5" type="button" class="note-toggle" aria-pressed="false">A5</button>
+               <button id="note-as5" data-note-id="note-as5" type="button" class="note-toggle" aria-pressed="false">A#5</button>
+               <button id="note-b5" data-note-id="note-b5" type="button" class="note-toggle" aria-pressed="false">B5</button>
+             </div>
+           </div>
+           <div class="note-row" data-note-octave="6">
+             <div class="note-row-side">
+               <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="6" value="1" aria-pressed="true">On</button>
+             </div>
+             <div class="note-row-buttons">
+               <button id="note-c6" data-note-id="note-c6" type="button" class="note-toggle" aria-pressed="false">C6</button>
+               <button id="note-cs6" data-note-id="note-cs6" type="button" class="note-toggle" aria-pressed="false">C#6</button>
+               <button id="note-d6" data-note-id="note-d6" type="button" class="note-toggle" aria-pressed="false">D6</button>
+               <button id="note-ds6" data-note-id="note-ds6" type="button" class="note-toggle" aria-pressed="false">D#6</button>
+               <button id="note-e6" data-note-id="note-e6" type="button" class="note-toggle" aria-pressed="false">E6</button>
+               <button id="note-f6" data-note-id="note-f6" type="button" class="note-toggle" aria-pressed="false">F6</button>
+               <button id="note-fs6" data-note-id="note-fs6" type="button" class="note-toggle" aria-pressed="false">F#6</button>
+               <button id="note-g6" data-note-id="note-g6" type="button" class="note-toggle" aria-pressed="false">G6</button>
+               <button id="note-gs6" data-note-id="note-gs6" type="button" class="note-toggle" aria-pressed="false">G#6</button>
+               <button id="note-a6" data-note-id="note-a6" type="button" class="note-toggle" aria-pressed="false">A6</button>
+               <button id="note-as6" data-note-id="note-as6" type="button" class="note-toggle" aria-pressed="false">A#6</button>
+               <button id="note-b6" data-note-id="note-b6" type="button" class="note-toggle" aria-pressed="false">B6</button>
+             </div>
+           </div>
         </div>
         <div class="note-selector-actions">
           <button id="dead-note-toggle" type="button" class="control-toggle-btn dead-note-toggle" aria-pressed="false" value="0">Pause</button>

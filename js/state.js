@@ -33,6 +33,7 @@ export const state = {
   ),
   instrumentParamsByPresetId: {},
   instrumentArpeggioPitchClassesByPresetId: {},
+  instrumentArpeggioOctavesByPresetId: {},
   instrumentNoteIdsByPresetId: {},
   instrumentNoteLengthInitializedByPresetId: {},
   instrumentPatternsByPresetId: {},

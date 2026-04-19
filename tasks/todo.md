@@ -1,3 +1,107 @@
+# Task: Move Instrument Arpeggio On/Off Buttons To The Right
+
+## Plan
+- [x] Inspect the current instrument arpeggio row markup and layout rules so the row-toggle buttons can move right without breaking existing bindings.
+- [x] Update the row layout in `css/style.css` (and `index.html` only if truly needed) so each octave row keeps its note buttons first and the On/Off control sits on the right.
+- [x] Verify the edited files with focused checks plus `npm run build`, then document the review.
+
+## Progress Notes
+- Kept the change CSS-only in `css/style.css`, leaving the existing `.note-row-toggle` markup and JS bindings untouched.
+- Swapped the desktop grid emphasis so `.note-row-buttons` render first and `.note-row-side` is ordered into the right-hand column, which moves every octave row's On/Off control to the right without changing behavior.
+- Updated the row-label alignment and the narrow-screen layout so the stacked/mobile toggle row also stays right-aligned instead of falling back to the left.
+
+## Review
+- `get_errors` reported no errors in the edited `css/style.css` and `tasks/todo.md` files.
+- `npm run build` completed successfully after the instrument arpeggio toggle layout adjustment.
+
+---
+
+# Task: Slightly Increase In-Key Highlight For Active Arpeggio Notes
+
+## Plan
+- [x] Review the current combined active + in-key note selectors in `css/style.css` for the main arpeggio section.
+- [x] Make active notes that are also in the current key look a little more highlighted without changing layout or note-state logic.
+- [x] Verify the CSS change with focused checks and a production build, then document the review.
+
+## Progress Notes
+- Kept the change CSS-only and scoped it to the existing `.note-toggle.is-in-key.is-active` combined selector used by the main instrument arpeggio section.
+- Added a slightly brighter combined-state treatment with a warmer-to-cooler gradient, a lighter border, and a subtle extra cyan/amber glow so active in-key notes read more clearly than plain active notes.
+- Left the base `.note-toggle.is-active`, `.note-toggle.is-in-key`, and disabled-row styling unchanged so layout and note-state behavior stay stable.
+
+## Review
+- `get_errors` reported no errors in the edited `css/style.css` and `tasks/todo.md` files.
+- `npm run build` completed successfully after the active in-key note highlight refinement.
+
+---
+
+# Task: Highlight Current Key Notes In Main Instrument Arpeggio Section
+
+## Plan
+- [x] Reuse the existing global arpeggio key source of truth instead of adding new key state for the main note grid.
+- [x] Extend the main arpeggio note-button sync so every visible note button also reflects whether its pitch class belongs to the current key.
+- [x] Add scoped main-grid styles for in-key and active+in-key note states without weakening disabled-row visuals.
+- [x] Verify with a focused runtime check plus a production build and document the review.
+
+## Progress Notes
+- Reused the existing `state.globalArpeggioKeyIndex` flow instead of adding new UI-local key state, so the main instrument note grid now stays aligned with the same circle-of-fifths source of truth as the settings dialog.
+- Updated `syncNoteButtonsFromActiveInstrumentPage()` in `js/patterns.js` so every main arpeggio note button now gets an `.is-in-key` state based on its pitch class and the current global key, while preserving the existing active-note state.
+- Updated `js/ui.js` so `global-arpeggio-key-updated` now refreshes both the settings-dialog notes and the main instrument arpeggio grid immediately when the key changes.
+- Added main-grid key-highlight styling in `css/style.css`, including a combined in-key + active state that matches the dialog language without overpowering disabled octave rows.
+- Added `tasks/arpeggio-main-key-highlight-test.mjs` to verify that main note buttons gain and lose key highlighting correctly when the global key changes.
+
+## Review
+- `get_errors` reported no errors in the edited CSS, README, test, and task files; only pre-existing warnings remain in `js/patterns.js` and `js/ui.js` for older unused helpers/imports unrelated to this change.
+- `node --experimental-default-type=module tasks/arpeggio-main-key-highlight-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-octave-row-toggle-test.mjs` passed.
+- `npm run build` completed successfully after extending key highlighting to the main instrument arpeggio section.
+
+---
+
+# Task: Add Per-Row Octave Enable Toggles To Instrument Arpeggios
+
+## Plan
+- [x] Trace the current per-instrument arpeggio note state, random-note generation, variation flow, and apply-settings flow so octave disabling can become one consistent filter.
+- [x] Add per-instrument octave-row enabled state and shared octave helpers in the JS data model.
+- [x] Restructure the main arpeggio note selector into octave rows with one enable/disable button beside each row.
+- [x] Make playback, manual note toggling, note variation, and global arpeggio Apply respect disabled octave rows.
+- [x] Add a focused runtime test for octave-row disabling behavior, run relevant verification, and document the review.
+
+## Progress Notes
+- Added shared octave helpers in `js/constants.js` plus a new per-channel `instrumentArpeggioOctavesByPresetId` store in `js/state.js`, so every visible mixer channel now keeps its own enabled octave rows.
+- Updated `js/patterns.js` so note pools, pattern rebuilding, variation, and random regeneration all filter through the same enabled-octave mask instead of relying on UI-only disabling.
+- Added `toggleArpeggioOctaveRow(...)` in `js/audio-state-controller.js`; disabling a row now removes selected notes from that octave, blocks manual note toggles there, and keeps global Apply constrained by each target channel's own enabled octave rows.
+- Rebuilt the main arpeggio selector in `index.html` / `css/style.css` into four octave rows (`Oct 3`–`Oct 6`) with one adjacent On/Off button per row plus disabled-row styling for note buttons.
+- Added `tasks/arpeggio-octave-row-toggle-test.mjs` to verify disabled rows are excluded from playback, `Var`, and targeted Apply.
+- Follow-up correction during verification: removed an accidental leading `x` from `tasks/arpeggio-apply-selected-channels-test.mjs` and recorded the guardrail in `tasks/lessons.md`.
+
+## Review
+- `get_errors` reported no errors in the edited JS, HTML, CSS, README, test, lesson, and task files; only the pre-existing unused `DEFAULT_NOTE_IDS` warning remains in `js/constants.js`.
+- `node --experimental-default-type=module tasks/arpeggio-octave-row-toggle-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-note-range-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-apply-selected-channels-test.mjs` passed after fixing the stray leading character in that test file.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-note-transpose-test.mjs` passed.
+- `npm run build` completed successfully after the octave-row toggle feature.
+
+---
+
+# Task: Extend Instrument Arpeggio Range By One Lower And One Higher Octave
+
+## Plan
+- [ ] Inspect the current arpeggio note source of truth plus the visible note-grid markup/styles so the range expansion stays aligned across state and UI.
+- [ ] Extend the shared arpeggio note range from `C4–B5` to `C3–B6` in `js/constants.js`, preserving note order and existing default note IDs.
+- [ ] Expand the note buttons/legend in `index.html` and adjust `css/style.css` only as much as needed so the larger range remains usable.
+- [ ] Run focused runtime checks for arpeggio note behavior plus a production build, then document the review.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
 # Task: Scope Arpeggio Settings Apply To Selected Channels
 
 ## Plan

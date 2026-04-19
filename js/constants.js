@@ -144,6 +144,18 @@ export function getPitchClassesForMajorKey(keyOrIndex) {
 
 export const DEFAULT_RANDOM_PITCH_CLASS_KEYS = ["c", "d", "e", "g", "a"];
 export const NOTE_OPTIONS = [
+  { id: "note-c3", frequency: 130.81 },
+  { id: "note-cs3", frequency: 138.59 },
+  { id: "note-d3", frequency: 146.83 },
+  { id: "note-ds3", frequency: 155.56 },
+  { id: "note-e3", frequency: 164.81 },
+  { id: "note-f3", frequency: 174.61 },
+  { id: "note-fs3", frequency: 185.0 },
+  { id: "note-g3", frequency: 196.0 },
+  { id: "note-gs3", frequency: 207.65 },
+  { id: "note-a3", frequency: 220.0 },
+  { id: "note-as3", frequency: 233.08 },
+  { id: "note-b3", frequency: 246.94 },
   { id: "note-c4", frequency: 261.63 },
   { id: "note-cs4", frequency: 277.18 },
   { id: "note-d4", frequency: 293.66 },
@@ -168,6 +180,18 @@ export const NOTE_OPTIONS = [
   { id: "note-a5", frequency: 880.0 },
   { id: "note-as5", frequency: 932.33 },
   { id: "note-b5", frequency: 987.77 },
+  { id: "note-c6", frequency: 1046.5 },
+  { id: "note-cs6", frequency: 1108.73 },
+  { id: "note-d6", frequency: 1174.66 },
+  { id: "note-ds6", frequency: 1244.51 },
+  { id: "note-e6", frequency: 1318.51 },
+  { id: "note-f6", frequency: 1396.91 },
+  { id: "note-fs6", frequency: 1479.98 },
+  { id: "note-g6", frequency: 1567.98 },
+  { id: "note-gs6", frequency: 1661.22 },
+  { id: "note-a6", frequency: 1760.0 },
+  { id: "note-as6", frequency: 1864.66 },
+  { id: "note-b6", frequency: 1975.53 },
 ];
 
 const PENTATONIC_PITCH_CLASSES = new Set(["c", "d", "e", "g", "a"]);
@@ -177,6 +201,13 @@ export function extractPitchClass(noteId) {
 export const PENTATONIC_NOTE_IDS = NOTE_OPTIONS
   .map(({ id }) => id)
   .filter((id) => PENTATONIC_PITCH_CLASSES.has(extractPitchClass(id)));
+export function extractOctave(noteId) {
+  const match = /([0-9]+)$/.exec(noteId);
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+export const ARPEGGIO_OCTAVE_OPTIONS = Array.from(
+  new Set(NOTE_OPTIONS.map(({ id }) => extractOctave(id)).filter(Number.isInteger)),
+).sort((left, right) => left - right);
 export const BASE_SOUND_PRESETS = {
   "warm": {
     oscAWave: "sawtooth",

@@ -1,5 +1,7 @@
 import {
+  ARPEGGIO_OCTAVE_OPTIONS,
   DEFAULT_RANDOM_PITCH_CLASS_KEYS,
+  extractOctave,
   extractPitchClass,
   getPitchClassesForMajorKey,
   NOTE_OPTIONS,
@@ -14,6 +16,11 @@ const noteFrequencyMap = new Map(NOTE_OPTIONS.map(({ id, frequency }) => [id, fr
 const noteOrderIndexMap = new Map(NOTE_OPTIONS.map(({ id }, index) => [id, index]));
 const pitchClassOrder = PITCH_CLASS_OPTIONS.map(({ key }) => key);
 const pitchClassOrderIndexMap = new Map(pitchClassOrder.map((key, index) => [key, index]));
+
+function filterNoteIdsByEnabledOctaves(noteIds, enabledOctaves) {
+  const enabledOctaveSet = new Set(enabledOctaves);
+  return noteIds.filter((noteId) => enabledOctaveSet.has(extractOctave(noteId)));
+}
 
 function shuffle(array) {
   const clone = array.slice();
@@ -48,21 +55,28 @@ function getRandomNoteIdsFromPool(noteIds, desiredCount = null) {
     .sort((a, b) => noteOrderIndexMap.get(a) - noteOrderIndexMap.get(b));
 }
 
-export function getEligibleRandomNotePoolFromPitchClasses(enabledPitchClassKeys) {
+export function getEligibleRandomNotePoolFromPitchClasses(
+  enabledPitchClassKeys,
+  enabledOctaves = ARPEGGIO_OCTAVE_OPTIONS,
+) {
   const enabledPitchClasses = new Set(enabledPitchClassKeys);
+  const enabledOctaveSet = new Set(enabledOctaves);
   const eligibleNoteIds = NOTE_OPTIONS
     .map(({ id }) => id)
-    .filter((id) => enabledPitchClasses.has(extractPitchClass(id)));
+    .filter((id) => enabledPitchClasses.has(extractPitchClass(id)) && enabledOctaveSet.has(extractOctave(id)));
 
   if (eligibleNoteIds.length > 0) {
     return eligibleNoteIds;
   }
 
-  return PENTATONIC_NOTE_IDS.slice();
+  return filterNoteIdsByEnabledOctaves(PENTATONIC_NOTE_IDS.slice(), enabledOctaves);
 }
 
 export function getEligibleRandomNotePool(presetId) {
-  return getEligibleRandomNotePoolFromPitchClasses(getEnabledArpeggioPitchClasses(presetId));
+  return getEligibleRandomNotePoolFromPitchClasses(
+    getEnabledArpeggioPitchClasses(presetId),
+    getEnabledArpeggioOctaves(presetId),
+  );
 }
 
 function getDefaultEnabledRandomNoteIds(presetId) {
@@ -154,9 +168,30 @@ export function ensureInstrumentArpeggioPitchClassState(presetId) {
   }
 }
 
+export function ensureInstrumentArpeggioOctaveState(presetId) {
+  if (!state.instrumentArpeggioOctavesByPresetId[presetId]) {
+    state.instrumentArpeggioOctavesByPresetId[presetId] = ARPEGGIO_OCTAVE_OPTIONS.slice();
+  }
+}
+
 export function getEnabledArpeggioPitchClasses(presetId) {
   ensureInstrumentArpeggioPitchClassState(presetId);
   return state.instrumentArpeggioPitchClassesByPresetId[presetId].slice();
+}
+
+export function getEnabledArpeggioOctaves(presetId) {
+  ensureInstrumentArpeggioOctaveState(presetId);
+  return state.instrumentArpeggioOctavesByPresetId[presetId].slice().sort((left, right) => left - right);
+}
+
+export function getSelectedInstrumentNoteIds(presetId) {
+  ensureInstrumentArpeggioOctaveState(presetId);
+  const filteredNoteIds = filterNoteIdsByEnabledOctaves(
+    state.instrumentNoteIdsByPresetId[presetId]?.slice() || [],
+    getEnabledArpeggioOctaves(presetId),
+  );
+  state.instrumentNoteIdsByPresetId[presetId] = filteredNoteIds;
+  return filteredNoteIds.slice();
 }
 
 export function updateSelectedNotesFromUI() {
@@ -172,7 +207,11 @@ export function updateSelectedNotesFromUI() {
 }
 
 export function rebuildInstrumentPattern(presetId) {
-  const selectedNoteIds = state.instrumentNoteIdsByPresetId[presetId] || getEligibleRandomNotePool(presetId).slice(0, 3);
+  ensureInstrumentArpeggioOctaveState(presetId);
+  const selectedNoteIds = state.instrumentNoteIdsByPresetId[presetId]
+    ? getSelectedInstrumentNoteIds(presetId)
+    : getEligibleRandomNotePool(presetId).slice(0, 3);
+  state.instrumentNoteIdsByPresetId[presetId] = selectedNoteIds.slice();
   const instrumentParams = getInstrumentParams(presetId);
   const selectedFrequencies = selectedNoteIds
     .map((id) => noteFrequencyMap.get(id))
@@ -187,7 +226,7 @@ export function rebuildInstrumentPattern(presetId) {
 export function createInstrumentNoteVariation(presetId) {
   ensureInstrumentNoteState(presetId);
 
-  const currentNoteIds = state.instrumentNoteIdsByPresetId[presetId] || [];
+  const currentNoteIds = getSelectedInstrumentNoteIds(presetId);
   if (currentNoteIds.length === 0) {
     return { changed: false, noteIds: [] };
   }
@@ -288,6 +327,7 @@ export function transposeInstrumentArpeggioPitchClassesByKeyStep(presetId, step)
 
 export function regenerateInstrumentRandomNoteIds(presetId, desiredCount) {
   ensureInstrumentArpeggioPitchClassState(presetId);
+  ensureInstrumentArpeggioOctaveState(presetId);
 
   const eligibleNotePool = getEligibleRandomNotePool(presetId);
   const normalizedDesiredCount = Math.max(0, Math.floor(Number.isFinite(desiredCount) ? desiredCount : 0));
@@ -315,6 +355,7 @@ export function regenerateInstrumentRandomNoteIds(presetId, desiredCount) {
 
 export function ensureInstrumentNoteState(presetId) {
   ensureInstrumentArpeggioPitchClassState(presetId);
+  ensureInstrumentArpeggioOctaveState(presetId);
 
   if (!state.instrumentNoteIdsByPresetId[presetId]) {
     state.instrumentNoteIdsByPresetId[presetId] = getDefaultEnabledRandomNoteIds(presetId);
@@ -340,6 +381,7 @@ export function getInstrumentPattern(presetId) {
 export function syncNoteButtonsFromActiveInstrumentPage() {
   ensureInstrumentNoteState(state.activeInstrumentPresetId);
   const selectedNoteIds = state.instrumentNoteIdsByPresetId[state.activeInstrumentPresetId];
+  const inKeyPitchClasses = new Set(getPitchClassesForMajorKey(state.globalArpeggioKeyIndex));
   const buttons = getNoteButtonCache();
 
   NOTE_OPTIONS.forEach((note) => {
@@ -349,7 +391,9 @@ export function syncNoteButtonsFromActiveInstrumentPage() {
     }
 
     const isActive = selectedNoteIds.includes(note.id);
+    const isInKey = inKeyPitchClasses.has(extractPitchClass(note.id));
     noteButton.classList.toggle("is-active", isActive);
+    noteButton.classList.toggle("is-in-key", isInKey);
     noteButton.setAttribute("aria-pressed", String(isActive));
   });
 }

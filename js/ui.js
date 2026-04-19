@@ -4,6 +4,7 @@ import {
   DEAD_NOTE_PAUSE_COUNT_MIN,
   delayFeedbackFromNormalized,
   delayDivisionIndexFromUiValue,
+  extractOctave,
   getCircleOfFifthsKeyLabel,
   getPitchClassLabel,
   getPitchClassesForMajorKey,
@@ -19,6 +20,7 @@ import {
 } from "./constants.js";
 import { statusLabel } from "./dom.js";
 import {
+  getEnabledArpeggioOctaves,
   ensureInstrumentNoteState,
   getEnabledArpeggioPitchClasses,
   syncNoteButtonsFromActiveInstrumentPage,
@@ -50,6 +52,8 @@ let globalKeyTransposeUpElement = null;
 let globalKeyTransposeDownElement = null;
 let settingsNoteButtonElements = null;
 let settingsChannelButtonElements = null;
+let noteRowToggleElements = null;
+let noteRowElements = null;
 let selectedArpeggioApplyChannelIds = new Set();
 const mixerChannelCache = new Map();
 const controlElementCache = new Map();
@@ -166,6 +170,20 @@ function getSettingsChannelButtonElements() {
     settingsChannelButtonElements = Array.from(document.querySelectorAll(".settings-channel-btn"));
   }
   return settingsChannelButtonElements;
+}
+
+function getNoteRowToggleElements() {
+  if (!noteRowToggleElements) {
+    noteRowToggleElements = Array.from(document.querySelectorAll(".note-row-toggle"));
+  }
+  return noteRowToggleElements;
+}
+
+function getNoteRowElements() {
+  if (!noteRowElements) {
+    noteRowElements = Array.from(document.querySelectorAll(".note-row"));
+  }
+  return noteRowElements;
 }
 
 function resetArpeggioApplyChannelSelection(channelIds = getPresetIds()) {
@@ -467,6 +485,33 @@ export function syncArpeggioSettingsNoteButtons(presetId = state.activeInstrumen
   });
 }
 
+export function syncArpeggioOctaveRowUI(presetId = state.activeInstrumentPresetId) {
+  ensureInstrumentNoteState(presetId);
+  const enabledOctaves = new Set(getEnabledArpeggioOctaves(presetId));
+
+  getNoteRowElements().forEach((row) => {
+    const octave = Number.parseInt(row.dataset.noteOctave, 10);
+    row.classList.toggle("is-disabled", !enabledOctaves.has(octave));
+  });
+
+  getNoteRowToggleElements().forEach((button) => {
+    const octave = Number.parseInt(button.dataset.noteOctave, 10);
+    const isEnabled = enabledOctaves.has(octave);
+    button.value = isEnabled ? "1" : "0";
+    button.textContent = isEnabled ? "On" : "Off";
+    button.classList.toggle("is-active", isEnabled);
+    button.setAttribute("aria-pressed", String(isEnabled));
+  });
+
+  getNoteButtonElements().forEach((button) => {
+    const noteId = button.dataset.noteId;
+    const noteOctave = extractOctave(noteId);
+    const isEnabled = enabledOctaves.has(noteOctave);
+    button.disabled = !isEnabled;
+    button.classList.toggle("is-disabled-row", !isEnabled);
+  });
+}
+
 export function syncControlsFromActiveInstrumentPage() {
   const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
 
@@ -477,6 +522,7 @@ export function syncControlsFromActiveInstrumentPage() {
     setControlUIValue(controlId, value);
   });
 
+  syncArpeggioOctaveRowUI(state.activeInstrumentPresetId);
   syncNoteButtonsFromActiveInstrumentPage();
   syncDeadNoteControlsUI(
     instrumentParams.deadNoteAtEnd ?? 0,
@@ -598,6 +644,7 @@ export function bindPostFilterTypeToggle(controller) {
 
 export function bindNoteSelector(controller) {
   const buttons = getNoteButtonElements();
+  const rowToggleButtons = getNoteRowToggleElements();
 
   buttons.forEach((button) => {
     button.controllerRef = controller;
@@ -614,7 +661,21 @@ export function bindNoteSelector(controller) {
     });
   });
 
+  rowToggleButtons.forEach((button) => {
+    button.controllerRef = controller;
+    button.addEventListener("click", (event) => {
+      const octave = event.currentTarget.dataset.noteOctave;
+      const controllerRef = event.currentTarget?.controllerRef;
+      if (!octave || !controllerRef) {
+        return;
+      }
+
+      controllerRef.toggleArpeggioOctaveRow(octave);
+    });
+  });
+
   ensureInstrumentNoteState(state.activeInstrumentPresetId);
+  syncArpeggioOctaveRowUI(state.activeInstrumentPresetId);
   syncNoteButtonsFromActiveInstrumentPage();
 }
 
@@ -906,6 +967,15 @@ export function bindControllerEvents(controller) {
 
     if (type === "notes-updated") {
       if (presetId === state.activeInstrumentPresetId) {
+        syncArpeggioOctaveRowUI(presetId);
+        syncNoteButtonsFromActiveInstrumentPage();
+      }
+      return;
+    }
+
+    if (type === "arpeggio-octave-rows-updated") {
+      if (presetId === state.activeInstrumentPresetId) {
+        syncArpeggioOctaveRowUI(presetId);
         syncNoteButtonsFromActiveInstrumentPage();
       }
       return;
@@ -920,6 +990,7 @@ export function bindControllerEvents(controller) {
 
     if (type === "global-arpeggio-key-updated") {
       syncGlobalArpeggioKeyUI();
+      syncNoteButtonsFromActiveInstrumentPage();
       syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
       return;
     }
