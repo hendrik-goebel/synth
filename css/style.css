@@ -719,6 +719,52 @@ body {
   color: #93c5fd;
 }
 
+.settings-channel-selector {
+  margin-bottom: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.settings-channel-selector-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-channel-button-row {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.settings-channel-btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.2rem;
+  padding: 0.35rem 0;
+  border-color: #334155;
+  background: #111827;
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+.settings-channel-btn:hover {
+  border-color: #60a5fa;
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.settings-channel-btn.is-active,
+.settings-channel-btn[aria-pressed="true"] {
+  border-color: #60a5fa;
+  background: #1d4ed8;
+  color: #eff6ff;
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3), 0 0 16px rgba(37, 99, 235, 0.18);
+}
+
 .settings-note-grid {
   display: flex;
   flex-wrap: nowrap;

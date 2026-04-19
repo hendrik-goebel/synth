@@ -49,6 +49,8 @@ let globalKeyNoteListElement = null;
 let globalKeyTransposeUpElement = null;
 let globalKeyTransposeDownElement = null;
 let settingsNoteButtonElements = null;
+let settingsChannelButtonElements = null;
+let selectedArpeggioApplyChannelIds = new Set();
 const mixerChannelCache = new Map();
 const controlElementCache = new Map();
 const controlLabelElementCache = new Map();
@@ -157,6 +159,27 @@ function getSettingsNoteButtonElements() {
     settingsNoteButtonElements = Array.from(document.querySelectorAll(".settings-note-toggle"));
   }
   return settingsNoteButtonElements;
+}
+
+function getSettingsChannelButtonElements() {
+  if (!settingsChannelButtonElements) {
+    settingsChannelButtonElements = Array.from(document.querySelectorAll(".settings-channel-btn"));
+  }
+  return settingsChannelButtonElements;
+}
+
+function resetArpeggioApplyChannelSelection(channelIds = getPresetIds()) {
+  selectedArpeggioApplyChannelIds = new Set(channelIds);
+  syncArpeggioSettingsChannelButtons();
+}
+
+function syncArpeggioSettingsChannelButtons() {
+  getSettingsChannelButtonElements().forEach((button) => {
+    const channelId = button.dataset.settingsChannelId;
+    const isActive = Boolean(channelId) && selectedArpeggioApplyChannelIds.has(channelId);
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 // Cache control config entries once
@@ -646,6 +669,7 @@ export function bindSettingsDialog(controller) {
   }
 
   const openDialog = () => {
+    resetArpeggioApplyChannelSelection();
     syncGlobalArpeggioKeyUI();
     syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
 
@@ -677,15 +701,19 @@ export function bindSettingsDialog(controller) {
     controller?.stepGlobalArpeggioKey(1);
   });
   applyButton?.addEventListener("click", () => {
-    const applied = controller?.applyActiveArpeggioSettingsToAllInstruments();
+    const selectedChannelIds = Array.from(selectedArpeggioApplyChannelIds);
+    const applied = controller?.applyActiveArpeggioSettingsToChannels(selectedChannelIds);
     if (!applied) {
       return;
     }
 
     syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
-    syncNoteButtonsFromActiveInstrumentPage();
+    if (selectedChannelIds.includes(state.activeInstrumentPresetId)) {
+      syncNoteButtonsFromActiveInstrumentPage();
+    }
     if (statusLabel) {
-      statusLabel.textContent = "Applied settings notes to all instruments";
+      const channelCount = selectedChannelIds.length;
+      statusLabel.textContent = `Applied settings notes to ${channelCount} selected channel${channelCount === 1 ? "" : "s"}`;
     }
   });
   dialog.addEventListener("cancel", (event) => {
@@ -693,6 +721,23 @@ export function bindSettingsDialog(controller) {
     closeDialog();
   });
   dialog.addEventListener("click", (event) => {
+    const settingsChannelButton = event.target.closest(".settings-channel-btn");
+    if (settingsChannelButton) {
+      const channelId = settingsChannelButton.dataset.settingsChannelId;
+      if (!channelId) {
+        return;
+      }
+
+      if (selectedArpeggioApplyChannelIds.has(channelId)) {
+        selectedArpeggioApplyChannelIds.delete(channelId);
+      } else {
+        selectedArpeggioApplyChannelIds.add(channelId);
+      }
+
+      syncArpeggioSettingsChannelButtons();
+      return;
+    }
+
     const settingsNoteButton = event.target.closest(".settings-note-toggle");
     if (settingsNoteButton) {
       const pitchClassKey = settingsNoteButton.dataset.pitchClassKey;
@@ -879,9 +924,12 @@ export function bindControllerEvents(controller) {
       return;
     }
 
-    if (type === "arpeggio-settings-applied-to-all") {
+    if (type === "arpeggio-settings-applied" || type === "arpeggio-settings-applied-to-all") {
+      const updatedPresetIds = event.detail.updatedPresetIds || [];
       syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
-      syncNoteButtonsFromActiveInstrumentPage();
+      if (updatedPresetIds.includes(state.activeInstrumentPresetId)) {
+        syncNoteButtonsFromActiveInstrumentPage();
+      }
       return;
     }
 

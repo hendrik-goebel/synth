@@ -1,3 +1,28 @@
+# Task: Scope Arpeggio Settings Apply To Selected Channels
+
+## Plan
+- [x] Inspect the current arpeggio settings dialog markup and apply-to-all controller flow so the new channel selector reuses existing channel IDs and event wiring.
+- [x] Add eight channel buttons above the settings-note row in `index.html` and style them in `css/style.css` with clear active/inactive states.
+- [x] Add dialog-local selected-channel state in `js/ui.js`, bind the new buttons, and pass the selected channel IDs into Apply.
+- [x] Replace the controller bulk-apply action with a targeted apply helper that updates only the selected channels and emits the affected channel IDs.
+- [x] Add a focused runtime test for channel-scoped apply behavior, run static checks plus the relevant task tests and `npm run build`, and document the review.
+
+## Progress Notes
+- Added eight numbered channel buttons (`1`–`8`) above the dialog note buttons in `index.html`, each mapped to one stable mixer channel via `data-settings-channel-id`.
+- Added compact dialog-local selector styles in `css/style.css` so selected channels read clearly without changing the existing note-button layout.
+- Updated `js/ui.js` so the dialog resets channel selection to all eight channels when opened, lets users toggle channel buttons independently, rejects empty Apply indirectly through the controller, and updates the status copy to mention selected channels rather than all instruments.
+- Added `applyActiveArpeggioSettingsToChannels(...)` in `js/audio-state-controller.js` so Apply now validates the selected channel list and regenerates notes only for those channels; the legacy all-channel method now delegates to the new targeted helper.
+- Added `tasks/arpeggio-apply-selected-channels-test.mjs` to verify that only chosen channels receive copied pitch classes and regenerated note IDs, while unselected channels remain untouched.
+
+## Review
+- `get_errors` reported no errors in the edited HTML, CSS, JS, test, and task files.
+- `node --experimental-default-type=module tasks/arpeggio-apply-selected-channels-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-note-transpose-test.mjs` passed.
+- `npm run build` completed successfully after adding channel-scoped arpeggio apply controls.
+
+---
+
 # Task: Move Transpose Buttons Below Dialog Key Controls
 
 ## Plan

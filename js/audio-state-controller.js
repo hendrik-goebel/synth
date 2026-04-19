@@ -299,13 +299,30 @@ export class AudioStateController extends EventTarget {
     return true;
   }
 
-  applyActiveArpeggioSettingsToAllInstruments() {
+  applyActiveArpeggioSettingsToChannels(targetPresetIds = getPresetIds()) {
+    if (!Array.isArray(targetPresetIds)) {
+      this.emitError("Selected channels must be provided as an array", { targetPresetIds });
+      return false;
+    }
+
+    const normalizedTargetPresetIds = Array.from(new Set(targetPresetIds));
+    if (normalizedTargetPresetIds.length === 0) {
+      this.emitError("Select at least one channel before applying arpeggio settings", { targetPresetIds });
+      return false;
+    }
+
+    const invalidPresetId = normalizedTargetPresetIds.find((presetId) => !validChannelIds.has(presetId));
+    if (invalidPresetId) {
+      this.emitError(`Unknown preset id: ${invalidPresetId}`, { presetId: invalidPresetId, targetPresetIds });
+      return false;
+    }
+
     const sourcePresetId = state.activeInstrumentPresetId;
     ensureInstrumentNoteState(sourcePresetId);
 
     const sourcePitchClasses = getEnabledArpeggioPitchClasses(sourcePresetId);
     const eligibleNotePool = getEligibleRandomNotePoolFromPitchClasses(sourcePitchClasses);
-    const instrumentNoteCounts = getPresetIds().map((presetId) => {
+    const instrumentNoteCounts = normalizedTargetPresetIds.map((presetId) => {
       ensureInstrumentNoteState(presetId);
       return {
         presetId,
@@ -324,14 +341,18 @@ export class AudioStateController extends EventTarget {
     this.emitAction("arpeggio-settings-applied-to-all", {
       sourcePresetId,
       enabledPitchClasses: sourcePitchClasses.slice(),
-      updatedPresetIds: instrumentNoteCounts.map(({ presetId }) => presetId),
+      updatedPresetIds: normalizedTargetPresetIds,
     });
-    this.emitStateChange("arpeggio-settings-applied-to-all", {
+    this.emitStateChange("arpeggio-settings-applied", {
       sourcePresetId,
       enabledPitchClasses: sourcePitchClasses.slice(),
-      updatedPresetIds: instrumentNoteCounts.map(({ presetId }) => presetId),
+      updatedPresetIds: normalizedTargetPresetIds,
     });
     return true;
+  }
+
+  applyActiveArpeggioSettingsToAllInstruments() {
+    return this.applyActiveArpeggioSettingsToChannels(getPresetIds());
   }
 
   toggleDeadNoteAtEnd(presetId = state.activeInstrumentPresetId) {
