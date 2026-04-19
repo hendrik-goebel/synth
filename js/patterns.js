@@ -4,6 +4,7 @@ import {
   extractOctave,
   extractPitchClass,
   getPitchClassesForMajorKey,
+  INITIAL_CHANNEL_SCENES,
   NOTE_OPTIONS,
   PITCH_CLASS_OPTIONS,
   PENTATONIC_NOTE_IDS,
@@ -14,8 +15,59 @@ import { state } from "./state.js";
 // Pre-built Map for O(1) frequency lookups instead of linear NOTE_OPTIONS.find()
 const noteFrequencyMap = new Map(NOTE_OPTIONS.map(({ id, frequency }) => [id, frequency]));
 const noteOrderIndexMap = new Map(NOTE_OPTIONS.map(({ id }, index) => [id, index]));
+const validNoteIdSet = new Set(NOTE_OPTIONS.map(({ id }) => id));
 const pitchClassOrder = PITCH_CLASS_OPTIONS.map(({ key }) => key);
 const pitchClassOrderIndexMap = new Map(pitchClassOrder.map((key, index) => [key, index]));
+const validArpeggioOctaveSet = new Set(ARPEGGIO_OCTAVE_OPTIONS);
+
+function getStartupChannelScene(presetId) {
+  return INITIAL_CHANNEL_SCENES[presetId] || null;
+}
+
+function getStartupEnabledPitchClasses(presetId) {
+  const enabledPitchClasses = getStartupChannelScene(presetId)?.enabledPitchClasses;
+  if (!Array.isArray(enabledPitchClasses)) {
+    return null;
+  }
+
+  const normalized = Array.from(new Set(
+    enabledPitchClasses.filter((pitchClassKey) => pitchClassOrderIndexMap.has(pitchClassKey)),
+  ));
+  return normalized.length > 0 ? normalized : null;
+}
+
+function getStartupEnabledOctaves(presetId) {
+  const enabledOctaves = getStartupChannelScene(presetId)?.enabledOctaves;
+  if (!Array.isArray(enabledOctaves)) {
+    return null;
+  }
+
+  const normalized = Array.from(new Set(
+    enabledOctaves.filter((octave) => validArpeggioOctaveSet.has(octave)),
+  )).sort((left, right) => left - right);
+  return normalized.length > 0 ? normalized : null;
+}
+
+function getStartupNoteIds(presetId) {
+  const noteIds = getStartupChannelScene(presetId)?.noteIds;
+  if (!Array.isArray(noteIds)) {
+    return null;
+  }
+
+  const enabledPitchClassSet = new Set(
+    getStartupEnabledPitchClasses(presetId) || DEFAULT_RANDOM_PITCH_CLASS_KEYS,
+  );
+  const enabledOctaveSet = new Set(
+    getStartupEnabledOctaves(presetId) || ARPEGGIO_OCTAVE_OPTIONS,
+  );
+  const normalized = Array.from(new Set(
+    noteIds.filter((noteId) => validNoteIdSet.has(noteId)
+      && enabledPitchClassSet.has(extractPitchClass(noteId))
+      && enabledOctaveSet.has(extractOctave(noteId))),
+  )).sort((left, right) => noteOrderIndexMap.get(left) - noteOrderIndexMap.get(right));
+
+  return normalized.length > 0 ? normalized : null;
+}
 
 function filterNoteIdsByEnabledOctaves(noteIds, enabledOctaves) {
   const enabledOctaveSet = new Set(enabledOctaves);
@@ -164,13 +216,17 @@ export function buildArpeggioPattern(notes, trailingPauseCount = 0) {
 
 export function ensureInstrumentArpeggioPitchClassState(presetId) {
   if (!state.instrumentArpeggioPitchClassesByPresetId[presetId]) {
-    state.instrumentArpeggioPitchClassesByPresetId[presetId] = DEFAULT_RANDOM_PITCH_CLASS_KEYS.slice();
+    state.instrumentArpeggioPitchClassesByPresetId[presetId] =
+      getStartupEnabledPitchClasses(presetId)
+      || DEFAULT_RANDOM_PITCH_CLASS_KEYS.slice();
   }
 }
 
 export function ensureInstrumentArpeggioOctaveState(presetId) {
   if (!state.instrumentArpeggioOctavesByPresetId[presetId]) {
-    state.instrumentArpeggioOctavesByPresetId[presetId] = ARPEGGIO_OCTAVE_OPTIONS.slice();
+    state.instrumentArpeggioOctavesByPresetId[presetId] =
+      getStartupEnabledOctaves(presetId)
+      || ARPEGGIO_OCTAVE_OPTIONS.slice();
   }
 }
 
@@ -358,13 +414,20 @@ export function ensureInstrumentNoteState(presetId) {
   ensureInstrumentArpeggioOctaveState(presetId);
 
   if (!state.instrumentNoteIdsByPresetId[presetId]) {
-    state.instrumentNoteIdsByPresetId[presetId] = getDefaultEnabledRandomNoteIds(presetId);
+    state.instrumentNoteIdsByPresetId[presetId] =
+      getStartupNoteIds(presetId)
+      || getDefaultEnabledRandomNoteIds(presetId);
   }
 
   if (!state.instrumentNoteLengthInitializedByPresetId[presetId]) {
     const instrumentParams = getInstrumentParams(presetId);
-    const noteCount = state.instrumentNoteIdsByPresetId[presetId].length;
-    instrumentParams.noteLength = getRandomWeightedNoteLength(noteCount);
+    const startupNoteLength = getStartupChannelScene(presetId)?.params?.noteLength;
+    if (Number.isFinite(startupNoteLength)) {
+      instrumentParams.noteLength = startupNoteLength;
+    } else {
+      const noteCount = state.instrumentNoteIdsByPresetId[presetId].length;
+      instrumentParams.noteLength = getRandomWeightedNoteLength(noteCount);
+    }
     state.instrumentNoteLengthInitializedByPresetId[presetId] = true;
   }
 

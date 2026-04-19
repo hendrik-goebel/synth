@@ -19,6 +19,7 @@ controller.addEventListener("error", (event) => {
 controller.initialize();
 controller.selectInstrument("warm");
 
+state.instrumentArpeggioOctavesByPresetId.warm = [3, 4, 5, 6];
 state.instrumentArpeggioPitchClassesByPresetId.warm = ["c", "e", "g"];
 state.instrumentNoteIdsByPresetId.warm = ["note-c3", "note-e4", "note-g5", "note-c6"];
 

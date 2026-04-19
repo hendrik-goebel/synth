@@ -2,6 +2,7 @@ import {
   BASE_SOUND_PRESETS,
   DEFAULT_PRESET_ID,
   GLOBAL_CONTROL_KEYS,
+  INITIAL_CHANNEL_SCENES,
   MIXER_CHANNEL_IDS,
   PRESET_CATEGORY_LABELS,
   PRESET_CATEGORY_ORDER,
@@ -131,17 +132,36 @@ export function getAssignedPresetId(channelId) {
 export function createInstrumentParams(channelId, assignedPresetId = getAssignedPresetId(channelId), previousParams = null) {
   const presetOverrides = getPresetOverrides(assignedPresetId);
   const preservedParams = previousParams || {};
+  const startupSceneParams = INITIAL_CHANNEL_SCENES[channelId]?.params || {};
 
   return {
     ...state.synthParams,
     ...presetOverrides,
     // Keep shared controls global; presets should only contribute instrument-scoped defaults.
     // Ensure every instrument starts at a unique panorama position.
-    channelVolume: preservedParams.channelVolume ?? 1,
-    stereoPan: preservedParams.stereoPan ?? getInitialStereoPan(channelId),
-    ...(preservedParams.noteLength !== undefined ? { noteLength: preservedParams.noteLength } : {}),
-    ...(preservedParams.deadNoteAtEnd !== undefined ? { deadNoteAtEnd: preservedParams.deadNoteAtEnd } : {}),
-    ...(preservedParams.endPauseCount !== undefined ? { endPauseCount: preservedParams.endPauseCount } : {}),
+    channelVolume: preservedParams.channelVolume ?? startupSceneParams.channelVolume ?? 1,
+    stereoPan: preservedParams.stereoPan ?? startupSceneParams.stereoPan ?? getInitialStereoPan(channelId),
+    ...(
+      preservedParams.noteLength !== undefined
+        ? { noteLength: preservedParams.noteLength }
+        : startupSceneParams.noteLength !== undefined
+          ? { noteLength: startupSceneParams.noteLength }
+          : {}
+    ),
+    ...(
+      preservedParams.deadNoteAtEnd !== undefined
+        ? { deadNoteAtEnd: preservedParams.deadNoteAtEnd }
+        : startupSceneParams.deadNoteAtEnd !== undefined
+          ? { deadNoteAtEnd: startupSceneParams.deadNoteAtEnd }
+          : {}
+    ),
+    ...(
+      preservedParams.endPauseCount !== undefined
+        ? { endPauseCount: preservedParams.endPauseCount }
+        : startupSceneParams.endPauseCount !== undefined
+          ? { endPauseCount: startupSceneParams.endPauseCount }
+          : {}
+    ),
   };
 }
 

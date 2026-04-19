@@ -1,3 +1,32 @@
+# Task: Redo Initial Presets With Complete Startup Scenes
+
+## Plan
+- [x] Audit how startup state is currently split across `js/constants.js`, `js/presets.js`, `js/patterns.js`, `js/state.js`, and `js/audio-state-controller.js`, especially which parameters can be preset-scoped versus global-only.
+- [x] Introduce one explicit startup scene source of truth so the initial mixer channels define complete musical startup state: per-channel synth params, arpeggio notes, enabled pitch classes, enabled octave rows, and any shared global delay/LFO settings.
+- [x] Rework the eight initial channel presets to use all relevant parameters musically, without forcing every effect onto every instrument.
+- [x] Add focused startup-scene verification for per-channel parameter hydration and octave-enable state, then run the relevant task tests plus `npm run build`.
+- [x] Record implementation notes, review results, and any correction guardrail in `tasks/lessons.md`.
+
+## Progress Notes
+- Reworked the eight startup channel sounds in `js/constants.js` so the initial `warm`, `pluck`, `organ`, `bass`, `glass`, `acid`, `noisy`, and `deep` presets now define complete instrument-scoped parameter sets, including sends, post-filter settings, transient shaping, distortion feedback, and wave/envelope/filter values.
+- Added `INITIAL_CHANNEL_SCENES` in `js/constants.js` so the startup arrangement is deterministic per channel: channel volume, pan, note length, pause settings, enabled pitch classes, enabled octave-row buttons, and the concrete startup note IDs are now all explicit instead of random.
+- Updated `js/presets.js` and `js/patterns.js` so startup scene data is used on first initialization only, while later user edits and channel reassignments still preserve channel-local state.
+- Rebalanced the shared startup controls in `INITIAL_SYNTH_PARAMS` so the opening scene also sets both delays and the filter LFO intentionally, while individual instruments decide musically whether they actually feed those shared FX.
+- Added `tasks/initial-startup-scene-test.mjs` to lock the new startup scene behavior, then corrected two older tests that had been implicitly relying on the previous “all octave rows enabled” default for `warm`.
+
+## Review
+- `get_errors` reported no blocking errors in the edited source, task, and lesson files; only pre-existing/non-blocking IDE warnings remain for older unused exports/helpers such as `DEFAULT_NOTE_IDS`, `getPresetCategoryLabel(...)`, and `updateSelectedNotesFromUI()`.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-octave-row-toggle-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-apply-selected-channels-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-note-transpose-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-main-key-highlight-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-note-range-test.mjs` passed.
+- `npm run build` completed successfully after the startup preset redesign.
+
+---
+
 # Task: Move Instrument Arpeggio On/Off Buttons To The Right
 
 ## Plan

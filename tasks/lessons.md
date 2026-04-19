@@ -63,3 +63,4 @@
 - When a user says a newly added UI control is missing, inspect both the real source and the built artifact before assuming the feature failed to land; sometimes the control exists but needs stronger labeling or visual contrast to be discoverable.
 - When a user describes a control relative to a named UI section (for example “below the key buttons section”), place it in that exact section instead of a nearby related panel; semantic proximity is not the same as the requested location.
 - When a focused runtime check fails before any assertions run, inspect the test file itself for accidental leading characters or other parse-level damage before assuming the feature logic is broken.
+- When startup scenes become more explicit, do not let focused controller tests rely on old default channel states; set the required octave/note/pitch-class baseline inside each test so preset redesigns do not create false failures.

@@ -20,6 +20,7 @@ controller.addEventListener("error", (event) => {
 
 controller.initialize();
 controller.selectInstrument("warm");
+state.instrumentArpeggioOctavesByPresetId.warm = [3, 4, 5, 6];
 state.instrumentNoteIdsByPresetId.warm = ["note-c4", "note-e4", "note-g4"];
 
 assert.equal(controller.toggleNote("note-c3"), true, "controller should accept the new lowest note");
