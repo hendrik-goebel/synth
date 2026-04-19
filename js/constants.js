@@ -108,6 +108,7 @@ export const PITCH_CLASS_OPTIONS = [
 ];
 export const CIRCLE_OF_FIFTHS_KEY_ORDER = ["c", "g", "d", "a", "e", "b", "fs", "cs", "gs", "ds", "as", "f"];
 export const DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX = 0;
+export const ARPEGGIO_HISTORY_LIMIT = 32;
 
 const MAJOR_KEY_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
 const PITCH_CLASS_KEY_ORDER = PITCH_CLASS_OPTIONS.map(({ key }) => key);

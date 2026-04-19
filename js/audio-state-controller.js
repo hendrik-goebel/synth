@@ -1,4 +1,5 @@
 import {
+  ARPEGGIO_HISTORY_LIMIT,
   ARPEGGIO_OCTAVE_OPTIONS,
   CLEAN_DELAY_REPETITIONS_MAX,
   CLEAN_DELAY_REPETITIONS_MIN,
@@ -56,7 +57,107 @@ function toNumber(value) {
   return Number.isNaN(numeric) ? null : numeric;
 }
 
+function captureArpeggioSnapshot() {
+  const presetIds = getPresetIds();
+  const channels = {};
+
+  presetIds.forEach((presetId) => {
+    ensureInstrumentNoteState(presetId);
+    channels[presetId] = {
+      enabledPitchClasses: getEnabledArpeggioPitchClasses(presetId),
+      enabledOctaves: getEnabledArpeggioOctaves(presetId),
+      noteIds: state.instrumentNoteIdsByPresetId[presetId]?.slice() || [],
+    };
+  });
+
+  return {
+    globalArpeggioKeyIndex: state.globalArpeggioKeyIndex,
+    channels,
+  };
+}
+
+function restoreArpeggioSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return false;
+  }
+
+  state.globalArpeggioKeyIndex = normalizeCircleOfFifthsKeyIndex(snapshot.globalArpeggioKeyIndex);
+
+  getPresetIds().forEach((presetId) => {
+    const channelSnapshot = snapshot.channels?.[presetId];
+    if (!channelSnapshot) {
+      ensureInstrumentNoteState(presetId);
+      return;
+    }
+
+    state.instrumentArpeggioPitchClassesByPresetId[presetId] = Array.isArray(channelSnapshot.enabledPitchClasses)
+      ? channelSnapshot.enabledPitchClasses.slice()
+      : getEnabledArpeggioPitchClasses(presetId);
+    state.instrumentArpeggioOctavesByPresetId[presetId] = Array.isArray(channelSnapshot.enabledOctaves)
+      ? channelSnapshot.enabledOctaves.slice().sort((left, right) => left - right)
+      : getEnabledArpeggioOctaves(presetId);
+    state.instrumentNoteIdsByPresetId[presetId] = Array.isArray(channelSnapshot.noteIds)
+      ? channelSnapshot.noteIds.slice()
+      : getSelectedInstrumentNoteIds(presetId);
+    rebuildInstrumentPattern(presetId);
+  });
+
+  return true;
+}
+
+function areArpeggioSnapshotsEqual(left, right) {
+  if (!left || !right) {
+    return false;
+  }
+
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function getArpeggioHistoryStepAvailability() {
+  const storedSnapshotCount = state.arpeggioHistorySnapshots.length;
+  const isLivePosition = storedSnapshotCount > 0 && state.arpeggioHistoryIndex === storedSnapshotCount - 1;
+  const canStepPrev = storedSnapshotCount > 0 && state.arpeggioHistoryIndex > 0;
+  const canStepNext = storedSnapshotCount > 0 && state.arpeggioHistoryIndex < storedSnapshotCount - 1;
+  const historyLength = storedSnapshotCount;
+  const historyPosition = historyLength === 0 ? 0 : state.arpeggioHistoryIndex + 1;
+
+  return {
+    snapshotCount: storedSnapshotCount,
+    historyLength,
+    historyPosition,
+    index: isLivePosition ? storedSnapshotCount : state.arpeggioHistoryIndex,
+    isLivePosition,
+    canStepPrev,
+    canStepNext,
+  };
+}
+
 export class AudioStateController extends EventTarget {
+  storeCurrentArpeggioSnapshot() {
+    const currentSnapshot = captureArpeggioSnapshot();
+    const snapshotCount = state.arpeggioHistorySnapshots.length;
+    const isBrowsingOlderHistory = snapshotCount > 0 && state.arpeggioHistoryIndex < snapshotCount - 1;
+
+    if (isBrowsingOlderHistory) {
+      state.arpeggioHistorySnapshots = state.arpeggioHistorySnapshots.slice(0, state.arpeggioHistoryIndex + 1);
+    }
+
+    const lastSnapshot = state.arpeggioHistorySnapshots.at(-1);
+    if (!areArpeggioSnapshotsEqual(lastSnapshot, currentSnapshot)) {
+      state.arpeggioHistorySnapshots.push(currentSnapshot);
+    }
+
+    if (state.arpeggioHistorySnapshots.length > ARPEGGIO_HISTORY_LIMIT) {
+      state.arpeggioHistorySnapshots = state.arpeggioHistorySnapshots.slice(-ARPEGGIO_HISTORY_LIMIT);
+    }
+
+    state.arpeggioHistoryIndex = state.arpeggioHistorySnapshots.length === 0
+      ? 0
+      : state.arpeggioHistorySnapshots.length - 1;
+
+    return getArpeggioHistoryStepAvailability();
+  }
+
   initialize() {
     state.activePresetIds.forEach((presetId) => {
       getInstrumentParams(presetId);
@@ -356,6 +457,49 @@ export class AudioStateController extends EventTarget {
     return true;
   }
 
+  stepArpeggioHistory(step) {
+    const numericStep = Number.parseInt(step, 10);
+    if (!Number.isInteger(numericStep) || numericStep === 0) {
+      this.emitError("Arpeggio history step must be a non-zero integer", { step });
+      return false;
+    }
+
+    const direction = numericStep > 0 ? 1 : -1;
+    const snapshotCount = state.arpeggioHistorySnapshots.length;
+    if (snapshotCount === 0) {
+      this.emitError("No stored arpeggio presets available yet", { step: direction });
+      return false;
+    }
+
+    if (direction < 0) {
+      if (state.arpeggioHistoryIndex > 0) {
+        state.arpeggioHistoryIndex -= 1;
+      } else {
+        this.emitError("Already at the oldest stored arpeggio preset", { step: direction });
+        return false;
+      }
+
+      restoreArpeggioSnapshot(state.arpeggioHistorySnapshots[state.arpeggioHistoryIndex]);
+    } else if (state.arpeggioHistoryIndex < snapshotCount - 1) {
+      state.arpeggioHistoryIndex += 1;
+      restoreArpeggioSnapshot(state.arpeggioHistorySnapshots[state.arpeggioHistoryIndex]);
+    } else {
+      this.emitError("Already at the newest arpeggio preset", { step: direction });
+      return false;
+    }
+
+    const historyState = getArpeggioHistoryStepAvailability();
+    this.emitAction("arpeggio-history-stepped", {
+      step: direction,
+      ...historyState,
+    });
+    this.emitStateChange("arpeggio-history-stepped", {
+      step: direction,
+      ...historyState,
+    });
+    return true;
+  }
+
   applyActiveArpeggioSettingsToChannels(targetPresetIds = getPresetIds()) {
     if (!Array.isArray(targetPresetIds)) {
       this.emitError("Selected channels must be provided as an array", { targetPresetIds });
@@ -397,15 +541,19 @@ export class AudioStateController extends EventTarget {
       );
     });
 
+    const historyState = this.storeCurrentArpeggioSnapshot();
+
     this.emitAction("arpeggio-settings-applied-to-all", {
       sourcePresetId,
       enabledPitchClasses: sourcePitchClasses.slice(),
       updatedPresetIds: normalizedTargetPresetIds,
+      ...historyState,
     });
     this.emitStateChange("arpeggio-settings-applied", {
       sourcePresetId,
       enabledPitchClasses: sourcePitchClasses.slice(),
       updatedPresetIds: normalizedTargetPresetIds,
+      ...historyState,
     });
     return true;
   }

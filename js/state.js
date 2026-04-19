@@ -38,6 +38,8 @@ export const state = {
   instrumentNoteLengthInitializedByPresetId: {},
   instrumentPatternsByPresetId: {},
   globalArpeggioKeyIndex: DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX,
+  arpeggioHistorySnapshots: [],
+  arpeggioHistoryIndex: 0,
   activeInstrumentPresetId: DEFAULT_PRESET_ID,
   playingPresetIds: new Set(),
 };

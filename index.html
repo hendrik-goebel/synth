@@ -33,6 +33,25 @@
         </section>
         <section class="controls controls--global controls-global-panel" aria-label="Global settings">
 
+          <div class="control-group control-group--global-key">
+            <h3 class="control-group-title">Global Key</h3>
+            <div class="global-key-panel" aria-label="Current global arpeggio key and notes">
+              <div class="global-key-header">
+                <span class="global-key-tonic-label">Tonic</span>
+                <span id="global-key-value" class="global-key-tonic-value">C</span>
+              </div>
+              <div id="global-key-note-list" class="global-key-note-list" aria-label="Notes in the current global key">
+                <span class="global-key-note-chip">C</span>
+                <span class="global-key-note-chip">D</span>
+                <span class="global-key-note-chip">E</span>
+                <span class="global-key-note-chip">F</span>
+                <span class="global-key-note-chip">G</span>
+                <span class="global-key-note-chip">A</span>
+                <span class="global-key-note-chip">B</span>
+              </div>
+            </div>
+          </div>
+
           <div class="control-group">
             <h3 class="control-group-title">Timing</h3>
             <div class="control-group-items">
@@ -265,6 +284,11 @@
              </div>
            </section>
            <div class="settings-dialog-actions">
+              <div class="settings-dialog-history-actions" aria-label="Stored arpeggio preset navigation">
+                <button id="arpeggio-settings-history-prev" type="button" class="control-toggle-btn settings-history-btn" disabled aria-disabled="true">Prev</button>
+                 <span id="arpeggio-settings-history-position" class="settings-history-position" aria-live="polite">0 / 0</span>
+                <button id="arpeggio-settings-history-next" type="button" class="control-toggle-btn settings-history-btn" disabled aria-disabled="true">Next</button>
+              </div>
              <button id="arpeggio-settings-apply" type="button" class="control-toggle-btn settings-apply-btn">Apply</button>
            </div>
          </div>

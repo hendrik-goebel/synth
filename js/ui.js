@@ -43,6 +43,9 @@ let arpeggioSettingsToggleElement = null;
 let arpeggioSettingsDialogElement = null;
 let arpeggioSettingsCloseElement = null;
 let arpeggioSettingsApplyElement = null;
+let arpeggioSettingsHistoryPrevElement = null;
+let arpeggioSettingsHistoryNextElement = null;
+let arpeggioSettingsHistoryPositionElement = null;
 let arpeggioSettingsKeyPrevElement = null;
 let arpeggioSettingsKeyNextElement = null;
 let arpeggioSettingsKeyValueElement = null;
@@ -107,6 +110,27 @@ function getArpeggioSettingsApplyElement() {
     arpeggioSettingsApplyElement = document.getElementById("arpeggio-settings-apply");
   }
   return arpeggioSettingsApplyElement;
+}
+
+function getArpeggioSettingsHistoryPrevElement() {
+  if (!arpeggioSettingsHistoryPrevElement) {
+    arpeggioSettingsHistoryPrevElement = document.getElementById("arpeggio-settings-history-prev");
+  }
+  return arpeggioSettingsHistoryPrevElement;
+}
+
+function getArpeggioSettingsHistoryNextElement() {
+  if (!arpeggioSettingsHistoryNextElement) {
+    arpeggioSettingsHistoryNextElement = document.getElementById("arpeggio-settings-history-next");
+  }
+  return arpeggioSettingsHistoryNextElement;
+}
+
+function getArpeggioSettingsHistoryPositionElement() {
+  if (!arpeggioSettingsHistoryPositionElement) {
+    arpeggioSettingsHistoryPositionElement = document.getElementById("arpeggio-settings-history-position");
+  }
+  return arpeggioSettingsHistoryPositionElement;
 }
 
 function getArpeggioSettingsKeyPrevElement() {
@@ -198,6 +222,39 @@ function syncArpeggioSettingsChannelButtons() {
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
   });
+}
+
+function syncArpeggioHistoryButtons() {
+  const prevButton = getArpeggioSettingsHistoryPrevElement();
+  const nextButton = getArpeggioSettingsHistoryNextElement();
+  const positionLabel = getArpeggioSettingsHistoryPositionElement();
+  const storedSnapshotCount = state.arpeggioHistorySnapshots.length;
+  const isLivePosition = storedSnapshotCount > 0 && state.arpeggioHistoryIndex === storedSnapshotCount - 1;
+  const canStepPrev = storedSnapshotCount > 0 && state.arpeggioHistoryIndex > 0;
+  const canStepNext = storedSnapshotCount > 0 && state.arpeggioHistoryIndex < storedSnapshotCount - 1;
+  const historyLength = storedSnapshotCount;
+  const historyPosition = historyLength === 0 ? 0 : state.arpeggioHistoryIndex + 1;
+
+  if (prevButton) {
+    prevButton.disabled = !canStepPrev;
+    prevButton.setAttribute("aria-disabled", String(!canStepPrev));
+  }
+
+  if (nextButton) {
+    nextButton.disabled = !canStepNext;
+    nextButton.setAttribute("aria-disabled", String(!canStepNext));
+  }
+
+  if (positionLabel) {
+    positionLabel.textContent = `${historyPosition} / ${historyLength}`;
+    positionLabel.classList.toggle("is-live", isLivePosition && historyLength > 0);
+    positionLabel.setAttribute(
+      "aria-label",
+      historyLength === 0
+        ? "History position 0 of 0"
+        : `History position ${historyPosition} of ${historyLength}${isLivePosition ? ", current state" : ""}`,
+    );
+  }
 }
 
 // Cache control config entries once
@@ -512,6 +569,14 @@ export function syncArpeggioOctaveRowUI(presetId = state.activeInstrumentPresetI
   });
 }
 
+function syncArpeggioSettingsHistoryView(presetId = state.activeInstrumentPresetId) {
+  syncGlobalArpeggioKeyUI();
+  syncArpeggioSettingsNoteButtons(presetId);
+  syncArpeggioOctaveRowUI(presetId);
+  syncNoteButtonsFromActiveInstrumentPage();
+  syncArpeggioHistoryButtons();
+}
+
 export function syncControlsFromActiveInstrumentPage() {
   const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
 
@@ -528,8 +593,7 @@ export function syncControlsFromActiveInstrumentPage() {
     instrumentParams.deadNoteAtEnd ?? 0,
     instrumentParams.endPauseCount ?? DEAD_NOTE_PAUSE_COUNT_MIN,
   );
-  syncGlobalArpeggioKeyUI();
-  syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+  syncArpeggioSettingsHistoryView(state.activeInstrumentPresetId);
   updateTransportUI();
 }
 
@@ -722,6 +786,8 @@ export function bindSettingsDialog(controller) {
   const dialog = getArpeggioSettingsDialogElement();
   const closeButton = getArpeggioSettingsCloseElement();
   const applyButton = getArpeggioSettingsApplyElement();
+  const historyPrevButton = getArpeggioSettingsHistoryPrevElement();
+  const historyNextButton = getArpeggioSettingsHistoryNextElement();
   const keyPrevButton = getArpeggioSettingsKeyPrevElement();
   const keyNextButton = getArpeggioSettingsKeyNextElement();
 
@@ -733,6 +799,7 @@ export function bindSettingsDialog(controller) {
     resetArpeggioApplyChannelSelection();
     syncGlobalArpeggioKeyUI();
     syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+    syncArpeggioHistoryButtons();
 
     if (typeof dialog.showModal === "function") {
       if (!dialog.open) {
@@ -761,6 +828,18 @@ export function bindSettingsDialog(controller) {
   keyNextButton?.addEventListener("click", () => {
     controller?.stepGlobalArpeggioKey(1);
   });
+  historyPrevButton?.addEventListener("click", () => {
+    const changed = controller?.stepArpeggioHistory(-1);
+    if (changed) {
+      syncArpeggioSettingsHistoryView(state.activeInstrumentPresetId);
+    }
+  });
+  historyNextButton?.addEventListener("click", () => {
+    const changed = controller?.stepArpeggioHistory(1);
+    if (changed) {
+      syncArpeggioSettingsHistoryView(state.activeInstrumentPresetId);
+    }
+  });
   applyButton?.addEventListener("click", () => {
     const selectedChannelIds = Array.from(selectedArpeggioApplyChannelIds);
     const applied = controller?.applyActiveArpeggioSettingsToChannels(selectedChannelIds);
@@ -769,6 +848,7 @@ export function bindSettingsDialog(controller) {
     }
 
     syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+    syncArpeggioHistoryButtons();
     if (selectedChannelIds.includes(state.activeInstrumentPresetId)) {
       syncNoteButtonsFromActiveInstrumentPage();
     }
@@ -989,17 +1069,27 @@ export function bindControllerEvents(controller) {
     }
 
     if (type === "global-arpeggio-key-updated") {
-      syncGlobalArpeggioKeyUI();
-      syncNoteButtonsFromActiveInstrumentPage();
-      syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+      syncArpeggioSettingsHistoryView(state.activeInstrumentPresetId);
       return;
     }
 
     if (type === "arpeggio-settings-applied" || type === "arpeggio-settings-applied-to-all") {
       const updatedPresetIds = event.detail.updatedPresetIds || [];
       syncArpeggioSettingsNoteButtons(state.activeInstrumentPresetId);
+      syncArpeggioHistoryButtons();
       if (updatedPresetIds.includes(state.activeInstrumentPresetId)) {
         syncNoteButtonsFromActiveInstrumentPage();
+      }
+      return;
+    }
+
+    if (type === "arpeggio-history-stepped") {
+      syncArpeggioSettingsHistoryView(state.activeInstrumentPresetId);
+      if (statusLabel) {
+        const { historyPosition, historyLength, isLivePosition } = event.detail;
+        statusLabel.textContent = isLivePosition
+          ? `Loaded current arpeggio preset ${historyPosition} of ${historyLength}`
+          : `Loaded stored arpeggio preset ${historyPosition} of ${historyLength}`;
       }
       return;
     }

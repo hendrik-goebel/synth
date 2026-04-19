@@ -1,3 +1,117 @@
+# Task: Refresh Global Arpeggio Settings View On History Navigation
+
+## Plan
+- [x] Trace the current history back/forward flow and isolate the specific arpeggio-settings view elements that must refresh: selected settings notes, active note grid, and key display.
+- [x] Add one dedicated history-view sync path in `js/ui.js` and invoke it directly when stepping history so the visible settings view stays aligned even before any broader controller resync path runs.
+- [x] Verify with focused regression checks plus `npm run build`, then document the result.
+
+## Progress Notes
+- Added `syncArpeggioSettingsHistoryView(...)` in `js/ui.js` so the history navigation path now refreshes the exact visible arpeggio-settings surface in one place: global key display, settings-note buttons, octave-row state, active note grid, and history controls.
+- Updated the `Prev` / `Next` click handlers in `bindSettingsDialog(...)` to call that dedicated sync helper immediately after a successful history step, and reused the same helper for `global-arpeggio-key-updated` plus `arpeggio-history-stepped` handling.
+- Added `tasks/global-arpeggio-history-ui-sync-test.mjs`, a focused fake-DOM regression that verifies stepping history updates the visible settings key, selected settings-note buttons, persistent global key note chips, history position, and status text.
+- Recorded the correction in `tasks/lessons.md`: modal history/navigation flows need an explicit view-specific sync helper when the visible dialog state must update immediately.
+
+## Review
+- `get_errors` reported no blocking errors in the edited source, lesson, task, and new UI regression test files; only pre-existing/non-blocking warnings remain for older unused imports/methods and a few fake-test harness helpers.
+- `node --experimental-default-type=module tasks/global-arpeggio-history-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-arpeggio-history-ui-sync-test.mjs` passed.
+- `npm run build` completed successfully after adding the dedicated history-view refresh path.
+
+---
+
+# Task: Make Current Live State The Last Arpeggio History Element
+
+## Plan
+- [x] Revisit the arpeggio history semantics so the timeline matches the user's clarified model: history starts empty and every Apply appends the resulting current state.
+- [x] Update the controller/UI history metadata and position label so the newest applied state is the last current entry (`1/1`, `2/2`, `Prev` → `1/2`) instead of using a separate live slot.
+- [x] Verify with focused controller/UI history regressions plus `npm run build`, then document the result.
+
+## Progress Notes
+- Reworked the arpeggio history model in `js/audio-state-controller.js` from “stored snapshots plus a separate live state” into a pure applied-state timeline.
+- `Apply` now appends the resulting current state after regeneration, truncates future entries when applying from an older history position, and keeps the current index on the newest applied snapshot instead of one slot beyond it.
+- Removed the separate `arpeggioHistoryLiveSnapshot` state in `js/state.js` and aligned `js/ui.js` so the counter and status copy now read exactly like the user expectation: `0 / 0`, `1 / 1`, `2 / 2`, and `Prev` showing `1 / 2`.
+- Updated both `tasks/global-arpeggio-history-test.mjs` and `tasks/global-arpeggio-history-ui-sync-test.mjs` to assert the clarified semantics and view behavior.
+- Recorded the correction rule in `tasks/lessons.md`: when users think of history as applied presets, store the post-apply result as the newest entry instead of inventing a separate live state.
+- Updated `syncArpeggioHistoryButtons()` in `js/ui.js` so the visible badge now follows that same model: with two stored snapshots plus the current state, the counter reads `3 / 3` on the live state and `2 / 3` after one step back.
+- Extended `tasks/global-arpeggio-history-test.mjs` to assert that the emitted history metadata also treats the live state as the last logical element.
+- `get_errors` reported no blocking errors in the edited source, task, and lesson files; only pre-existing/non-blocking warnings remain for older unused methods/imports and a few fake-DOM helpers inside the UI regression harness.
+- `node --experimental-default-type=module tasks/global-arpeggio-history-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-arpeggio-history-ui-sync-test.mjs` passed.
+- `npm run build` completed successfully after switching arpeggio history to the pure applied-state timeline.
+
+## Review
+- `get_errors` reported no blocking errors in the edited source, test, lesson, and task files; only pre-existing/non-blocking warnings remain in `js/audio-state-controller.js` and `js/ui.js` for older unused methods/imports.
+- `node --experimental-default-type=module tasks/global-arpeggio-history-test.mjs` passed.
+- `npm run build` completed successfully after correcting the live-is-last history counter semantics.
+
+---
+
+# Task: Always Show Current Global Arpeggio History Position
+
+## Plan
+- [x] Inspect the existing arpeggio history controls and reuse their current state source so the visible position label cannot drift from Prev/Next behavior.
+- [x] Add an always-visible history position element in the settings dialog and update `js/ui.js` so it shows the current history number for empty, stored, and live positions.
+- [x] Verify with focused regression checks plus `npm run build`, then document the result.
+
+## Progress Notes
+- Reused the existing history-state source in `js/ui.js` instead of inventing new UI-local counters, so the new label is driven by the same snapshot count and cursor logic as the `Prev` / `Next` disabled states.
+- Added `#arpeggio-settings-history-position` in `index.html` between the history navigation buttons and updated `syncArpeggioHistoryButtons()` in `js/ui.js` so the dialog now always shows a numeric position such as `0 / 0`, `1 / 3`, or `3 / 3`.
+- Added compact styling for the position badge in `css/style.css`, including a subtle live-state highlight while still keeping the number visible at all times.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `index.html`, `js/ui.js`, `css/style.css`, and `tasks/todo.md` files; only pre-existing/non-blocking warnings remain in `js/ui.js` for older unused imports/functions.
+- `node --experimental-default-type=module tasks/global-arpeggio-history-test.mjs` passed.
+- `npm run build` completed successfully after adding the persistent history position label.
+- Built-output inspection (`grep "arpeggio-settings-history-position\|0 / 0" dist/index.html`) confirmed the production HTML contains the new always-visible history-number element.
+
+---
+
+# Task: Restore Global Arpeggio Notes View During History Navigation
+
+## Plan
+- [x] Trace the history-step UI sync path and confirm whether the visible global arpeggio notes view is missing a repaint or missing the expected DOM targets entirely.
+- [x] Restore the global key / note-chip view in `index.html` so the existing shared `syncGlobalArpeggioKeyUI()` path has real elements to update during history stepping.
+- [x] Verify the fix with focused source/build inspection plus the existing history/arpeggio regression tests and `npm run build`.
+
+## Progress Notes
+- Traced the repaint path and confirmed the controller/UI history flow was already calling `syncGlobalArpeggioKeyUI()`; the real issue was that `index.html` no longer contained the `#global-key-value` and `#global-key-note-list` elements that `js/ui.js` was trying to update.
+- Restored the missing persistent `Global Key` panel markup in `index.html`, including the tonic label and the note-chip row, so history stepping now has a real visible target for the already-existing sync logic.
+- Recorded the correction in `tasks/lessons.md`: when a view stops updating, verify the expected DOM ids still exist before assuming the state/event flow is wrong.
+
+## Review
+- `get_errors` reported no errors in the edited `index.html`, `tasks/todo.md`, and `tasks/lessons.md` files.
+- `node --experimental-default-type=module tasks/global-arpeggio-history-test.mjs` passed.
+- `npm run build` completed successfully after restoring the global key panel markup.
+- Built-output inspection (`grep "global-key-value\|global-key-note-list" dist/index.html`) confirmed the production HTML now contains the DOM targets used by `syncGlobalArpeggioKeyUI()`.
+
+---
+
+# Task: Add Global Arpeggio History Store With Prev/Next Navigation
+
+## Plan
+- [x] Inspect the current global arpeggio Apply flow, dialog bindings, and per-channel arpeggio state so history captures the real source of truth.
+- [x] Add a bounded global arpeggio history store (max 32 snapshots) plus snapshot capture/restore helpers for key, enabled pitch classes, enabled octaves, and concrete note IDs.
+- [x] Capture the current arpeggio state immediately before every settings Apply, then add Prev/Next dialog buttons that step through stored presets and keep the dialog/main note UI synchronized.
+- [x] Add a focused controller-level history test, run relevant arpeggio checks plus `npm run build`, and document the review.
+
+## Progress Notes
+- Added `ARPEGGIO_HISTORY_LIMIT` in `js/constants.js` plus new shared history fields in `js/state.js` so the app now keeps a bounded global arpeggio snapshot store, a current history cursor, and a cached live state for redo-style forward navigation.
+- Extended `js/audio-state-controller.js` with arpeggio snapshot capture/restore helpers and `stepArpeggioHistory(...)`; every successful settings Apply now stores the current global arpeggio state before regeneration, trims the store to 32 entries, and lets Prev/Next restore exact prior key / pitch-class / octave / note-ID combinations.
+- Updated the arpeggio settings dialog in `index.html`, `css/style.css`, and `js/ui.js` with new `Prev` / `Next` buttons, disabled-state syncing, and UI refresh logic so stepping through stored presets immediately resyncs the dialog plus the active instrument note grid.
+- Added `tasks/global-arpeggio-history-test.mjs` to verify snapshot storage, backward/forward navigation, live-state restoration, and the 32-entry cap.
+- Verification correction: the first history implementation used `getSelectedInstrumentNoteIds(...)` during snapshot capture, which unintentionally normalized note IDs on untouched channels; switched snapshot capture to read raw stored note arrays instead and recorded the guardrail in `tasks/lessons.md`.
+
+## Review
+- `get_errors` reported no blocking errors in the edited source, HTML, CSS, test, and task files; only pre-existing/non-blocking warnings remain for older unused exports/imports such as `DEFAULT_NOTE_IDS`, `POST_FILTER_TYPE_LABELS`, and a few unused controller/UI methods.
+- `node --experimental-default-type=module tasks/global-arpeggio-history-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-apply-selected-channels-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-note-transpose-test.mjs` passed.
+- `node --experimental-default-type=module tasks/arpeggio-octave-row-toggle-test.mjs` passed.
+- `npm run build` completed successfully after adding the global arpeggio history store and Prev/Next navigation.
+
+---
+
 # Task: Redo Initial Presets With Complete Startup Scenes
 
 ## Plan

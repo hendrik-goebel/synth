@@ -950,7 +950,48 @@ body {
 .settings-dialog-actions {
   margin-top: 1rem;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.settings-dialog-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.settings-history-btn {
+  min-width: 4.2rem;
+}
+
+.settings-history-position {
+  min-width: 4.9rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid #334155;
+  border-radius: 0.45rem;
+  background: #0b1220;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.settings-history-position.is-live {
+  border-color: #0ea5e9;
+  color: #e0f2fe;
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.22);
+}
+
+.settings-history-btn:disabled {
+  cursor: not-allowed;
+  border-color: #334155;
+  background: #0b1220;
+  color: #64748b;
+  box-shadow: none;
 }
 
 .settings-apply-btn {
