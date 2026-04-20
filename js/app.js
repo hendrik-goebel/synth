@@ -5,6 +5,7 @@ import {
   bindDeadNoteToggle,
   bindDelayToggleButtons,
   bindGlobalKeyActions,
+  bindStateSeedControls,
   bindGlobalTransportControls,
   bindNoteSelector,
   bindMixerChannels,
@@ -12,6 +13,7 @@ import {
   bindPostFilterTypeToggle,
   bindSettingsDialog,
 } from "./ui.js";
+import { getStateSeedFromLocation } from "./state-seed.js";
 
 const audioStateController = new AudioStateController();
 
@@ -19,6 +21,7 @@ bindControllerEvents(audioStateController);
 bindControls();
 bindDelayToggleButtons(audioStateController);
 bindGlobalKeyActions(audioStateController);
+bindStateSeedControls(audioStateController);
 bindGlobalTransportControls(audioStateController);
 bindNoteSelector(audioStateController);
 bindDeadNoteToggle(audioStateController);
@@ -27,7 +30,7 @@ bindMixerChannels(audioStateController);
 bindKeyboardShortcuts(audioStateController);
 bindPostFilterTypeToggle(audioStateController);
 
-audioStateController.initialize();
+audioStateController.initialize({ seed: getStateSeedFromLocation() });
 
 window.audioStateController = audioStateController;
 

@@ -15,6 +15,7 @@ Small Web Audio demo that plays an up-and-down arpeggio loop with a shared circl
 - Per-instrument arpeggio notes (note buttons are saved per selected instrument)
 - Global arpeggio key stepping (`-` / `+`) in the settings dialog, following the circle of fifths and highlighting in-key pitch classes in both the settings dialog and the main instrument arpeggio grid
 - Global `t+` / `t-` buttons in the settings panel that transpose the active instrument's selected notes up or down inside the current key
+- Seed save/load controls for exporting the full current scene into a shareable seed and restoring it later, including startup restore from `?seed=...`
 - Per-instrument "Var" action that mutates only a random fraction of current notes using pentatonic replacements
 - Per-instrument transport control: Start/Stop affects only the currently selected instrument
 - Up-and-down arpeggio pattern initialized per instrument from a random pentatonic note set (2-5 notes)
@@ -48,6 +49,8 @@ Supported actions:
 - `stepGlobalArpeggioKey(step)`
 - `transposeActiveNotesByKeyStep(step, presetId?)`
 - `createNoteVariation(presetId?)`
+- `getStateSeed()`
+- `loadStateSeed(seed)`
 - `togglePlayback(presetId)`
 
 Events:

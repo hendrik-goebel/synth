@@ -1,3 +1,52 @@
+# Task: Restore Startup Randomization For Key, Instruments, Notes, Pauses, And Delay
+
+## Plan
+- [x] Inspect the current startup path in `js/app.js`, `js/audio-state-controller.js`, `js/patterns.js`, `js/presets.js`, and `js/state-seed.js` to confirm why fresh initialization no longer produces the expected randomized scene.
+- [x] Restore startup-only randomization when no seed is provided, and extend it to cover assigned instruments, arpeggio note pools/note IDs, global key, per-channel pause settings, and delay values.
+- [x] Keep seeded startup deterministic so loading a valid seed still bypasses randomization and restores the exact saved state.
+- [x] Update focused startup/seed regression tests to lock the intended behavior for both fresh loads and seeded loads.
+- [x] Run the relevant tests plus `npm run build`, then document the review and lesson.
+
+## Progress Notes
+- Extended `randomizeStartupState()` in `js/audio-state-controller.js` so fresh startup without a seed now randomizes the global key, assigned instruments, arpeggio pitch classes/note IDs, per-channel pause toggle/count, and both delay timing/value controls again.
+- Kept seeded startup deterministic by leaving the `initialize({ seed })` branch unchanged: valid seeds still load first and bypass startup randomization entirely.
+- Updated `tasks/initial-startup-scene-test.mjs` to verify the restored fresh-start randomness semantics while preserving the existing seeded round-trip regression in `tasks/state-seed-roundtrip-test.mjs`.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/audio-state-controller.js`, `tasks/initial-startup-scene-test.mjs`, and `tasks/todo.md` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `node --experimental-default-type=module tasks/state-seed-roundtrip-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/channel-mute-test.mjs` passed.
+- `npm run build` completed successfully after restoring the startup randomization flow.
+
+---
+
+# Task: Save And Load Current State Via Seed
+
+## Plan
+- [x] Inspect the current startup, controller, preset, and arpeggio state flow so the seed captures only stable user-editable composition data and not live audio/runtime objects.
+- [x] Add one versioned seed serialization/deserialization path for global params, global key, active channel, channel preset assignments, channel params, enabled pitch classes/octaves, and selected note IDs.
+- [x] Add UI controls to export the current seed and import a pasted seed, with clear success/error feedback and safe handling for invalid or partial input.
+- [x] Support loading a seed during startup from the URL so a saved seed can restore the same scene after reload/share.
+- [x] Add focused regression coverage for seed round-tripping and startup hydration, then run the relevant tests plus `npm run build`.
+
+## Progress Notes
+- Added `js/state-seed.js` as the dedicated seed boundary: it captures the stable app snapshot, encodes/decodes a versioned seed string, and provides small URL helper functions for `?seed=...` support.
+- Extended `AudioStateController` with `getStateSeed()` and `loadStateSeed(seed)`, plus startup hydration in `initialize({ seed })`; loading now normalizes globals, channel assignments, per-channel params, pitch classes, octaves, and note IDs in one pass before emitting a single seed-loaded statechange.
+- Added a compact `Seed` panel in `index.html` / `css/style.css`, then wired it in `js/ui.js` and `js/app.js` so `Save` generates a canonical seed, `Load` restores a pasted seed, and startup reads an optional seed from the current URL.
+- Added `tasks/state-seed-roundtrip-test.mjs` to verify seed export/import round-tripping, invalid-seed rejection, URL helper behavior, and startup hydration from a seed.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/app.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/state-seed.js`, `index.html`, `css/style.css`, `tasks/state-seed-roundtrip-test.mjs`, and `README.md` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/state-seed-roundtrip-test.mjs` passed.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `node --experimental-default-type=module tasks/global-arpeggio-key-test.mjs` passed.
+- `node --experimental-default-type=module tasks/channel-mute-test.mjs` passed.
+- `npm run build` completed successfully after the seed save/load implementation.
+
+---
+
 # Task: Cap Tape Delay Send At 0.10
 
 ## Plan

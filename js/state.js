@@ -41,6 +41,7 @@ export const state = {
   instrumentPatternsByPresetId: {},
   globalArpeggioKeyIndex: DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX,
   startupRandomizationApplied: false,
+  currentStateSeed: "",
   arpeggioHistorySnapshots: [],
   arpeggioHistoryIndex: 0,
   activeInstrumentPresetId: DEFAULT_PRESET_ID,

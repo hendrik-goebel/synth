@@ -28,13 +28,13 @@ try {
   Math.random = originalRandom;
 }
 
-assert.equal(state.synthParams.tempoBpm, 118, "startup scene should set the intended global tempo");
+assert.equal(state.synthParams.tempoBpm, 118, "startup scene should keep the intended base global tempo");
 assert.equal(state.synthParams.tapeDelayEnabled, 1, "tape delay should start enabled");
-assert.equal(state.synthParams.delayDivision, 4, "tape delay should start at the intended rhythmic division");
-assert.equal(state.synthParams.delayFeedback, 0.008, "tape delay feedback should use the shared startup value");
+assert.equal(state.synthParams.delayDivision, 0, "startup randomization should randomize the tape delay division on fresh load");
+assert.equal(state.synthParams.delayFeedback, 0.01, "startup randomization should randomize the tape delay feedback on fresh load");
 assert.equal(state.synthParams.cleanDelayEnabled, 1, "clean delay should start enabled");
-assert.equal(state.synthParams.cleanDelayDivision, 5, "clean delay should use its dedicated startup division");
-assert.equal(state.synthParams.cleanDelayRepetitions, 3, "clean delay repetitions should come from the startup scene");
+assert.equal(state.synthParams.cleanDelayDivision, 0, "startup randomization should randomize the clean delay division on fresh load");
+assert.equal(state.synthParams.cleanDelayRepetitions, 1, "startup randomization should randomize the clean delay repetitions on fresh load");
 assert.equal(state.synthParams.lfoTarget, 1, "startup scene should enable filter-cutoff LFO modulation");
 assert.equal(state.synthParams.lfoRate, 0.22, "startup LFO rate should be deterministic");
 assert.equal(state.synthParams.lfoDepth, 0.16, "startup LFO depth should be deterministic");
@@ -64,13 +64,13 @@ Object.entries(INITIAL_CHANNEL_SCENES).forEach(([channelId, scene]) => {
   );
   assert.equal(
     instrumentParams.deadNoteAtEnd,
-    scene.params.deadNoteAtEnd,
-    `${channelId} should hydrate its startup pause toggle state`,
+    1,
+    `${channelId} should randomize its startup pause toggle state on a fresh load`,
   );
   assert.equal(
     instrumentParams.endPauseCount,
-    scene.params.endPauseCount,
-    `${channelId} should hydrate its startup pause count`,
+    1,
+    `${channelId} should randomize its startup pause count on a fresh load`,
   );
 
   const assignedPresetId = getAssignedPresetId(channelId);
@@ -131,9 +131,9 @@ Object.entries(INITIAL_CHANNEL_SCENES).forEach(([channelId, scene]) => {
   });
 
   const pattern = getInstrumentPattern(channelId);
-  if (scene.params.deadNoteAtEnd) {
+  if (instrumentParams.deadNoteAtEnd) {
     assert.equal(
-      pattern.slice(-scene.params.endPauseCount).every((step) => step === null),
+      pattern.slice(-instrumentParams.endPauseCount).every((step) => step === null),
       true,
       `${channelId} should append the configured number of trailing pause steps`,
     );

@@ -37,21 +37,23 @@
         </section>
         <section class="controls controls--global controls-global-panel" aria-label="Global settings">
 
-          <div class="control-group control-group--global-key">
-            <h3 class="control-group-title">Global Key</h3>
-            <div class="global-key-panel" aria-label="Current global arpeggio key and notes">
-              <div class="global-key-header">
-                <span class="global-key-tonic-label">Tonic</span>
-                <span id="global-key-value" class="global-key-tonic-value">C</span>
-              </div>
-              <div id="global-key-note-list" class="global-key-note-list" aria-label="Notes in the current global key">
-                <span class="global-key-note-chip">C</span>
-                <span class="global-key-note-chip">D</span>
-                <span class="global-key-note-chip">E</span>
-                <span class="global-key-note-chip">F</span>
-                <span class="global-key-note-chip">G</span>
-                <span class="global-key-note-chip">A</span>
-                <span class="global-key-note-chip">B</span>
+          <div class="control-group control-group--seed">
+            <h3 class="control-group-title">Seed</h3>
+            <div class="seed-panel" aria-label="Save and load the current state via a seed">
+              <label class="seed-label" for="state-seed-input">Current seed</label>
+              <textarea
+                id="state-seed-input"
+                class="seed-input"
+                rows="3"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                autocorrect="off"
+                placeholder="Generate a seed, or paste one here to restore a saved state"
+              ></textarea>
+              <div class="seed-actions">
+                <button id="state-seed-save" type="button" class="control-toggle-btn seed-action-btn">Save</button>
+                <button id="state-seed-load" type="button" class="control-toggle-btn seed-action-btn">Load</button>
               </div>
             </div>
           </div>

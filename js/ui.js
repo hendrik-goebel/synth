@@ -31,6 +31,7 @@ import {
   getPresetIds,
   getPresetLabel,
 } from "./presets.js";
+import { replaceStateSeedInLocation } from "./state-seed.js";
 import { state } from "./state.js";
 import { clamp } from "./utils.js";
 
@@ -52,6 +53,9 @@ let globalKeyValueElement = null;
 let globalKeyNoteListElement = null;
 let globalPlayButtonElement = null;
 let globalStopButtonElement = null;
+let stateSeedInputElement = null;
+let stateSeedSaveElement = null;
+let stateSeedLoadElement = null;
 let globalKeyTransposeUpElement = null;
 let globalKeyTransposeDownElement = null;
 let settingsNoteButtonElements = null;
@@ -183,6 +187,27 @@ function getGlobalStopButtonElement() {
   return globalStopButtonElement;
 }
 
+function getStateSeedInputElement() {
+  if (!stateSeedInputElement) {
+    stateSeedInputElement = document.getElementById("state-seed-input");
+  }
+  return stateSeedInputElement;
+}
+
+function getStateSeedSaveElement() {
+  if (!stateSeedSaveElement) {
+    stateSeedSaveElement = document.getElementById("state-seed-save");
+  }
+  return stateSeedSaveElement;
+}
+
+function getStateSeedLoadElement() {
+  if (!stateSeedLoadElement) {
+    stateSeedLoadElement = document.getElementById("state-seed-load");
+  }
+  return stateSeedLoadElement;
+}
+
 function getGlobalKeyTransposeUpElement() {
   if (!globalKeyTransposeUpElement) {
     globalKeyTransposeUpElement = document.getElementById("global-key-transpose-up");
@@ -269,6 +294,18 @@ function syncArpeggioHistoryButtons() {
         ? "History position 0 of 0"
         : `History position ${historyPosition} of ${historyLength}${isLivePosition ? ", current state" : ""}`,
     );
+  }
+}
+
+function syncStateSeedField(seed = state.currentStateSeed) {
+  const seedInput = getStateSeedInputElement();
+  if (!seedInput) {
+    return;
+  }
+
+  const normalizedSeed = `${seed ?? ""}`.trim();
+  if (seedInput.value !== normalizedSeed) {
+    seedInput.value = normalizedSeed;
   }
 }
 
@@ -782,6 +819,42 @@ export function bindGlobalTransportControls(controller) {
   syncGlobalTransportButtons();
 }
 
+export function bindStateSeedControls(controller) {
+  const seedInput = getStateSeedInputElement();
+  const saveButton = getStateSeedSaveElement();
+  const loadButton = getStateSeedLoadElement();
+
+  if (!seedInput || !saveButton || !loadButton) {
+    return;
+  }
+
+  syncStateSeedField();
+
+  saveButton.addEventListener("click", () => {
+    const seed = controller.getStateSeed();
+    syncStateSeedField(seed);
+    replaceStateSeedInLocation(seed);
+  });
+
+  loadButton.addEventListener("click", () => {
+    const seed = seedInput.value.trim();
+    if (!seed) {
+      if (statusLabel) {
+        statusLabel.textContent = "Paste a state seed before loading";
+      }
+      return;
+    }
+
+    const loaded = controller.loadStateSeed(seed);
+    if (!loaded) {
+      return;
+    }
+
+    syncStateSeedField(state.currentStateSeed);
+    replaceStateSeedInLocation(state.currentStateSeed);
+  });
+}
+
 export function bindNoteLengthToggle(controller) {
   const button = document.getElementById("note-length-toggle");
   if (!button) {
@@ -1133,6 +1206,26 @@ export function bindControllerEvents(controller) {
 
     if (type === "initialized" || type === "instrument-selected") {
       syncControlsFromActiveInstrumentPage();
+      if (type === "initialized") {
+        syncStateSeedField(event.detail.seed);
+      }
+      return;
+    }
+
+    if (type === "seed-generated") {
+      syncStateSeedField(event.detail.seed);
+      if (statusLabel) {
+        statusLabel.textContent = "Saved current state to seed";
+      }
+      return;
+    }
+
+    if (type === "seed-loaded") {
+      syncControlsFromActiveInstrumentPage();
+      syncStateSeedField(event.detail.seed);
+      if (statusLabel) {
+        statusLabel.textContent = "Loaded state from seed";
+      }
       return;
     }
 

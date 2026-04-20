@@ -3,6 +3,7 @@ import {
   ARPEGGIO_OCTAVE_OPTIONS,
   CLEAN_DELAY_REPETITIONS_MAX,
   CLEAN_DELAY_REPETITIONS_MIN,
+  clampLfoRateHz,
   controlConfig,
   extractOctave,
   getCircleOfFifthsKeyLabel,
@@ -13,6 +14,7 @@ import {
   DELAY_DIVISION_OPTIONS,
   DISTORTION_FEEDBACK_MAX,
   GLOBAL_CONTROL_KEYS,
+  INITIAL_SYNTH_PARAMS,
   LFO_TARGET_OPTIONS,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
@@ -26,6 +28,7 @@ import {
   applyLiveChannelLevelUpdates,
   ensureAudioContext,
   pauseAllPlayback,
+  syncDelayTimeToTempo,
   startGlobalPlaybackFromBeginning,
   startPresetPlayback,
   stopAllPlayback,
@@ -49,6 +52,13 @@ import {
   getInstrumentParams,
   getPresetIds,
 } from "./presets.js";
+import {
+  decodeStateSeedString,
+  encodeStateSeedSnapshot,
+  STATE_SEED_CHANNEL_PARAM_KEYS,
+  STATE_SEED_GLOBAL_PARAM_KEYS,
+  STATE_SEED_VERSION,
+} from "./state-seed.js";
 import { state } from "./state.js";
 
 const validControlIds = new Set(Object.keys(controlConfig));
@@ -62,6 +72,8 @@ const validLfoTargetIndices = new Set(LFO_TARGET_OPTIONS.map((_, index) => index
 const validPitchClassKeys = new Set(PITCH_CLASS_OPTIONS.map(({ key }) => key));
 const validPostFilterTypes = new Set(POST_FILTER_TYPE_OPTIONS);
 const validArpeggioOctaves = new Set(ARPEGGIO_OCTAVE_OPTIONS);
+const noteIdOrderIndexMap = new Map(NOTE_OPTIONS.map(({ id }, index) => [id, index]));
+const validOscillatorTypes = new Set(["sine", "square", "sawtooth", "triangle"]);
 
 function shuffle(values) {
   const clone = values.slice();
@@ -76,6 +88,18 @@ function getRandomCount(minimum, maximum) {
   const safeMinimum = Math.max(0, Math.floor(minimum));
   const safeMaximum = Math.max(safeMinimum, Math.floor(maximum));
   return safeMinimum + Math.floor(Math.random() * (safeMaximum - safeMinimum + 1));
+}
+
+function getRandomBoolean(trueProbability = 0.5) {
+  return Math.random() < trueProbability ? 1 : 0;
+}
+
+function getRandomRoundedValue(minimum, maximum, precision = 0.001) {
+  const safeMinimum = Math.min(minimum, maximum);
+  const safeMaximum = Math.max(minimum, maximum);
+  const rawValue = safeMinimum + Math.random() * (safeMaximum - safeMinimum);
+  const step = precision > 0 ? precision : 0.001;
+  return Math.round(rawValue / step) * step;
 }
 
 function getRandomPitchClassSelection(keyPitchClasses) {
@@ -116,6 +140,15 @@ function getSafeEnabledOctaves(presetId) {
 function randomizeStartupState() {
   const channelIds = getPresetIds();
   state.globalArpeggioKeyIndex = Math.floor(Math.random() * PITCH_CLASS_OPTIONS.length);
+  state.synthParams.delayDivision = getRandomCount(0, DELAY_DIVISION_OPTIONS.length - 1);
+  state.synthParams.cleanDelayDivision = getRandomCount(0, DELAY_DIVISION_OPTIONS.length - 1);
+  state.synthParams.delayFeedback = getRandomRoundedValue(0.01, 0.72, 0.001);
+  state.synthParams.cleanDelayRepetitions = getRandomCount(
+    CLEAN_DELAY_REPETITIONS_MIN,
+    CLEAN_DELAY_REPETITIONS_MAX,
+  );
+  syncDelayTimeToTempo();
+
   const assignedPresetIds = getRandomAssignedPresetIds(channelIds.length);
   const keyPitchClasses = getPitchClassesForMajorKey(state.globalArpeggioKeyIndex);
 
@@ -123,6 +156,9 @@ function randomizeStartupState() {
     const assignedPresetId = assignedPresetIds[index] || channelId;
     applyAssignedPresetToChannel(channelId, assignedPresetId);
     ensureInstrumentNoteState(channelId);
+    const instrumentParams = getInstrumentParams(channelId);
+    instrumentParams.deadNoteAtEnd = getRandomBoolean(0.45);
+    instrumentParams.endPauseCount = getRandomCount(1, Math.min(6, DEAD_NOTE_PAUSE_COUNT_MAX));
 
     const enabledOctaves = getSafeEnabledOctaves(channelId);
     const enabledPitchClasses = getRandomPitchClassSelection(keyPitchClasses);
@@ -141,6 +177,180 @@ function randomizeStartupState() {
 function toNumber(value) {
   const numeric = Number.parseFloat(value);
   return Number.isNaN(numeric) ? null : numeric;
+}
+
+function clampNumber(value, minimum, maximum, fallback) {
+  const numeric = toNumber(value);
+  if (numeric === null) {
+    return fallback;
+  }
+
+  return Math.min(maximum, Math.max(minimum, numeric));
+}
+
+function sanitizeToggleValue(value, fallback = 0) {
+  const numeric = toNumber(value);
+  if (numeric === null) {
+    return fallback;
+  }
+
+  return numeric >= 0.5 ? 1 : 0;
+}
+
+function sanitizeSeedGlobalParamValue(key, value, fallback) {
+  switch (key) {
+    case "tempoBpm":
+      return clampNumber(value, 60, 220, fallback);
+    case "globalTimbre":
+      return clampNumber(value, -1, 1, fallback);
+    case "lfoTarget": {
+      const numeric = toNumber(value);
+      return numeric === null ? fallback : Math.max(0, Math.min(LFO_TARGET_OPTIONS.length - 1, Math.round(numeric)));
+    }
+    case "lfoRate":
+      return clampLfoRateHz(toNumber(value) ?? fallback);
+    case "lfoDepth":
+    case "reverbMix":
+    case "masterVolume":
+      return clampNumber(value, 0, 1, fallback);
+    case "tapeDelayEnabled":
+    case "cleanDelayEnabled":
+      return sanitizeToggleValue(value, fallback);
+    case "delayDivision":
+    case "cleanDelayDivision": {
+      const numeric = toNumber(value);
+      return numeric === null ? fallback : Math.max(0, Math.min(DELAY_DIVISION_OPTIONS.length - 1, Math.round(numeric)));
+    }
+    case "delayFeedback":
+      return clampNumber(value, 0, DELAY_FEEDBACK_MAX, fallback);
+    case "cleanDelayRepetitions": {
+      const numeric = toNumber(value);
+      return numeric === null
+        ? fallback
+        : Math.max(CLEAN_DELAY_REPETITIONS_MIN, Math.min(CLEAN_DELAY_REPETITIONS_MAX, Math.round(numeric)));
+    }
+    default:
+      return fallback;
+  }
+}
+
+function sanitizeSeedChannelParamValue(key, value, fallback) {
+  switch (key) {
+    case "attack":
+      return clampNumber(value, 0.001, 0.8, fallback);
+    case "decay":
+      return clampNumber(value, 0.01, 1.2, fallback);
+    case "release":
+      return clampNumber(value, 0.01, 0.8, fallback);
+    case "filterCutoff":
+      return clampNumber(value, 250, 8000, fallback);
+    case "filterTracking":
+      return clampNumber(value, 0, 2, fallback);
+    case "filterQ":
+      return clampNumber(value, 0.2, 12, fallback);
+    case "detuneSpread":
+      return clampNumber(value, 0, 20, fallback);
+    case "subLevel":
+    case "upperLevel":
+      return clampNumber(value, 0, 1.3, fallback);
+    case "stereoPan":
+      return clampNumber(value, -1, 1, fallback);
+    case "distortionDrive":
+    case "distortionMix":
+    case "reverbSend":
+    case "cleanDelaySend":
+    case "postFilterCutoff":
+    case "postFilterMix":
+    case "channelVolume":
+      return clampNumber(value, 0, 1, fallback);
+    case "distortionTone":
+      return clampNumber(value, 20, 20000, fallback);
+    case "distortionFeedback":
+      return clampNumber(value, 0, DISTORTION_FEEDBACK_MAX, fallback);
+    case "transientAmount":
+      return clampNumber(value, 0, 0.7, fallback);
+    case "transientDecay":
+      return clampNumber(value, 0.005, 0.08, fallback);
+    case "transientTone":
+      return clampNumber(value, 300, 6000, fallback);
+    case "pitchDropCents":
+      return clampNumber(value, 0, 240, fallback);
+    case "delaySend":
+      return clampNumber(value, 0, TAPE_DELAY_SEND_MAX, fallback);
+    case "deadNoteAtEnd":
+    case "channelMuted":
+      return sanitizeToggleValue(value, fallback);
+    case "endPauseCount": {
+      const numeric = toNumber(value);
+      return numeric === null
+        ? fallback
+        : Math.max(DEAD_NOTE_PAUSE_COUNT_MIN, Math.min(DEAD_NOTE_PAUSE_COUNT_MAX, Math.round(numeric)));
+    }
+    case "noteLength": {
+      const numeric = toNumber(value);
+      if (numeric === null) {
+        return fallback;
+      }
+
+      const rounded = Math.round(numeric);
+      return validNoteLengths.has(rounded) ? rounded : fallback;
+    }
+    case "postFilterType": {
+      const numeric = toNumber(value);
+      if (numeric === null) {
+        return fallback;
+      }
+
+      const rounded = Math.round(numeric);
+      return validPostFilterTypes.has(rounded) ? rounded : fallback;
+    }
+    case "postFilterQ":
+      return clampNumber(value, 0.1, 18, fallback);
+    case "oscAWave":
+    case "oscBWave":
+    case "subWave":
+      return typeof value === "string" && validOscillatorTypes.has(value) ? value : fallback;
+    default:
+      return toNumber(value) ?? fallback;
+  }
+}
+
+function normalizeSeedPitchClasses(values, fallback) {
+  const normalized = Array.isArray(values)
+    ? Array.from(new Set(values.filter((pitchClassKey) => validPitchClassKeys.has(pitchClassKey))))
+    : [];
+  return normalized.length > 0 ? normalized : fallback.slice();
+}
+
+function normalizeSeedOctaves(values, fallback) {
+  const normalized = Array.isArray(values)
+    ? Array.from(new Set(values.filter((octave) => validArpeggioOctaves.has(Number.parseInt(octave, 10)))))
+      .map((octave) => Number.parseInt(octave, 10))
+      .sort((left, right) => left - right)
+    : [];
+  return normalized.length > 0 ? normalized : fallback.slice();
+}
+
+function normalizeSeedNoteIds(values, enabledOctaves, fallback, enabledPitchClasses) {
+  const enabledOctaveSet = new Set(enabledOctaves);
+  const filterNoteIds = (noteIds) => Array.from(new Set(
+    Array.isArray(noteIds)
+      ? noteIds.filter((noteId) => validNoteIds.has(noteId) && enabledOctaveSet.has(extractOctave(noteId)))
+      : [],
+  )).sort((left, right) => noteIdOrderIndexMap.get(left) - noteIdOrderIndexMap.get(right));
+
+  const normalized = filterNoteIds(values);
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  const fallbackNoteIds = filterNoteIds(fallback);
+  if (fallbackNoteIds.length > 0) {
+    return fallbackNoteIds;
+  }
+
+  const eligibleNotePool = getEligibleRandomNotePoolFromPitchClasses(enabledPitchClasses, enabledOctaves);
+  return eligibleNotePool.length > 0 ? [eligibleNotePool[0]] : [NOTE_OPTIONS[0].id];
 }
 
 function captureArpeggioSnapshot() {
@@ -218,6 +428,73 @@ function getArpeggioHistoryStepAvailability() {
   };
 }
 
+function applySeedSnapshotToState(seedSnapshot) {
+  STATE_SEED_GLOBAL_PARAM_KEYS.forEach((key) => {
+    const fallback = state.synthParams[key] ?? INITIAL_SYNTH_PARAMS[key];
+    const nextValue = seedSnapshot.synthParams?.[key] === undefined
+      ? fallback
+      : sanitizeSeedGlobalParamValue(key, seedSnapshot.synthParams[key], fallback);
+    state.synthParams[key] = nextValue;
+  });
+
+  state.globalArpeggioKeyIndex = normalizeCircleOfFifthsKeyIndex(
+    seedSnapshot.globalArpeggioKeyIndex,
+  );
+
+  getPresetIds().forEach((channelId) => {
+    const channelSeed = seedSnapshot.channels?.[channelId] || {};
+    const assignedPresetId = validAssignablePresetIds.has(channelSeed.assignedPresetId)
+      ? channelSeed.assignedPresetId
+      : getAssignedPresetId(channelId);
+    const instrumentParams = applyAssignedPresetToChannel(channelId, assignedPresetId);
+
+    ensureInstrumentNoteState(channelId);
+
+    STATE_SEED_CHANNEL_PARAM_KEYS.forEach((key) => {
+      if (channelSeed.params?.[key] === undefined) {
+        return;
+      }
+
+      instrumentParams[key] = sanitizeSeedChannelParamValue(key, channelSeed.params[key], instrumentParams[key]);
+    });
+
+    const fallbackPitchClasses = getEnabledArpeggioPitchClasses(channelId);
+    const enabledPitchClasses = normalizeSeedPitchClasses(
+      channelSeed.enabledPitchClasses,
+      fallbackPitchClasses,
+    );
+    state.instrumentArpeggioPitchClassesByPresetId[channelId] = enabledPitchClasses;
+
+    const fallbackOctaves = getEnabledArpeggioOctaves(channelId);
+    const enabledOctaves = normalizeSeedOctaves(channelSeed.enabledOctaves, fallbackOctaves);
+    state.instrumentArpeggioOctavesByPresetId[channelId] = enabledOctaves;
+
+    const fallbackNoteIds = state.instrumentNoteIdsByPresetId[channelId]?.slice() || [];
+    state.instrumentNoteIdsByPresetId[channelId] = normalizeSeedNoteIds(
+      channelSeed.noteIds,
+      enabledOctaves,
+      fallbackNoteIds,
+      enabledPitchClasses,
+    );
+    state.instrumentNoteLengthInitializedByPresetId[channelId] = true;
+    rebuildInstrumentPattern(channelId);
+    applyLiveChannelLevelUpdates(channelId, instrumentParams);
+  });
+
+  if (validChannelIds.has(seedSnapshot.activeInstrumentPresetId)) {
+    state.activeInstrumentPresetId = seedSnapshot.activeInstrumentPresetId;
+  }
+
+  STATE_SEED_GLOBAL_PARAM_KEYS.forEach((key) => {
+    applyLiveAudioUpdates(key, state.synthParams[key]);
+  });
+
+  state.arpeggioHistorySnapshots = [];
+  state.arpeggioHistoryIndex = 0;
+  state.startupRandomizationApplied = true;
+  state.currentStateSeed = encodeStateSeedSnapshot();
+}
+
 export class AudioStateController extends EventTarget {
   emitTransportStateChange(type = "transport-state-updated", detail = {}) {
     this.emitStateChange(type, {
@@ -253,20 +530,83 @@ export class AudioStateController extends EventTarget {
     return getArpeggioHistoryStepAvailability();
   }
 
-  initialize() {
+  initialize({ seed = "" } = {}) {
     state.activePresetIds.forEach((presetId) => {
       getInstrumentParams(presetId);
       ensureInstrumentNoteState(presetId);
     });
 
-    if (!state.startupRandomizationApplied) {
+    const startupSeed = `${seed ?? ""}`.trim();
+    const loadedSeed = startupSeed ? this.loadStateSeed(startupSeed) : false;
+
+    if (!loadedSeed && !state.startupRandomizationApplied) {
       randomizeStartupState();
       state.startupRandomizationApplied = true;
+      state.currentStateSeed = "";
     }
 
     this.emitStateChange("initialized", {
       activeInstrumentPresetId: state.activeInstrumentPresetId,
+      seedLoaded: loadedSeed,
+      seed: state.currentStateSeed,
     });
+
+    return {
+      initialized: true,
+      seedLoaded: loadedSeed,
+    };
+  }
+
+  getStateSeed() {
+    state.currentStateSeed = encodeStateSeedSnapshot();
+
+    this.emitAction("state-seed-generated", {
+      seed: state.currentStateSeed,
+      version: STATE_SEED_VERSION,
+    });
+    this.emitStateChange("seed-generated", {
+      seed: state.currentStateSeed,
+      version: STATE_SEED_VERSION,
+    });
+
+    return state.currentStateSeed;
+  }
+
+  loadStateSeed(seed) {
+    let seedSnapshot;
+    try {
+      seedSnapshot = decodeStateSeedString(seed);
+    } catch (error) {
+      this.emitError("Invalid state seed", { seed, error });
+      return false;
+    }
+
+    if (!seedSnapshot || typeof seedSnapshot !== "object") {
+      this.emitError("Invalid state seed", { seed });
+      return false;
+    }
+
+    if (seedSnapshot.v !== STATE_SEED_VERSION) {
+      this.emitError(`Unsupported state seed version: ${seedSnapshot.v ?? "unknown"}`, {
+        seed,
+        version: seedSnapshot.v,
+      });
+      return false;
+    }
+
+    applySeedSnapshotToState(seedSnapshot);
+
+    this.emitAction("state-seed-loaded", {
+      seed: state.currentStateSeed,
+      version: STATE_SEED_VERSION,
+    });
+    this.emitStateChange("seed-loaded", {
+      seed: state.currentStateSeed,
+      version: STATE_SEED_VERSION,
+      activeInstrumentPresetId: state.activeInstrumentPresetId,
+    });
+
+    return true;
   }
 
   selectInstrument(presetId) {

@@ -558,6 +558,50 @@ body {
   white-space: nowrap;
 }
 
+.seed-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.seed-label {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.seed-input {
+  width: 100%;
+  min-height: 4.75rem;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #334155;
+  border-radius: 0.45rem;
+  background: #020617;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.seed-input:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.seed-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.seed-action-btn {
+  min-width: 0;
+  flex: 1 1 0;
+  justify-content: center;
+}
+
 .controls h2 {
   margin: 0 0 0.4rem;
   font-size: 1rem;
