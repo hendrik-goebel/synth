@@ -15,7 +15,6 @@ import {
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
-  POST_FILTER_TYPE_LABELS,
   uiValueFromDelayDivisionIndex,
 } from "./constants.js";
 import { statusLabel } from "./dom.js";
@@ -51,6 +50,8 @@ let arpeggioSettingsKeyNextElement = null;
 let arpeggioSettingsKeyValueElement = null;
 let globalKeyValueElement = null;
 let globalKeyNoteListElement = null;
+let globalPlayButtonElement = null;
+let globalStopButtonElement = null;
 let globalKeyTransposeUpElement = null;
 let globalKeyTransposeDownElement = null;
 let settingsNoteButtonElements = null;
@@ -166,6 +167,20 @@ function getGlobalKeyNoteListElement() {
     globalKeyNoteListElement = document.getElementById("global-key-note-list");
   }
   return globalKeyNoteListElement;
+}
+
+function getGlobalPlayButtonElement() {
+  if (!globalPlayButtonElement) {
+    globalPlayButtonElement = document.getElementById("global-play");
+  }
+  return globalPlayButtonElement;
+}
+
+function getGlobalStopButtonElement() {
+  if (!globalStopButtonElement) {
+    globalStopButtonElement = document.getElementById("global-stop");
+  }
+  return globalStopButtonElement;
 }
 
 function getGlobalKeyTransposeUpElement() {
@@ -323,12 +338,15 @@ export function renderMixerChannels() {
 
   // Incremental update: if channels are already rendered, only patch class state
   if (mixerChannelCache.size > 0) {
-    mixerChannelCache.forEach(({ strip, indicator, instrumentSelect, playBtn }, presetId) => {
+    mixerChannelCache.forEach(({ strip, indicator, instrumentSelect, playBtn, muteBtn, volumeSlider }, presetId) => {
       const isPlaying = state.playingPresetIds.has(presetId);
       const isCurrent = presetId === state.activeInstrumentPresetId;
       const assignedPresetId = getAssignedPresetId(presetId);
+      const instrumentParams = getInstrumentParams(presetId);
+      const isMuted = Boolean(Number(instrumentParams.channelMuted));
 
       strip.classList.toggle("is-current", isCurrent);
+      strip.classList.toggle("is-muted", isMuted);
       indicator.classList.toggle("is-playing", isPlaying);
       if (instrumentSelect && instrumentSelect.value !== assignedPresetId) {
         instrumentSelect.value = assignedPresetId;
@@ -339,6 +357,16 @@ export function renderMixerChannels() {
         playBtn.textContent = nextPlayLabel;
       }
       playBtn.classList.toggle("is-playing", isPlaying);
+
+      if (muteBtn) {
+        muteBtn.textContent = isMuted ? "Muted" : "Mute";
+        muteBtn.classList.toggle("is-muted", isMuted);
+        muteBtn.setAttribute("aria-pressed", String(isMuted));
+      }
+
+      if (volumeSlider) {
+        volumeSlider.classList.toggle("is-muted", isMuted);
+      }
     });
     return;
   }
@@ -349,12 +377,18 @@ export function renderMixerChannels() {
   const availablePresetGroups = getAvailablePresetGroups();
   presetIds.forEach((presetId, index) => {
     const assignedPresetId = getAssignedPresetId(presetId);
+    const instrumentParams = getInstrumentParams(presetId);
     const channelStrip = document.createElement("div");
     channelStrip.className = "channel-strip";
     channelStrip.dataset.presetId = presetId;
 
     if (presetId === state.activeInstrumentPresetId) {
       channelStrip.classList.add("is-current");
+    }
+
+    const isMuted = Boolean(Number(instrumentParams.channelMuted));
+    if (isMuted) {
+      channelStrip.classList.add("is-muted");
     }
 
     const instrumentSelect = document.createElement("select");
@@ -405,10 +439,18 @@ export function renderMixerChannels() {
     variationBtn.textContent = "Var";
     variationBtn.dataset.presetId = presetId;
 
+    const muteBtn = document.createElement("button");
+    muteBtn.type = "button";
+    muteBtn.className = "channel-mute-btn";
+    muteBtn.dataset.presetId = presetId;
+    muteBtn.textContent = isMuted ? "Muted" : "Mute";
+    muteBtn.classList.toggle("is-muted", isMuted);
+    muteBtn.setAttribute("aria-pressed", String(isMuted));
+
     const noteLengthBtn = document.createElement("button");
     noteLengthBtn.type = "button";
     noteLengthBtn.className = "channel-note-length-btn";
-    const noteLength = getInstrumentParams(presetId).noteLength ?? 8;
+    const noteLength = instrumentParams.noteLength ?? 8;
     noteLengthBtn.textContent = `1/${noteLength}`;
     noteLengthBtn.value = String(noteLength);
     noteLengthBtn.dataset.presetId = presetId;
@@ -420,12 +462,13 @@ export function renderMixerChannels() {
     volumeSlider.min = "0";
     volumeSlider.max = "1";
     volumeSlider.step = "0.01";
-    const initialVolume = getInstrumentParams(presetId).channelVolume ?? 1;
+    const initialVolume = instrumentParams.channelVolume ?? 1;
     volumeSlider.value = String(initialVolume);
     volumeSlider.title = "Channel Volume";
     volumeSlider.dataset.presetId = presetId;
+    volumeSlider.classList.toggle("is-muted", isMuted);
 
-    buttonsDiv.append(playBtn, variationBtn, noteLengthBtn, volumeSlider);
+    buttonsDiv.append(playBtn, variationBtn, muteBtn, noteLengthBtn, volumeSlider);
     channelStrip.append(instrumentSelect, nameDiv, indicator, buttonsDiv);
     mixerChannelsContainer.append(channelStrip);
 
@@ -434,6 +477,7 @@ export function renderMixerChannels() {
       indicator,
       instrumentSelect,
       playBtn,
+      muteBtn,
       noteLengthBtn,
       volumeSlider,
     });
@@ -456,6 +500,25 @@ function updateChannelVolumeSlider(presetId, value) {
   const next = String(clamp(value, 0, 1));
   if (slider.value !== next) {
     slider.value = next;
+  }
+}
+
+function updateChannelMuteButton(presetId, value) {
+  const channelElements = mixerChannelCache.get(presetId);
+  const muteButton = channelElements?.muteBtn;
+  const slider = channelElements?.volumeSlider;
+  const strip = channelElements?.strip;
+  const isMuted = Boolean(Number(value));
+  if (muteButton) {
+    muteButton.textContent = isMuted ? "Muted" : "Mute";
+    muteButton.classList.toggle("is-muted", isMuted);
+    muteButton.setAttribute("aria-pressed", String(isMuted));
+  }
+  if (slider) {
+    slider.classList.toggle("is-muted", isMuted);
+  }
+  if (strip) {
+    strip.classList.toggle("is-muted", isMuted);
   }
 }
 
@@ -485,19 +548,45 @@ export function syncDeadNoteControlsUI(deadNoteEnabled, pauseCount) {
   countButton.classList.toggle("is-muted", !isActive);
 }
 
+function syncGlobalTransportButtons() {
+  const playButton = getGlobalPlayButtonElement();
+  const stopButton = getGlobalStopButtonElement();
+  const isPlaying = state.transportState === "playing";
+  const isStopped = state.transportState === "stopped";
+  const canStop = state.transportState !== "stopped" || Boolean(state.audioContext);
+
+  if (playButton) {
+    playButton.disabled = false;
+    playButton.setAttribute("aria-disabled", "false");
+    playButton.classList.toggle("is-active", isPlaying);
+  }
+
+  if (stopButton) {
+    stopButton.disabled = !canStop;
+    stopButton.setAttribute("aria-disabled", String(!canStop));
+    stopButton.classList.toggle("is-active", isStopped && canStop);
+  }
+}
+
 export function updateTransportUI() {
   renderMixerChannels();
+  syncGlobalTransportButtons();
 
   if (!statusLabel) {
     return;
   }
 
-  if (state.playingPresetIds.size === 0) {
+  if (state.transportState === "paused") {
+    statusLabel.textContent = "Paused";
+    return;
+  }
+
+  if (state.playingPresetIds.size === 0 || state.transportState === "stopped") {
     statusLabel.textContent = "Stopped";
     return;
   }
 
-  statusLabel.textContent = `Playing ${state.playingPresetIds.size} instruments`;
+  statusLabel.textContent = `Playing ${state.playingPresetIds.size} instrument${state.playingPresetIds.size === 1 ? "" : "s"}`;
 }
 
 export function syncGlobalArpeggioKeyUI() {
@@ -675,6 +764,22 @@ export function bindGlobalKeyActions(controller) {
   transposeDownButton?.addEventListener("click", () => {
     controller.transposeArpeggioSettingsByKeyStep(-1);
   });
+}
+
+export function bindGlobalTransportControls(controller) {
+  const playButton = getGlobalPlayButtonElement();
+  const stopButton = getGlobalStopButtonElement();
+
+  playButton?.addEventListener("click", async () => {
+    await controller.playAll();
+  });
+
+
+  stopButton?.addEventListener("click", async () => {
+    await controller.stopAll();
+  });
+
+  syncGlobalTransportButtons();
 }
 
 export function bindNoteLengthToggle(controller) {
@@ -945,6 +1050,7 @@ export function bindMixerChannels(controller) {
 
     const playBtn = event.target.closest(".channel-play-btn");
     const variationBtn = event.target.closest(".channel-variation-btn");
+    const muteBtn = event.target.closest(".channel-mute-btn");
     const noteLengthBtn = event.target.closest(".channel-note-length-btn");
     const presetId = strip.dataset.presetId;
     if (!presetId) {
@@ -963,6 +1069,11 @@ export function bindMixerChannels(controller) {
 
     if (variationBtn) {
       controller.createNoteVariation(presetId);
+      return;
+    }
+
+    if (muteBtn) {
+      controller.toggleChannelMute(presetId);
       return;
     }
 
@@ -1110,7 +1221,17 @@ export function bindControllerEvents(controller) {
       return;
     }
 
+    if (type === "channel-mute-updated") {
+      updateChannelMuteButton(event.detail.presetId, event.detail.value);
+      return;
+    }
+
     if (type === "playback-toggled") {
+      updateTransportUI();
+      return;
+    }
+
+    if (type === "transport-state-updated") {
       updateTransportUI();
     }
   });

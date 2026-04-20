@@ -19,6 +19,7 @@ const CHANNEL_IDS = MIXER_CHANNEL_IDS.slice();
 const AVAILABLE_PRESET_GROUPS = buildAvailablePresetGroups();
 const CHANNEL_LOCAL_PARAM_KEYS = [
   "channelVolume",
+  "channelMuted",
   "stereoPan",
   "noteLength",
   "deadNoteAtEnd",
@@ -140,6 +141,7 @@ export function createInstrumentParams(channelId, assignedPresetId = getAssigned
     // Keep shared controls global; presets should only contribute instrument-scoped defaults.
     // Ensure every instrument starts at a unique panorama position.
     channelVolume: preservedParams.channelVolume ?? startupSceneParams.channelVolume ?? 1,
+    channelMuted: preservedParams.channelMuted ?? startupSceneParams.channelMuted ?? 0,
     stereoPan: preservedParams.stereoPan ?? startupSceneParams.stereoPan ?? getInitialStereoPan(channelId),
     ...(
       preservedParams.noteLength !== undefined

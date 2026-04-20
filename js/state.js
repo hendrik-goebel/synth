@@ -7,6 +7,7 @@ import {
 export const state = {
   synthParams: { ...INITIAL_SYNTH_PARAMS },
   audioContext: undefined,
+  transportState: "stopped",
   schedulerId: null,
   schedulerChannel: null,
   nextNoteTime: 0,
@@ -27,6 +28,7 @@ export const state = {
   reverbWetGain: null,
   reverbDryGain: null,
   distortionFeedbackBusByPresetId: {},
+  activeChannelLevelGainsByPresetId: {},
   activePresetIds: MIXER_CHANNEL_IDS.slice(),
   channelAssignedPresetIdById: Object.fromEntries(
     MIXER_CHANNEL_IDS.map((presetId) => [presetId, presetId]),
@@ -38,6 +40,7 @@ export const state = {
   instrumentNoteLengthInitializedByPresetId: {},
   instrumentPatternsByPresetId: {},
   globalArpeggioKeyIndex: DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX,
+  startupRandomizationApplied: false,
   arpeggioHistorySnapshots: [],
   arpeggioHistoryIndex: 0,
   activeInstrumentPresetId: DEFAULT_PRESET_ID,

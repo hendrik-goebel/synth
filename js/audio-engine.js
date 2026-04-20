@@ -1,4 +1,10 @@
-import { clampLfoRateHz, HUMANIZE, LFO_TARGET_OPTIONS, MAX_SIMULTANEOUS_PRESETS } from "./constants.js";
+import {
+  clampLfoRateHz,
+  HUMANIZE,
+  LFO_TARGET_OPTIONS,
+  MAX_SIMULTANEOUS_PRESETS,
+  TAPE_DELAY_SEND_MAX,
+} from "./constants.js";
 import {
   getTempoSyncedDelayTime,
   handleDelayLiveAudioUpdate,
@@ -91,6 +97,125 @@ export function initializeAudioGraph() {
   state.compressor.connect(state.audioContext.destination);
 }
 
+function resetAudioRuntimeState() {
+  state.audioContext = undefined;
+  state.schedulerId = null;
+  state.schedulerChannel = null;
+  state.nextNoteTime = 0;
+  state.stepIndex = 0;
+  state.masterGain = null;
+  state.compressor = null;
+  state.delayNode = null;
+  state.delayFeedback = null;
+  state.delayDrive = null;
+  state.delayHighpass = null;
+  state.delayReturnGain = null;
+  state.delayTone = null;
+  state.cleanDelayNode = null;
+  state.cleanDelayFeedback = null;
+  state.cleanDelayReturnGain = null;
+  state.reverbConvolver = null;
+  state.reverbInput = null;
+  state.reverbWetGain = null;
+  state.reverbDryGain = null;
+  state.activeChannelLevelGainsByPresetId = {};
+  resetDistortionEffectState();
+}
+
+function getEffectiveChannelLevel(voiceParams) {
+  const channelVolume = clamp(voiceParams.channelVolume ?? 1, 0, 1);
+  const isMuted = Boolean(Number(voiceParams.channelMuted));
+  return isMuted ? 0 : channelVolume;
+}
+
+function getActiveChannelLevelGainSet(presetId) {
+  if (!state.activeChannelLevelGainsByPresetId[presetId]) {
+    state.activeChannelLevelGainsByPresetId[presetId] = new Set();
+  }
+
+  return state.activeChannelLevelGainsByPresetId[presetId];
+}
+
+function registerActiveChannelLevelGain(presetId, gainNode) {
+  const gainSet = getActiveChannelLevelGainSet(presetId);
+  gainSet.add(gainNode);
+
+  return () => {
+    gainSet.delete(gainNode);
+    if (gainSet.size === 0) {
+      delete state.activeChannelLevelGainsByPresetId[presetId];
+    }
+  };
+}
+
+export function applyLiveChannelLevelUpdates(presetId, voiceParams) {
+  if (!state.audioContext) {
+    return;
+  }
+
+  const gainSet = state.activeChannelLevelGainsByPresetId[presetId];
+  if (!gainSet || gainSet.size === 0) {
+    return;
+  }
+
+  const now = state.audioContext.currentTime;
+  const nextLevel = getEffectiveChannelLevel(voiceParams);
+  gainSet.forEach((gainNode) => {
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setTargetAtTime(nextLevel, now, 0.012);
+  });
+}
+
+function stopSchedulerLoop() {
+  state.schedulerId = null;
+
+  if (!state.schedulerChannel) {
+    return;
+  }
+
+  state.schedulerChannel.port1.onmessage = null;
+  state.schedulerChannel = null;
+}
+
+function resetSchedulerTimeline(startOffsetSeconds = 0.05) {
+  state.stepIndex = 0;
+  state.nextNoteTime = state.audioContext
+    ? state.audioContext.currentTime + startOffsetSeconds
+    : 0;
+}
+
+function startSchedulerLoop() {
+  if (!state.audioContext || state.schedulerId !== null) {
+    return;
+  }
+
+  scheduleAhead();
+
+  // Use MessageChannel for precise, throttle-resistant scheduling.
+  // A small setTimeout throttles the loop to avoid busy-spinning.
+  const channel = new MessageChannel();
+  channel.port1.onmessage = () => {
+    if (state.schedulerId === null || state.transportState !== "playing") {
+      return;
+    }
+    scheduleAhead();
+    setTimeout(() => {
+      if (state.schedulerId === null || state.schedulerChannel !== channel) {
+        return;
+      }
+
+      try {
+        channel.port2.postMessage(null);
+      } catch (_) {
+        // The scheduler was torn down between the timeout being queued and firing.
+      }
+    }, 20);
+  };
+  state.schedulerChannel = channel;
+  state.schedulerId = true; // non-null sentinel
+  channel.port2.postMessage(null);
+}
+
 export function ensureAudioContext() {
   if (!state.audioContext) {
     syncDelayTimeToTempo();
@@ -115,8 +240,8 @@ export function scheduleNote(
   noteLength = 8,
 ) {
   const ctx = state.audioContext;
-  const channelVolume = clamp(voiceParams.channelVolume ?? 1, 0, 1);
-  if (channelVolume <= 0.0001) {
+  const effectiveChannelLevel = getEffectiveChannelLevel(voiceParams);
+  if (effectiveChannelLevel <= 0.0001) {
     // Hard-skip muted channels so no transient/click can leak into dry or FX paths.
     return;
   }
@@ -133,6 +258,7 @@ export function scheduleNote(
   const cleanDelaySend = ctx.createGain();
   const reverbSend = ctx.createGain();
   const channelOutputGain = ctx.createGain();
+  const channelLevelGain = ctx.createGain();
   const stereoPanner = ctx.createStereoPanner
     ? ctx.createStereoPanner()
     : null;
@@ -150,6 +276,7 @@ export function scheduleNote(
     cleanDelaySend,
     reverbSend,
     channelOutputGain,
+    channelLevelGain,
   ];
   if (stereoPanner) {
     voiceNodes.push(stereoPanner);
@@ -247,7 +374,7 @@ export function scheduleNote(
     ? clamp(
       voiceParams.delaySend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
       0,
-      1,
+      TAPE_DELAY_SEND_MAX,
     )
     : 0;
   const cleanDelaySendValue = Number(state.synthParams.cleanDelayEnabled)
@@ -373,11 +500,17 @@ export function scheduleNote(
   voiceOutput.connect(toneFilter);
   voiceOutput = toneFilter;
   channelOutputGain.gain.setValueAtTime(0, preStartTime);
-  channelOutputGain.gain.linearRampToValueAtTime(channelVolume, time + gainSmoothTime);
+  channelOutputGain.gain.linearRampToValueAtTime(1, time + gainSmoothTime);
   channelOutputGain.gain.setTargetAtTime(0, releaseStartTime, releaseTimeConstant);
   channelOutputGain.gain.linearRampToValueAtTime(0, voiceFadeOutTime);
   voiceOutput.connect(channelOutputGain);
   voiceOutput = channelOutputGain;
+
+  channelLevelGain.gain.setValueAtTime(effectiveChannelLevel, preStartTime);
+  voiceOutput.connect(channelLevelGain);
+  voiceOutput = channelLevelGain;
+
+  const unregisterChannelLevelGain = registerActiveChannelLevelGain(presetId, channelLevelGain);
 
   voiceOutput = applyPostFilterEffect({
     ctx,
@@ -426,6 +559,7 @@ export function scheduleNote(
   oscA.onended = () => {
     // Allow automation tails to settle before disconnecting this voice graph.
     setTimeout(() => {
+      unregisterChannelLevelGain();
       for (let i = 0; i < voiceNodes.length; i += 1) {
         try {
           voiceNodes[i].disconnect();
@@ -484,7 +618,7 @@ export function scheduleInstrumentStackNote(time, layerCount, stepIndex = state.
 export function scheduleAhead() {
   const lookaheadSeconds = 0.18;
 
-  if (state.playingPresetIds.size === 0 || !state.audioContext) {
+  if (state.transportState !== "playing" || state.playingPresetIds.size === 0 || !state.audioContext) {
     return;
   }
 
@@ -513,40 +647,98 @@ export function startPresetPlayback(presetId) {
   }
 
   state.playingPresetIds.add(presetId);
+  state.transportState = "playing";
 
   if (state.schedulerId === null) {
-    state.stepIndex = 0;
-    state.nextNoteTime = state.audioContext.currentTime + 0.05;
-    scheduleAhead();
-
-    // Use MessageChannel for precise, throttle-resistant scheduling.
-    // A small setTimeout throttles the loop to avoid busy-spinning.
-    const channel = new MessageChannel();
-    channel.port1.onmessage = () => {
-      if (state.schedulerId === null) {
-        return;
-      }
-      scheduleAhead();
-      setTimeout(() => channel.port2.postMessage(null), 20);
-    };
-    state.schedulerChannel = channel;
-    state.schedulerId = true; // non-null sentinel
-    channel.port2.postMessage(null);
+    resetSchedulerTimeline();
+    startSchedulerLoop();
   }
 
   return { started: true };
+}
+
+export function startGlobalPlaybackFromBeginning(presetIds = state.activePresetIds) {
+  if (!state.audioContext) {
+    return {
+      started: false,
+      reason: "Audio context is not ready",
+    };
+  }
+
+  const normalizedPresetIds = Array.from(new Set((presetIds || []).filter(Boolean)));
+  if (normalizedPresetIds.length === 0) {
+    return {
+      started: false,
+      reason: "No instruments available to play",
+    };
+  }
+
+  if (normalizedPresetIds.length > MAX_SIMULTANEOUS_PRESETS) {
+    return {
+      started: false,
+      reason: `Maximum ${MAX_SIMULTANEOUS_PRESETS} playing instruments`,
+    };
+  }
+
+  stopSchedulerLoop();
+  state.playingPresetIds.clear();
+  normalizedPresetIds.forEach((presetId) => state.playingPresetIds.add(presetId));
+  state.transportState = "playing";
+  resetSchedulerTimeline();
+  startSchedulerLoop();
+
+  return {
+    started: true,
+    presetIds: normalizedPresetIds,
+  };
+}
+
+export function pauseAllPlayback() {
+  if (state.transportState !== "playing") {
+    return false;
+  }
+
+  stopSchedulerLoop();
+  state.playingPresetIds.clear();
+  state.transportState = "paused";
+  resetSchedulerTimeline();
+  return true;
 }
 
 export function stopPresetPlayback(presetId) {
   state.playingPresetIds.delete(presetId);
 
   if (state.playingPresetIds.size === 0 && state.schedulerId !== null) {
-    state.schedulerId = null;
-    if (state.schedulerChannel) {
-      state.schedulerChannel.port1.onmessage = null;
-      state.schedulerChannel = null;
-    }
+    stopSchedulerLoop();
   }
+
+  if (state.playingPresetIds.size === 0) {
+    state.transportState = "stopped";
+    resetSchedulerTimeline();
+  }
+}
+
+export async function stopAllPlayback() {
+  const hadAudioRuntime = Boolean(state.audioContext)
+    || state.playingPresetIds.size > 0
+    || state.transportState !== "stopped"
+    || state.schedulerId !== null;
+
+  if (!hadAudioRuntime) {
+    return false;
+  }
+
+  stopSchedulerLoop();
+  state.playingPresetIds.clear();
+  state.transportState = "stopped";
+
+  const audioContext = state.audioContext;
+  if (audioContext && typeof audioContext.close === "function" && audioContext.state !== "closed") {
+    await audioContext.close();
+  }
+
+  resetAudioRuntimeState();
+  return true;
 }
 
 export function applyLiveAudioUpdates(paramKey, value) {

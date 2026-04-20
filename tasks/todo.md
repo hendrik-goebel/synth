@@ -1,3 +1,100 @@
+# Task: Cap Tape Delay Send At 0.10
+
+## Plan
+- [ ] Inspect the current `delay-send` flow across `index.html`, `js/constants.js`, `js/audio-state-controller.js`, and `js/audio-engine.js` so the cap is enforced consistently in UI, stored state, and audio output.
+- [ ] Introduce one shared tape-delay-send max, clamp existing preset/default values to that ceiling, and align the visible slider range with it.
+- [ ] Add controller/audio-layer enforcement so programmatic updates and humanized runtime sends cannot exceed `0.10`.
+- [ ] Run focused verification plus a production build, then record the review and lesson.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
+# Task: Randomize Startup Key, Arpeggio, And Instrument Assignment
+
+## Plan
+- [ ] Trace the current startup initialization flow across `js/audio-state-controller.js`, `js/patterns.js`, `js/presets.js`, and `js/state.js` so the new randomization happens once and stays aligned with existing channel-local startup params.
+- [ ] Add a startup randomization pass that picks one global key, randomized per-channel assigned instruments, and in-key arpeggio note/pitch-class selections while preserving each channel's startup volume/pan/note-length settings.
+- [ ] Keep every generated startup pitch class and concrete note inside the selected global key and each channel's enabled octave rows, with a fallback that guarantees at least one playable note.
+- [ ] Update focused startup/key tests to verify the new randomized-but-valid initialization semantics.
+- [ ] Run the relevant tests plus a production build, then document the review and lesson.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
+# Task: Make Global Transport Tiny Symbol Buttons At Top Right
+
+## Plan
+- [x] Inspect the current global transport markup, styling, and UI bindings so the pause button can be removed without leaving dead references behind.
+- [x] Replace the text transport buttons in `index.html` with very small symbol buttons for play and stop only, positioned at the top right of the app surface.
+- [x] Update `css/style.css` so the transport controls are compact, top-right aligned, and do not overlap the status text on narrower widths.
+- [x] Remove pause-specific UI references in `js/ui.js`, keep play/stop state syncing intact, and ensure paused state no longer requires a visible button.
+- [x] Validate the edited files, update the review notes, and record the UI correction lesson.
+
+## Progress Notes
+- Replaced the visible three-button transport row with two compact symbol buttons in `index.html`: `▶` for play and `■` for stop.
+- Restyled `.global-transport` and `.transport-btn` in `css/style.css` so the controls are very small, absolutely positioned at the top right of `.app`, and the status line reserves horizontal space with extra right padding.
+- Removed the visible pause-button DOM handling from `js/ui.js`, including the old pause-element cache/getter, pause sync logic, and pause click binding.
+- Kept the underlying play/stop transport state sync intact, so the remaining buttons still enable/disable and highlight correctly for stopped/playing/paused runtime states even without a visible pause control.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `index.html`, `css/style.css`, `js/ui.js`, and `tasks/todo.md` files; only pre-existing/non-blocking warnings remain in `js/ui.js` for older unused helpers and one unnecessary trailing `return`.
+- A source sweep for `global-pause`, `transport-btn--pause`, and `getGlobalPauseButtonElement` returned no matches, confirming the removed visible pause control is no longer referenced in the UI/markup/CSS.
+- No fresh terminal build/test run was completed for this UI-only correction because the terminal verification requests were skipped before execution.
+
+---
+
+# Task: Add Per-Instrument Mute Buttons
+
+## Plan
+- [ ] Inspect the current mixer channel controls, per-channel parameter persistence, and note-output path so mute can reuse the existing channel-local architecture.
+- [ ] Add a channel-local `channelMuted` state that preserves each instrument's `channelVolume` value and survives channel preset reassignment.
+- [ ] Add a mute button to every mixer strip in `js/ui.js` / `css/style.css`, with clear active/inactive state and no transport side effects.
+- [ ] Make mute affect both newly scheduled notes and already-active voices, then add a focused regression check for mute toggling and persistence.
+- [ ] Run verification, update the review notes, and document the implementation result.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
+# Task: Add Global Play / Pause / Stop Transport Controls
+
+## Plan
+- [x] Inspect the existing channel transport flow in `js/audio-state-controller.js`, `js/audio-engine.js`, `js/ui.js`, and `js/state.js` so the new global controls reuse the current scheduler instead of creating a second transport path.
+- [x] Add visible global `Play`, `Pause`, and `Stop` buttons near `#status` in `index.html` and style them in `css/style.css` with clear active/disabled feedback.
+- [x] Extend shared transport state plus controller/engine actions so global play starts all channels from step 0, global pause halts scheduling without losing channel selection, and global stop fully stops audio and clears all channel playback state.
+- [x] Bind the new controls in `js/ui.js`, keep mixer/status UI synced with the new global transport state, and preserve per-channel play buttons.
+- [x] Add a focused runtime regression for the new global transport semantics, run the relevant checks plus `npm run build`, and document the review and lesson.
+
+## Progress Notes
+- Added a new shared `transportState` in `js/state.js` so the app can distinguish `playing`, `paused`, and `stopped` instead of inferring everything only from `playingPresetIds`.
+- Extended `js/audio-engine.js` with explicit scheduler lifecycle helpers plus three global transport actions: `startGlobalPlaybackFromBeginning(...)`, `pauseAllPlayback()`, and `stopAllPlayback()`.
+- Global `Play` now performs a clean engine restart and starts every mixer channel from the beginning of its current pattern; global `Pause` halts scheduling and resets the transport timeline without hard-killing the current audio context; global `Stop` fully tears down the audio context and clears all playback state.
+- Added top-level `Play`, `Pause`, and `Stop` buttons in `index.html`, styled them in `css/style.css`, bound them in `js/ui.js`, and registered the binding in `js/app.js`.
+- Updated the controller/UI event flow so status text and mixer transport indicators stay in sync with the new global transport state.
+- Added `tasks/global-transport-controls-test.mjs`, a focused fake-audio-context regression that verifies global play starts all channels from the beginning, pause halts globally, and stop fully clears the audio runtime.
+
+## Review
+- `get_errors` reported no blocking errors in the edited source, HTML, CSS, and task files; remaining IDE items are non-blocking warnings, including a few older unused exports/methods.
+- `node --experimental-default-type=module tasks/global-transport-controls-test.mjs` passed.
+- An additional existing regression check, `tasks/initial-startup-scene-test.mjs`, is currently failing on an unrelated pre-existing startup-delay expectation mismatch (`0.05` expected vs. `0.008` current value in `INITIAL_SYNTH_PARAMS.delayFeedback`), so it was not used as the acceptance signal for this transport feature.
+- A standalone `npm run build` re-run was attempted after the new test pass, but that terminal execution was skipped before completion.
+
+---
+
 # Task: Refresh Global Arpeggio Settings View On History Navigation
 
 ## Plan

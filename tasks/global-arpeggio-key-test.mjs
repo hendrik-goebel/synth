@@ -16,25 +16,30 @@ controller.addEventListener("statechange", (event) => {
 
 controller.initialize();
 
-assert.equal(state.globalArpeggioKeyIndex, 0, "default global arpeggio key should start at C");
-assert.equal(getCircleOfFifthsKeyLabel(state.globalArpeggioKeyIndex), "C");
-assert.deepEqual(
-  getPitchClassesForMajorKey(state.globalArpeggioKeyIndex),
-  ["c", "d", "e", "f", "g", "a", "b"],
-  "C major should highlight only the natural notes",
+const initialKeyIndex = state.globalArpeggioKeyIndex;
+assert.ok(
+  initialKeyIndex >= 0 && initialKeyIndex < CIRCLE_OF_FIFTHS_KEY_ORDER.length,
+  "startup should choose a valid global arpeggio key index",
+);
+assert.equal(
+  getPitchClassesForMajorKey(initialKeyIndex).length,
+  7,
+  "every startup major key should expose exactly seven pitch classes",
 );
 
 assert.equal(controller.stepGlobalArpeggioKey(1), true, "next key step should succeed");
-assert.equal(getCircleOfFifthsKeyLabel(state.globalArpeggioKeyIndex), "G");
-assert.deepEqual(
-  getPitchClassesForMajorKey(state.globalArpeggioKeyIndex),
-  ["g", "a", "b", "c", "d", "e", "fs"],
-  "G major should include F#",
+const steppedForwardIndex = (initialKeyIndex + 1) % CIRCLE_OF_FIFTHS_KEY_ORDER.length;
+assert.equal(state.globalArpeggioKeyIndex, steppedForwardIndex, "next key step should advance through the circle of fifths");
+assert.equal(
+  getCircleOfFifthsKeyLabel(state.globalArpeggioKeyIndex),
+  getCircleOfFifthsKeyLabel(steppedForwardIndex),
+  "key label should match the stepped-forward circle position",
 );
 
 assert.equal(controller.stepGlobalArpeggioKey(-1), true, "previous key step should succeed");
-assert.equal(getCircleOfFifthsKeyLabel(state.globalArpeggioKeyIndex), "C");
+assert.equal(state.globalArpeggioKeyIndex, initialKeyIndex, "stepping backward should return to the initial startup key");
 
+state.globalArpeggioKeyIndex = 0;
 assert.equal(controller.stepGlobalArpeggioKey(-1), true, "stepping backward from C should wrap to F");
 assert.equal(getCircleOfFifthsKeyLabel(state.globalArpeggioKeyIndex), "F");
 assert.deepEqual(

@@ -25,6 +25,10 @@
 <body>
   <main class="app">
     <p id="status">Stopped</p>
+    <div class="global-transport" aria-label="Global transport controls">
+      <button id="global-play" type="button" class="transport-btn transport-btn--play" aria-label="Play all">▶</button>
+      <button id="global-stop" type="button" class="transport-btn transport-btn--stop" disabled aria-disabled="true" aria-label="Stop all">■</button>
+    </div>
     <section class="controls" aria-label="Synth controls">
 
       <div class="controls-top-row">
@@ -404,8 +408,8 @@
         <h3 class="control-group-title">Send &amp; Pan</h3>
         <div class="control-group-items">
           <div class="control-item">
-                <label for="delay-send">Tape Delay Send (<span id="delay-send-value">0.20</span>)</label>
-            <input id="delay-send" type="range" min="0" max="0.6" step="0.01" value="0.2">
+                <label for="delay-send">Tape Delay Send (<span id="delay-send-value">0.10</span>)</label>
+            <input id="delay-send" type="range" min="0" max="0.10" step="0.01" value="0.10">
           </div>
               <div class="control-item">
                 <label for="clean-delay-send">Clean Delay Send (<span id="clean-delay-send-value">0.00</span>)</label>

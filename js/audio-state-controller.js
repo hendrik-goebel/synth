@@ -6,6 +6,7 @@ import {
   controlConfig,
   extractOctave,
   getCircleOfFifthsKeyLabel,
+  getPitchClassesForMajorKey,
   DEAD_NOTE_PAUSE_COUNT_MAX,
   DEAD_NOTE_PAUSE_COUNT_MIN,
   DELAY_FEEDBACK_MAX,
@@ -18,8 +19,18 @@ import {
   normalizeCircleOfFifthsKeyIndex,
   PITCH_CLASS_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
+  TAPE_DELAY_SEND_MAX,
 } from "./constants.js";
-import { applyLiveAudioUpdates, ensureAudioContext, startPresetPlayback, stopPresetPlayback } from "./audio-engine.js";
+import {
+  applyLiveAudioUpdates,
+  applyLiveChannelLevelUpdates,
+  ensureAudioContext,
+  pauseAllPlayback,
+  startGlobalPlaybackFromBeginning,
+  startPresetPlayback,
+  stopAllPlayback,
+  stopPresetPlayback,
+} from "./audio-engine.js";
 import {
   createInstrumentNoteVariation,
   ensureInstrumentNoteState,
@@ -51,6 +62,81 @@ const validLfoTargetIndices = new Set(LFO_TARGET_OPTIONS.map((_, index) => index
 const validPitchClassKeys = new Set(PITCH_CLASS_OPTIONS.map(({ key }) => key));
 const validPostFilterTypes = new Set(POST_FILTER_TYPE_OPTIONS);
 const validArpeggioOctaves = new Set(ARPEGGIO_OCTAVE_OPTIONS);
+
+function shuffle(values) {
+  const clone = values.slice();
+  for (let index = clone.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [clone[index], clone[randomIndex]] = [clone[randomIndex], clone[index]];
+  }
+  return clone;
+}
+
+function getRandomCount(minimum, maximum) {
+  const safeMinimum = Math.max(0, Math.floor(minimum));
+  const safeMaximum = Math.max(safeMinimum, Math.floor(maximum));
+  return safeMinimum + Math.floor(Math.random() * (safeMaximum - safeMinimum + 1));
+}
+
+function getRandomPitchClassSelection(keyPitchClasses) {
+  const safePitchClasses = Array.from(new Set(keyPitchClasses.filter((pitchClassKey) => validPitchClassKeys.has(pitchClassKey))));
+  if (safePitchClasses.length === 0) {
+    return PITCH_CLASS_OPTIONS.slice(0, 1).map(({ key }) => key);
+  }
+
+  const minimumCount = Math.min(3, safePitchClasses.length);
+  const maximumCount = Math.min(5, safePitchClasses.length);
+  const selectedPitchClassSet = new Set(
+    shuffle(safePitchClasses).slice(0, getRandomCount(minimumCount, maximumCount)),
+  );
+
+  return safePitchClasses.filter((pitchClassKey) => selectedPitchClassSet.has(pitchClassKey));
+}
+
+function getRandomAssignedPresetIds(channelCount) {
+  const availablePresetIds = getAvailablePresetIds();
+  if (availablePresetIds.length === 0) {
+    return [];
+  }
+
+  const shuffledPresetIds = shuffle(availablePresetIds);
+  return Array.from({ length: channelCount }, (_, index) => shuffledPresetIds[index % shuffledPresetIds.length]);
+}
+
+function getSafeEnabledOctaves(presetId) {
+  const enabledOctaves = getEnabledArpeggioOctaves(presetId);
+  if (enabledOctaves.length > 0) {
+    return enabledOctaves;
+  }
+
+  state.instrumentArpeggioOctavesByPresetId[presetId] = ARPEGGIO_OCTAVE_OPTIONS.slice();
+  return state.instrumentArpeggioOctavesByPresetId[presetId].slice();
+}
+
+function randomizeStartupState() {
+  const channelIds = getPresetIds();
+  state.globalArpeggioKeyIndex = Math.floor(Math.random() * PITCH_CLASS_OPTIONS.length);
+  const assignedPresetIds = getRandomAssignedPresetIds(channelIds.length);
+  const keyPitchClasses = getPitchClassesForMajorKey(state.globalArpeggioKeyIndex);
+
+  channelIds.forEach((channelId, index) => {
+    const assignedPresetId = assignedPresetIds[index] || channelId;
+    applyAssignedPresetToChannel(channelId, assignedPresetId);
+    ensureInstrumentNoteState(channelId);
+
+    const enabledOctaves = getSafeEnabledOctaves(channelId);
+    const enabledPitchClasses = getRandomPitchClassSelection(keyPitchClasses);
+    state.instrumentArpeggioPitchClassesByPresetId[channelId] = enabledPitchClasses;
+
+    const eligibleNotePool = getEligibleRandomNotePoolFromPitchClasses(enabledPitchClasses, enabledOctaves);
+    const desiredNoteCount = eligibleNotePool.length <= 1
+      ? Math.max(1, eligibleNotePool.length)
+      : getRandomCount(2, Math.min(5, eligibleNotePool.length));
+
+    regenerateInstrumentRandomNoteIds(channelId, desiredNoteCount);
+    rebuildInstrumentPattern(channelId);
+  });
+}
 
 function toNumber(value) {
   const numeric = Number.parseFloat(value);
@@ -133,6 +219,15 @@ function getArpeggioHistoryStepAvailability() {
 }
 
 export class AudioStateController extends EventTarget {
+  emitTransportStateChange(type = "transport-state-updated", detail = {}) {
+    this.emitStateChange(type, {
+      transportState: state.transportState,
+      playingPresetCount: state.playingPresetIds.size,
+      playingPresetIds: Array.from(state.playingPresetIds),
+      ...detail,
+    });
+  }
+
   storeCurrentArpeggioSnapshot() {
     const currentSnapshot = captureArpeggioSnapshot();
     const snapshotCount = state.arpeggioHistorySnapshots.length;
@@ -163,6 +258,11 @@ export class AudioStateController extends EventTarget {
       getInstrumentParams(presetId);
       ensureInstrumentNoteState(presetId);
     });
+
+    if (!state.startupRandomizationApplied) {
+      randomizeStartupState();
+      state.startupRandomizationApplied = true;
+    }
 
     this.emitStateChange("initialized", {
       activeInstrumentPresetId: state.activeInstrumentPresetId,
@@ -278,6 +378,14 @@ export class AudioStateController extends EventTarget {
 
     if (controlId === "distortion-feedback" && (numericValue < 0 || numericValue > DISTORTION_FEEDBACK_MAX)) {
       this.emitError(`Distortion feedback must stay between 0 and ${DISTORTION_FEEDBACK_MAX}`, {
+        controlId,
+        value,
+      });
+      return false;
+    }
+
+    if (controlId === "delay-send" && (numericValue < 0 || numericValue > TAPE_DELAY_SEND_MAX)) {
+      this.emitError(`Tape delay send must stay between 0 and ${TAPE_DELAY_SEND_MAX}`, {
         controlId,
         value,
       });
@@ -686,9 +794,82 @@ export class AudioStateController extends EventTarget {
     const clamped = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 1));
     const instrumentParams = getInstrumentParams(presetId);
     instrumentParams.channelVolume = clamped;
+    applyLiveChannelLevelUpdates(presetId, instrumentParams);
 
     this.emitStateChange("channel-volume-updated", { presetId, value: clamped });
     return true;
+  }
+
+  toggleChannelMute(presetId) {
+    if (!validChannelIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const instrumentParams = getInstrumentParams(presetId);
+    const nextValue = instrumentParams.channelMuted ? 0 : 1;
+    instrumentParams.channelMuted = nextValue;
+    applyLiveChannelLevelUpdates(presetId, instrumentParams);
+
+    this.emitAction("channel-mute-toggled", {
+      presetId,
+      value: nextValue,
+    });
+    this.emitStateChange("channel-mute-updated", {
+      presetId,
+      value: nextValue,
+    });
+    return true;
+  }
+
+  async playAll() {
+    try {
+      await stopAllPlayback();
+      await ensureAudioContext();
+      const result = startGlobalPlaybackFromBeginning(getPresetIds());
+      if (!result.started) {
+        this.emitError(result.reason, { presetIds: getPresetIds() });
+        return false;
+      }
+
+      this.emitAction("global-playback-started", {
+        presetIds: result.presetIds,
+      });
+      this.emitTransportStateChange("transport-state-updated", {
+        restartedFromBeginning: true,
+      });
+      return true;
+    } catch (error) {
+      this.emitError("Unable to start global playback", { error });
+      return false;
+    }
+  }
+
+  pauseAll() {
+    const paused = pauseAllPlayback();
+    if (!paused) {
+      return false;
+    }
+
+    this.emitAction("global-playback-paused", {});
+    this.emitTransportStateChange();
+    return true;
+  }
+
+  async stopAll() {
+    try {
+      const stopped = await stopAllPlayback();
+      if (!stopped) {
+        return false;
+      }
+
+      this.emitAction("global-playback-stopped", {});
+      this.emitTransportStateChange();
+      return true;
+    } catch (error) {
+      this.emitError("Unable to stop audio", { error });
+      return false;
+    }
   }
 
   async togglePlayback(presetId) {
@@ -704,6 +885,7 @@ export class AudioStateController extends EventTarget {
         presetId,
         isPlaying: false,
       });
+      this.emitTransportStateChange();
       return true;
     }
 
@@ -720,6 +902,7 @@ export class AudioStateController extends EventTarget {
         presetId,
         isPlaying: true,
       });
+      this.emitTransportStateChange();
       return true;
     } catch (error) {
       this.emitError("Unable to start audio", { presetId, error });

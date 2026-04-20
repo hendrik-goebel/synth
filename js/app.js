@@ -5,6 +5,7 @@ import {
   bindDeadNoteToggle,
   bindDelayToggleButtons,
   bindGlobalKeyActions,
+  bindGlobalTransportControls,
   bindNoteSelector,
   bindMixerChannels,
   bindKeyboardShortcuts,
@@ -18,6 +19,7 @@ bindControllerEvents(audioStateController);
 bindControls();
 bindDelayToggleButtons(audioStateController);
 bindGlobalKeyActions(audioStateController);
+bindGlobalTransportControls(audioStateController);
 bindNoteSelector(audioStateController);
 bindDeadNoteToggle(audioStateController);
 bindSettingsDialog(audioStateController);

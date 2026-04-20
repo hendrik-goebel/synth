@@ -21,6 +21,7 @@ export const DELAY_FEEDBACK_LOG_MIN = 0.001;
 export const CLEAN_DELAY_REPETITIONS_MIN = 1;
 export const CLEAN_DELAY_REPETITIONS_MAX = 12;
 export const DISTORTION_FEEDBACK_MAX = 0.35;
+export const TAPE_DELAY_SEND_MAX = 0.1;
 export const DELAY_DIVISION_OPTIONS = [
   { label: "1/32", beats: 0.125 },
   { label: "1/16T", beats: 1 / 6 },
@@ -368,7 +369,7 @@ export const BASE_SOUND_PRESETS = {
     attack: 0.002,
     decay: 0.12,
     release: 0.06,
-    delaySend: 0.14,
+    delaySend: 0.1,
     cleanDelaySend: 0,
     reverbSend: 0.08,
     distortionDrive: 0.86,
@@ -398,7 +399,7 @@ export const BASE_SOUND_PRESETS = {
     attack: 0.002,
     decay: 0.09,
     release: 0.05,
-    delaySend: 0.18,
+    delaySend: 0.1,
     cleanDelaySend: 0.05,
     reverbSend: 0.14,
     distortionDrive: 0.64,
@@ -456,7 +457,7 @@ export const BASE_SOUND_PRESETS = {
     attack: 0.006,
     decay: 0.11,
     release: 0.07,
-    delaySend: 0.14,
+    delaySend: 0.1,
     distortionDrive: 0.34,
     distortionMix: 0.2,
     distortionTone: 1550,
@@ -478,7 +479,7 @@ export const BASE_SOUND_PRESETS = {
     attack: 0.22,
     decay: 0.62,
     release: 0.4,
-    delaySend: 0.16,
+    delaySend: 0.1,
     reverbSend: 0.82,
     distortionDrive: 0.22,
     distortionMix: 0.12,
@@ -497,7 +498,7 @@ export const BASE_SOUND_PRESETS = {
     attack: 0.26,
     decay: 0.7,
     release: 0.48,
-    delaySend: 0.18,
+    delaySend: 0.1,
     reverbSend: 0.78,
     distortionDrive: 0.18,
     distortionMix: 0.1,
@@ -535,7 +536,7 @@ export const BASE_SOUND_PRESETS = {
     attack: 0.1,
     decay: 0.24,
     release: 0.22,
-    delaySend: 0.12,
+    delaySend: 0.1,
     reverbSend: 0.62,
     stereoPan: 0.22,
     distortionDrive: 0.26,
@@ -695,7 +696,7 @@ export const BASE_SOUND_PRESETS = {
     attack: 0.18,
     decay: 0.5,
     release: 0.3,
-    delaySend: 0.3,
+    delaySend: 0.1,
     cleanDelaySend: 0.14,
     reverbSend: 0.76,
     stereoPan: -0.24,
@@ -716,7 +717,7 @@ export const BASE_SOUND_PRESETS = {
     attack: 0.026,
     decay: 0.16,
     release: 0.16,
-    delaySend: 0.2,
+    delaySend: 0.1,
     reverbSend: 0.34,
     stereoPan: 0.3,
     distortionDrive: 0.62,
@@ -733,6 +734,7 @@ export const INITIAL_CHANNEL_SCENES = {
   warm: {
     params: {
       channelVolume: 0.86,
+      channelMuted: 0,
       stereoPan: -0.28,
       noteLength: 8,
       deadNoteAtEnd: 0,
@@ -745,6 +747,7 @@ export const INITIAL_CHANNEL_SCENES = {
   pluck: {
     params: {
       channelVolume: 0.78,
+      channelMuted: 0,
       stereoPan: 0.24,
       noteLength: 16,
       deadNoteAtEnd: 0,
@@ -757,6 +760,7 @@ export const INITIAL_CHANNEL_SCENES = {
   organ: {
     params: {
       channelVolume: 0.72,
+      channelMuted: 0,
       stereoPan: -0.08,
       noteLength: 6,
       deadNoteAtEnd: 0,
@@ -769,6 +773,7 @@ export const INITIAL_CHANNEL_SCENES = {
   bass: {
     params: {
       channelVolume: 0.92,
+      channelMuted: 0,
       stereoPan: 0,
       noteLength: 8,
       deadNoteAtEnd: 0,
@@ -781,6 +786,7 @@ export const INITIAL_CHANNEL_SCENES = {
   glass: {
     params: {
       channelVolume: 0.74,
+      channelMuted: 0,
       stereoPan: 0.34,
       noteLength: 16,
       deadNoteAtEnd: 0,
@@ -793,6 +799,7 @@ export const INITIAL_CHANNEL_SCENES = {
   acid: {
     params: {
       channelVolume: 0.82,
+      channelMuted: 0,
       stereoPan: 0.12,
       noteLength: 16,
       deadNoteAtEnd: 0,
@@ -805,6 +812,7 @@ export const INITIAL_CHANNEL_SCENES = {
   noisy: {
     params: {
       channelVolume: 0.68,
+      channelMuted: 0,
       stereoPan: -0.34,
       noteLength: 6,
       deadNoteAtEnd: 1,
@@ -817,6 +825,7 @@ export const INITIAL_CHANNEL_SCENES = {
   deep: {
     params: {
       channelVolume: 0.88,
+      channelMuted: 0,
       stereoPan: 0.18,
       noteLength: 4,
       deadNoteAtEnd: 1,
@@ -903,7 +912,7 @@ export const INITIAL_SYNTH_PARAMS = {
   transientTone: 1800,
   pitchDropCents: 0,
   tapeDelayEnabled: 1,
-  delaySend: 0.35,
+  delaySend: TAPE_DELAY_SEND_MAX,
   cleanDelaySend: 0,
   delayDivision: 4,
   delayTime: 0.25,
