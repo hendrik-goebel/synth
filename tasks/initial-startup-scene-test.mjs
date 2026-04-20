@@ -6,6 +6,7 @@ import {
   extractPitchClass,
   getPitchClassesForMajorKey,
   INITIAL_CHANNEL_SCENES,
+  STARTUP_DELAY_FEEDBACK_MAX,
 } from "../js/constants.js";
 import { AudioStateController } from "../js/audio-state-controller.js";
 import { getInstrumentPattern } from "../js/patterns.js";
@@ -32,6 +33,10 @@ assert.equal(state.synthParams.tempoBpm, 118, "startup scene should keep the int
 assert.equal(state.synthParams.tapeDelayEnabled, 1, "tape delay should start enabled");
 assert.equal(state.synthParams.delayDivision, 0, "startup randomization should randomize the tape delay division on fresh load");
 assert.equal(state.synthParams.delayFeedback, 0.01, "startup randomization should randomize the tape delay feedback on fresh load");
+assert.ok(
+  state.synthParams.delayFeedback <= STARTUP_DELAY_FEEDBACK_MAX,
+  "startup randomization should never exceed the startup tape delay feedback ceiling",
+);
 assert.equal(state.synthParams.cleanDelayEnabled, 1, "clean delay should start enabled");
 assert.equal(state.synthParams.cleanDelayDivision, 0, "startup randomization should randomize the clean delay division on fresh load");
 assert.equal(state.synthParams.cleanDelayRepetitions, 1, "startup randomization should randomize the clean delay repetitions on fresh load");
@@ -149,6 +154,25 @@ Object.entries(INITIAL_CHANNEL_SCENES).forEach(([channelId, scene]) => {
 assert.ok(
   reassignedChannelIds.length > 0,
   "startup randomization should reassign at least one channel instrument when random instrument selection is enabled",
+);
+
+Math.random = () => 0.999999;
+try {
+  state.startupRandomizationApplied = false;
+  const highRandomController = new AudioStateController();
+  highRandomController.initialize();
+} finally {
+  Math.random = originalRandom;
+}
+
+assert.ok(
+  state.synthParams.delayFeedback <= STARTUP_DELAY_FEEDBACK_MAX,
+  "even the highest startup random draw should keep tape delay feedback at or below the startup cap",
+);
+assert.equal(
+  state.synthParams.delayFeedback,
+  STARTUP_DELAY_FEEDBACK_MAX,
+  "the highest startup random draw should clamp to the startup tape delay feedback cap",
 );
 
 

@@ -21,6 +21,7 @@ import {
   normalizeCircleOfFifthsKeyIndex,
   PITCH_CLASS_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
+  STARTUP_DELAY_FEEDBACK_MAX,
   TAPE_DELAY_SEND_MAX,
 } from "./constants.js";
 import {
@@ -142,7 +143,7 @@ function randomizeStartupState() {
   state.globalArpeggioKeyIndex = Math.floor(Math.random() * PITCH_CLASS_OPTIONS.length);
   state.synthParams.delayDivision = getRandomCount(0, DELAY_DIVISION_OPTIONS.length - 1);
   state.synthParams.cleanDelayDivision = getRandomCount(0, DELAY_DIVISION_OPTIONS.length - 1);
-  state.synthParams.delayFeedback = getRandomRoundedValue(0.01, 0.72, 0.001);
+  state.synthParams.delayFeedback = getRandomRoundedValue(0.01, STARTUP_DELAY_FEEDBACK_MAX, 0.001);
   state.synthParams.cleanDelayRepetitions = getRandomCount(
     CLEAN_DELAY_REPETITIONS_MIN,
     CLEAN_DELAY_REPETITIONS_MAX,
@@ -570,6 +571,21 @@ export class AudioStateController extends EventTarget {
     });
 
     return state.currentStateSeed;
+  }
+
+  clearStateSeed() {
+    state.currentStateSeed = "";
+
+    this.emitAction("state-seed-cleared", {
+      seed: state.currentStateSeed,
+      version: STATE_SEED_VERSION,
+    });
+    this.emitStateChange("seed-cleared", {
+      seed: state.currentStateSeed,
+      version: STATE_SEED_VERSION,
+    });
+
+    return true;
   }
 
   loadStateSeed(seed) {

@@ -56,6 +56,7 @@ let globalStopButtonElement = null;
 let stateSeedInputElement = null;
 let stateSeedSaveElement = null;
 let stateSeedLoadElement = null;
+let stateSeedDeleteElement = null;
 let globalKeyTransposeUpElement = null;
 let globalKeyTransposeDownElement = null;
 let settingsNoteButtonElements = null;
@@ -206,6 +207,13 @@ function getStateSeedLoadElement() {
     stateSeedLoadElement = document.getElementById("state-seed-load");
   }
   return stateSeedLoadElement;
+}
+
+function getStateSeedDeleteElement() {
+  if (!stateSeedDeleteElement) {
+    stateSeedDeleteElement = document.getElementById("state-seed-delete");
+  }
+  return stateSeedDeleteElement;
 }
 
 function getGlobalKeyTransposeUpElement() {
@@ -823,8 +831,9 @@ export function bindStateSeedControls(controller) {
   const seedInput = getStateSeedInputElement();
   const saveButton = getStateSeedSaveElement();
   const loadButton = getStateSeedLoadElement();
+  const deleteButton = getStateSeedDeleteElement();
 
-  if (!seedInput || !saveButton || !loadButton) {
+  if (!seedInput || !saveButton || !loadButton || !deleteButton) {
     return;
   }
 
@@ -852,6 +861,12 @@ export function bindStateSeedControls(controller) {
 
     syncStateSeedField(state.currentStateSeed);
     replaceStateSeedInLocation(state.currentStateSeed);
+  });
+
+  deleteButton.addEventListener("click", () => {
+    controller.clearStateSeed();
+    syncStateSeedField("");
+    replaceStateSeedInLocation("");
   });
 }
 
@@ -1225,6 +1240,14 @@ export function bindControllerEvents(controller) {
       syncStateSeedField(event.detail.seed);
       if (statusLabel) {
         statusLabel.textContent = "Loaded state from seed";
+      }
+      return;
+    }
+
+    if (type === "seed-cleared") {
+      syncStateSeedField("");
+      if (statusLabel) {
+        statusLabel.textContent = "Cleared state seed";
       }
       return;
     }

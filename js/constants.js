@@ -17,6 +17,7 @@ export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
 export const DEAD_NOTE_PAUSE_COUNT_MIN = 1;
 export const DEAD_NOTE_PAUSE_COUNT_MAX = 16;
 export const DELAY_FEEDBACK_MAX = 1;
+export const STARTUP_DELAY_FEEDBACK_MAX = 0.05;
 export const DELAY_FEEDBACK_LOG_MIN = 0.001;
 export const CLEAN_DELAY_REPETITIONS_MIN = 1;
 export const CLEAN_DELAY_REPETITIONS_MAX = 12;

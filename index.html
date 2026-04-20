@@ -37,27 +37,6 @@
         </section>
         <section class="controls controls--global controls-global-panel" aria-label="Global settings">
 
-          <div class="control-group control-group--seed">
-            <h3 class="control-group-title">Seed</h3>
-            <div class="seed-panel" aria-label="Save and load the current state via a seed">
-              <label class="seed-label" for="state-seed-input">Current seed</label>
-              <textarea
-                id="state-seed-input"
-                class="seed-input"
-                rows="3"
-                spellcheck="false"
-                autocapitalize="off"
-                autocomplete="off"
-                autocorrect="off"
-                placeholder="Generate a seed, or paste one here to restore a saved state"
-              ></textarea>
-              <div class="seed-actions">
-                <button id="state-seed-save" type="button" class="control-toggle-btn seed-action-btn">Save</button>
-                <button id="state-seed-load" type="button" class="control-toggle-btn seed-action-btn">Load</button>
-              </div>
-            </div>
-          </div>
-
           <div class="control-group">
             <h3 class="control-group-title">Timing</h3>
             <div class="control-group-items">
@@ -136,6 +115,27 @@
               <div class="control-item">
                 <label for="master-volume">Master Volume (<span id="master-volume-value">0.75</span>)</label>
                 <input id="master-volume" type="range" min="0" max="1" step="0.01" value="0.75">
+              </div>
+            </div>
+          </div>
+
+          <div class="control-group control-group--seed">
+            <h3 class="control-group-title">Seed</h3>
+            <div class="seed-panel" aria-label="Save and load the current state via a seed">
+              <label class="seed-label" for="state-seed-input">Current seed</label>
+              <textarea
+                id="state-seed-input"
+                class="seed-input"
+                rows="3"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                placeholder="Generate a seed, or paste one here to restore a saved state"
+              ></textarea>
+              <div class="seed-actions">
+                <button id="state-seed-save" type="button" class="control-toggle-btn seed-action-btn">Save</button>
+                <button id="state-seed-load" type="button" class="control-toggle-btn seed-action-btn">Load</button>
+                <button id="state-seed-delete" type="button" class="control-toggle-btn seed-action-btn">Delete</button>
               </div>
             </div>
           </div>

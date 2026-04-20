@@ -1,3 +1,41 @@
+# Task: Add Seed Delete Button That Also Clears The URL Param
+
+## Plan
+- [ ] Inspect the current seed action flow across `index.html`, `js/ui.js`, `js/state-seed.js`, and shared seed state so clearing can stay consistent.
+- [ ] Add a `Delete` button beside the existing seed actions and wire it so clearing the seed also removes the `seed` URL query param.
+- [ ] Clear the in-memory cached seed at the same time so later UI syncs do not repopulate a deleted value.
+- [ ] Extend the existing seed regression to verify URL-param removal behavior.
+- [ ] Run focused verification plus `npm run build`, then document the review and lesson.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
+# Task: Cap Random Startup Tape Delay Feedback At 0.05
+
+## Plan
+- [x] Inspect the startup randomization path for tape delay feedback in `js/audio-state-controller.js` and confirm the current fresh-init range.
+- [x] Add one explicit startup-only tape-delay-feedback ceiling so random initialization can never exceed `0.05` while manual control and seeded restore behavior stay unchanged.
+- [x] Update focused startup regression coverage to verify the upper bound deterministically.
+- [x] Run the relevant tests plus `npm run build`, then document the review and lesson.
+
+## Progress Notes
+- Added `STARTUP_DELAY_FEEDBACK_MAX` in `js/constants.js` so the fresh-start tape-delay feedback ceiling is explicit and separate from the normal runtime/UI `DELAY_FEEDBACK_MAX`.
+- Updated `randomizeStartupState()` in `js/audio-state-controller.js` so fresh initialization now randomizes `state.synthParams.delayFeedback` only within `0.01..0.05`.
+- Extended `tasks/initial-startup-scene-test.mjs` with an upper-bound check that forces a high random draw and verifies startup tape delay feedback clamps exactly to the `0.05` cap.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/constants.js`, `js/audio-state-controller.js`, `tasks/initial-startup-scene-test.mjs`, and `tasks/todo.md` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `node --experimental-default-type=module tasks/state-seed-roundtrip-test.mjs` passed.
+- `npm run build` completed successfully after capping startup tape delay feedback at `0.05`.
+
+---
+
 # Task: Restore Startup Randomization For Key, Instruments, Notes, Pauses, And Delay
 
 ## Plan
