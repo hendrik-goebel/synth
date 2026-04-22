@@ -776,6 +776,11 @@ body {
   font-weight: 600;
 }
 
+.midi-status-value.is-active {
+  color: #fde68a;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.22);
+}
+
 .midi-refresh-btn {
   width: 100%;
 }

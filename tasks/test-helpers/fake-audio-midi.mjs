@@ -367,6 +367,7 @@ export function resetSharedAppState(
     clockMode: "off",
     clockMasterRunning: false,
     awaitingExternalClockStart: false,
+    remoteNoteOutputActive: false,
     externalClockPulseCount: 0,
     externalClockTempoBpm: 0,
     lastExternalClockTimestampMs: 0,

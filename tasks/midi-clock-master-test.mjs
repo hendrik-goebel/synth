@@ -11,6 +11,7 @@ import { createMidiCrossTabCoordinator } from "../js/midi-engine.js";
 import { AudioStateController } from "../js/audio-state-controller.js";
 import { state } from "../js/state.js";
 import {
+  flushMicrotasks,
   installFakeAudioAndMidiEnvironment,
   resetSharedAppState,
 } from "./test-helpers/fake-audio-midi.mjs";
@@ -81,8 +82,55 @@ try {
     relayedTransportEvents.some(({ type }) => type === "midi-clock-pulse"),
     "midi clock pulses should continue to be relayed with no hardware output selected",
   );
+  assert.ok(
+    relayedTransportEvents.some(({ type, payload }) => type === "midi-note-output"
+      && Array.isArray(payload?.noteOnBytes)
+      && Array.isArray(payload?.noteOffBytes)),
+    "scheduled per-channel MIDI note output should also be relayed across tabs when no hardware output is selected locally",
+  );
   assert.equal(environment.fakeOutput.sentMessages.length, 0, "no hardware MIDI messages should be sent when no output port is selected");
   assert.equal(await controller.stopAll(), true, "stop should still succeed after a cross-tab-only master start");
+
+  environment.fakeOutput.sentMessages.length = 0;
+  assert.equal(controller.setMidiClockMode("off"), true, "clock mode should be switchable back to off for follower-note-output checks");
+  assert.equal(controller.setMidiOutputPort("output-1"), true, "the hardware MIDI output should be reselectable for follower-note-output checks");
+  const remoteNoteTab = createMidiCrossTabCoordinator({ tabId: "remote-note-tab" });
+  assert.equal(remoteNoteTab.start(), true, "the remote note-output tab should join the shared channel");
+  assert.equal(remoteNoteTab.publish("transport-start", { presetIds: ["warm"] }), true, "remote transport start should be publishable");
+  await flushMicrotasks();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(state.midi.remoteNoteOutputActive, true, "cross-tab transport start should mark the local tab as a remote note-output follower");
+  assert.equal(
+    environment.fakeOutput.sentMessages.length,
+    0,
+    "a follower tab should not emit its own scheduled hardware MIDI notes before the relayed note-output event arrives",
+  );
+
+  assert.equal(
+    remoteNoteTab.publish("midi-note-output", {
+      presetId: "warm",
+      noteOnBytes: [0x91, 60, 96],
+      noteOffBytes: [0x81, 60, 0],
+      startDelayMs: 0,
+      endDelayMs: 25,
+    }),
+    true,
+    "remote per-channel note-output events should be publishable",
+  );
+  await flushMicrotasks();
+
+  assert.deepEqual(
+    environment.fakeOutput.sentMessages.slice(0, 2).map(({ data }) => data),
+    [
+      [0x91, 60, 96],
+      [0x81, 60, 0],
+    ],
+    "the follower tab should replay the relayed per-channel MIDI note bytes on its selected hardware output",
+  );
+  assert.equal(remoteNoteTab.publish("transport-stop", {}), true, "remote transport stop should be publishable");
+  await flushMicrotasks();
+  assert.equal(state.midi.remoteNoteOutputActive, false, "cross-tab transport stop should clear follower note-output mode");
+  remoteNoteTab.stop();
 
   const remoteEvents = [];
   const tabA = createMidiCrossTabCoordinator({ tabId: "tab-a" });

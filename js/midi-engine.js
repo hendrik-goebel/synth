@@ -123,6 +123,164 @@ function nowMs() {
   return globalThis.performance?.now?.() ?? Date.now();
 }
 
+function getSafeRelayDelayMs(targetTimestampMs, originNowMs) {
+  if (!Number.isFinite(targetTimestampMs)) {
+    return 0;
+  }
+
+  return Math.max(0, targetTimestampMs - originNowMs);
+}
+
+function shouldSuppressLocalMidiNoteOutput() {
+  return Boolean(state.midi.remoteNoteOutputActive);
+}
+
+function buildCrossTabMidiNoteOutputPayload({
+  presetId,
+  noteOnBytes,
+  noteOffBytes,
+  startTimestampMs,
+  endTimestampMs,
+}) {
+  const originNowMs = nowMs();
+
+  return {
+    presetId,
+    noteOnBytes: noteOnBytes.slice(),
+    noteOffBytes: noteOffBytes.slice(),
+    startDelayMs: getSafeRelayDelayMs(startTimestampMs, originNowMs),
+    endDelayMs: getSafeRelayDelayMs(endTimestampMs, originNowMs),
+  };
+}
+
+function replayCrossTabMidiNoteOutput(payload = {}) {
+  if (!selectedOutputPort) {
+    return false;
+  }
+
+  const noteOnBytes = Array.isArray(payload.noteOnBytes) ? payload.noteOnBytes.slice() : [];
+  const noteOffBytes = Array.isArray(payload.noteOffBytes) ? payload.noteOffBytes.slice() : [];
+  if (noteOnBytes.length === 0 || noteOffBytes.length === 0) {
+    return false;
+  }
+
+  const baseNowMs = nowMs();
+  const startDelayMs = Math.max(0, Number(payload.startDelayMs) || 0);
+  const endDelayMs = Math.max(startDelayMs, Number(payload.endDelayMs) || 0);
+  const noteOnTimestampMs = startDelayMs > 0 ? baseNowMs + startDelayMs : undefined;
+  const noteOffTimestampMs = endDelayMs > 0 ? baseNowMs + endDelayMs : undefined;
+  const detail = {
+    presetId: payload.presetId,
+    relayed: true,
+    scheduledBy: "crossTabMidiNoteOutputRelay",
+  };
+
+  const sentNoteOn = sendOutputMessage(noteOnBytes, noteOnTimestampMs, detail);
+  const sentNoteOff = sendOutputMessage(noteOffBytes, noteOffTimestampMs, detail);
+  return sentNoteOn || sentNoteOff;
+}
+
+function getMidiMessageType(statusByte, data2 = 0) {
+  if (!Number.isInteger(statusByte)) {
+    return "unknown";
+  }
+
+  if (statusByte === 0xf8) {
+    return "clock";
+  }
+
+  if (statusByte === 0xfa) {
+    return "start";
+  }
+
+  if (statusByte === 0xfb) {
+    return "continue";
+  }
+
+  if (statusByte === 0xfc) {
+    return "stop";
+  }
+
+  const messageType = statusByte & 0xf0;
+  if (messageType === 0x90) {
+    return data2 > 0 ? "noteon" : "noteoff";
+  }
+
+  if (messageType === 0x80) {
+    return "noteoff";
+  }
+
+  if (messageType === 0xb0) {
+    return "controlchange";
+  }
+
+  if (messageType === 0xc0) {
+    return "programchange";
+  }
+
+  if (messageType === 0xe0) {
+    return "pitchbend";
+  }
+
+  return "unknown";
+}
+
+function getMidiMessageLogDetails(bytes = []) {
+  const [statusByte, data1 = 0, data2 = 0] = bytes;
+  const type = getMidiMessageType(statusByte, data2);
+  const isChannelMessage = Number.isInteger(statusByte) && statusByte < 0xf0;
+
+  return {
+    type,
+    statusByte,
+    midiChannel: isChannelMessage ? (statusByte & 0x0f) + 1 : null,
+    noteNumber: type === "noteon" || type === "noteoff" ? data1 : null,
+    velocity: type === "noteon" || type === "noteoff" ? data2 : null,
+  };
+}
+
+function logMidiMessage({
+  direction,
+  source,
+  bytes = [],
+  timestampMs = undefined,
+  portId = "",
+  portName = "",
+  detail = {},
+} = {}) {
+  if (typeof globalThis.console?.debug !== "function") {
+    return;
+  }
+
+  const normalizedBytes = Array.isArray(bytes) ? bytes.slice() : [];
+  const messageDetails = getMidiMessageLogDetails(normalizedBytes);
+
+  globalThis.console.debug("[MIDI]", {
+    direction,
+    source,
+    portId,
+    portName,
+    timestampMs,
+    bytes: normalizedBytes,
+    ...messageDetails,
+    ...detail,
+  });
+}
+
+function logMidiRelayEvent({ direction, type, payload = {}, detail = {} } = {}) {
+  if (typeof globalThis.console?.debug !== "function") {
+    return;
+  }
+
+  globalThis.console.debug("[MIDI]", {
+    direction,
+    source: "cross-tab",
+    type,
+    payload: payload && typeof payload === "object" ? { ...payload } : payload,
+    ...detail,
+  });
+}
+
 function getMidiSupport() {
   return typeof globalThis.navigator?.requestMIDIAccess === "function";
 }
@@ -145,6 +303,12 @@ async function handleRemoteCrossTabMidiEvent({ type, payload }) {
   if (!boundController) {
     return false;
   }
+
+  logMidiRelayEvent({
+    direction: "receive",
+    type,
+    payload,
+  });
 
   switch (type) {
     case "transport-start":
@@ -182,6 +346,8 @@ async function handleRemoteCrossTabMidiEvent({ type, payload }) {
         return false;
       }
       return boundController.handleIncomingMidiNoteMessage(payload, { source: "cross-tab" });
+    case "midi-note-output":
+      return replayCrossTabMidiNoteOutput(payload);
     default:
       return false;
   }
@@ -209,7 +375,19 @@ function broadcastCrossTabMidiEvent(type, payload = {}) {
     return false;
   }
 
-  return crossTabCoordinator.publish(type, payload);
+  const published = crossTabCoordinator.publish(type, payload);
+  if (published) {
+    logMidiRelayEvent({
+      direction: "send",
+      type,
+      payload,
+      detail: {
+        tabId: crossTabCoordinator.tabId,
+      },
+    });
+  }
+
+  return published;
 }
 
 export function broadcastCrossTabTransportStart(payload = {}) {
@@ -236,6 +414,7 @@ function emitMidiStateChange(type, detail = {}) {
       clockMode: state.midi.clockMode,
       clockMasterRunning: state.midi.clockMasterRunning,
       awaitingExternalClockStart: state.midi.awaitingExternalClockStart,
+      remoteNoteOutputActive: state.midi.remoteNoteOutputActive,
       externalClockTempoBpm: state.midi.externalClockTempoBpm,
       channelSettingsByPresetId: Object.fromEntries(
         Object.entries(state.midi.channelSettingsByPresetId).map(([presetId, value]) => [presetId, { ...value }]),
@@ -279,6 +458,15 @@ function handleMidiInputMessage(event) {
   if (data.length === 0) {
     return;
   }
+
+  logMidiMessage({
+    direction: "receive",
+    source: "hardware",
+    bytes: data,
+    timestampMs: event?.receivedTime ?? nowMs(),
+    portId: selectedInputPort?.id || "",
+    portName: selectedInputPort?.name || "",
+  });
 
   const [statusByte, data1 = 0, data2 = 0] = data;
 
@@ -421,7 +609,7 @@ function getMasterClockPulseIntervalMs() {
   return 60000 / (tempoBpm * MIDI_CLOCK_PULSES_PER_QUARTER);
 }
 
-function sendOutputMessage(bytes, timestampMs = undefined) {
+function sendOutputMessage(bytes, timestampMs = undefined, detail = {}) {
   if (!selectedOutputPort || typeof selectedOutputPort.send !== "function") {
     return false;
   }
@@ -432,6 +620,16 @@ function sendOutputMessage(bytes, timestampMs = undefined) {
     } else {
       selectedOutputPort.send(bytes, timestampMs);
     }
+
+    logMidiMessage({
+      direction: "send",
+      source: "hardware",
+      bytes,
+      timestampMs,
+      portId: selectedOutputPort.id || "",
+      portName: selectedOutputPort.name || "",
+      detail,
+    });
     return true;
   } catch (error) {
     emitMidiError("Unable to send MIDI message", { error });
@@ -613,7 +811,7 @@ export function sendMidiNoteForPreset(
     velocity = MIDI_VELOCITY_MAX,
   } = {},
 ) {
-  if (!selectedOutputPort) {
+  if (shouldSuppressLocalMidiNoteOutput()) {
     return false;
   }
 
@@ -629,10 +827,26 @@ export function sendMidiNoteForPreset(
   const noteOffStatus = 0x80 + (midiChannel - 1);
   const startTimestampMs = getOutputTimestampFromAudioTime(timeSeconds);
   const endTimestampMs = getOutputTimestampFromAudioTime(timeSeconds + Math.max(0.03, durationSeconds));
+  const noteOnBytes = [noteOnStatus, normalizedNoteNumber, normalizedVelocity];
+  const noteOffBytes = [noteOffStatus, normalizedNoteNumber, 0];
+  const relayPayload = buildCrossTabMidiNoteOutputPayload({
+    presetId,
+    noteOnBytes,
+    noteOffBytes,
+    startTimestampMs,
+    endTimestampMs,
+  });
 
-  const sentNoteOn = sendOutputMessage([noteOnStatus, normalizedNoteNumber, normalizedVelocity], startTimestampMs);
-  const sentNoteOff = sendOutputMessage([noteOffStatus, normalizedNoteNumber, 0], endTimestampMs);
-  return sentNoteOn || sentNoteOff;
+  const sentNoteOn = sendOutputMessage(noteOnBytes, startTimestampMs, {
+    presetId,
+    scheduledBy: "sendMidiNoteForPreset",
+  });
+  const sentNoteOff = sendOutputMessage(noteOffBytes, endTimestampMs, {
+    presetId,
+    scheduledBy: "sendMidiNoteForPreset",
+  });
+  const relayedNoteOutput = broadcastCrossTabMidiEvent("midi-note-output", relayPayload);
+  return sentNoteOn || sentNoteOff || relayedNoteOutput;
 }
 
 export function isValidMidiClockMode(mode) {

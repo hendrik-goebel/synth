@@ -598,6 +598,8 @@ export class AudioStateController extends EventTarget {
       state.currentStateSeed = "";
     }
 
+    state.midi.remoteNoteOutputActive = false;
+
     this.emitStateChange("initialized", {
       activeInstrumentPresetId: state.activeInstrumentPresetId,
       seedLoaded: loadedSeed,
@@ -665,6 +667,7 @@ export class AudioStateController extends EventTarget {
     state.midi.clockMode = normalizedMode;
     state.midi.externalClockPulseCount = 0;
     state.midi.lastExternalClockTimestampMs = 0;
+    state.midi.remoteNoteOutputActive = false;
 
     if (normalizedMode === "slave") {
       stopSchedulerLoop();
@@ -786,6 +789,7 @@ export class AudioStateController extends EventTarget {
       state.transportState = "playing";
       state.midi.awaitingExternalClockStart = false;
       state.midi.externalClockPulseCount = 0;
+      state.midi.remoteNoteOutputActive = source === "cross-tab";
       resetTransportTimeline(0.005);
       scheduleCurrentTransportStep(state.audioContext.currentTime + 0.005);
 
@@ -816,6 +820,7 @@ export class AudioStateController extends EventTarget {
       }
       state.transportState = "playing";
       state.midi.awaitingExternalClockStart = false;
+      state.midi.remoteNoteOutputActive = source === "cross-tab";
 
       this.emitTransportStateChange("transport-state-updated", {
         source: source === "cross-tab" ? "cross-tab-midi-clock" : "external-midi-clock",
@@ -838,6 +843,7 @@ export class AudioStateController extends EventTarget {
     state.midi.awaitingExternalClockStart = state.playingPresetIds.size > 0;
     state.midi.externalClockPulseCount = 0;
     state.midi.lastExternalClockTimestampMs = 0;
+    state.midi.remoteNoteOutputActive = false;
     resetTransportTimeline();
 
     this.emitAction("midi-clock-stopped", {
@@ -1555,6 +1561,8 @@ export class AudioStateController extends EventTarget {
   }
 
   async playAll({ source = "local" } = {}) {
+    state.midi.remoteNoteOutputActive = source === "cross-tab";
+
     if (state.midi.clockMode === "slave") {
       try {
         await ensureAudioContext();
@@ -1642,6 +1650,8 @@ export class AudioStateController extends EventTarget {
       return false;
     }
 
+    state.midi.remoteNoteOutputActive = false;
+
     this.emitAction("global-playback-paused", { source });
     syncMidiClockOutputState({ sendStopMessage: source !== "cross-tab" });
     this.emitTransportStateChange("transport-state-updated", { source });
@@ -1654,6 +1664,8 @@ export class AudioStateController extends EventTarget {
       if (!stopped) {
         return false;
       }
+
+      state.midi.remoteNoteOutputActive = false;
 
       this.emitAction("global-playback-stopped", { source });
       if (source !== "cross-tab") {

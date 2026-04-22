@@ -57,6 +57,7 @@ let globalPlayButtonElement = null;
 let globalStopButtonElement = null;
 let midiStatusElement = null;
 let midiClockStatusElement = null;
+let midiOutputFollowerStatusElement = null;
 let midiInputPortElement = null;
 let midiOutputPortElement = null;
 let midiClockModeElement = null;
@@ -208,6 +209,13 @@ function getMidiClockStatusElement() {
     midiClockStatusElement = document.getElementById("midi-clock-status");
   }
   return midiClockStatusElement;
+}
+
+function getMidiOutputFollowerStatusElement() {
+  if (!midiOutputFollowerStatusElement) {
+    midiOutputFollowerStatusElement = document.getElementById("midi-output-follower-status");
+  }
+  return midiOutputFollowerStatusElement;
 }
 
 function getMidiInputPortElement() {
@@ -429,9 +437,14 @@ function getMidiClockStatusText() {
   return "Off";
 }
 
+function getMidiOutputFollowerStatusText() {
+  return state.midi.remoteNoteOutputActive ? "Remote follower active" : "Local output";
+}
+
 function syncMidiGlobalUI() {
   const midiStatus = getMidiStatusElement();
   const midiClockStatus = getMidiClockStatusElement();
+  const midiOutputFollowerStatus = getMidiOutputFollowerStatusElement();
   const midiInputPort = getMidiInputPortElement();
   const midiOutputPort = getMidiOutputPortElement();
   const midiClockMode = getMidiClockModeElement();
@@ -449,6 +462,18 @@ function syncMidiGlobalUI() {
 
   if (midiClockStatus) {
     midiClockStatus.textContent = getMidiClockStatusText();
+  }
+
+  if (midiOutputFollowerStatus) {
+    const isRemoteFollowerActive = Boolean(state.midi.remoteNoteOutputActive);
+    midiOutputFollowerStatus.textContent = getMidiOutputFollowerStatusText();
+    midiOutputFollowerStatus.classList.toggle("is-active", isRemoteFollowerActive);
+    midiOutputFollowerStatus.setAttribute(
+      "aria-label",
+      isRemoteFollowerActive
+        ? "Remote MIDI output follower active"
+        : "Local MIDI output mode active",
+    );
   }
 
   replaceSelectOptions(midiInputPort, state.midi.availableInputs, state.midi.inputPortId, "None");

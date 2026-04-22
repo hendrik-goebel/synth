@@ -1,5 +1,11 @@
 # Lessons Learned
 
+- When surfacing cross-tab runtime state in the UI (for example remote MIDI follower mode), render it from the existing shared sync path (`syncMidiGlobalUI()` / transport refresh) instead of adding one-off DOM updates in transport handlers; mirrored status labels stay correct with less wiring that way.
+
+- When cross-tab transport is supposed to drive hardware MIDI output from another tab, relay the fully resolved per-channel MIDI note bytes plus relative timing from the send boundary and suppress follower tabs' own scheduled note output; otherwise tabs can drift, use different channel mappings, or double-send notes.
+
+- When adding observability for MIDI traffic, log at the narrow I/O boundaries (`handleMidiInputMessage`, output-port send, and cross-tab relay publish/receive) with parsed bytes plus metadata; this keeps the logs accurate without changing controller or scheduler behavior.
+
 - When a stack selection UI also determines playback targets, introduce a dedicated target selector so adding/removing items does not unexpectedly retarget controls.
 - Keep stack membership, currently edited instrument, and currently playing instruments as separate pieces of state.
 - When stacked items need toggle, playing, and current-target states at once, button groups are safer than overloaded select elements.

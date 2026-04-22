@@ -1,3 +1,74 @@
+# Task: Show Cross-Tab MIDI Follower Status In The MIDI Panel
+
+## Plan
+- [x] Inspect the current MIDI panel markup in `index.html` and the existing `syncMidiGlobalUI()` path in `js/ui.js`.
+- [x] Add one compact read-only status row for cross-tab MIDI output follower mode in the existing MIDI panel.
+- [x] Update `js/ui.js` so the label reflects `state.midi.remoteNoteOutputActive` on initialization and transport/state changes.
+- [x] Run focused verification plus `npm run build`, then record the review and lesson.
+
+## Progress Notes
+- Added a new read-only `Output Mode` row to the existing MIDI control group in `index.html`, using `#midi-output-follower-status` with polite live-region behavior.
+- Extended `js/ui.js` with a cached getter plus a small formatter for `state.midi.remoteNoteOutputActive`, and wired the label into the existing `syncMidiGlobalUI()` path so both MIDI and transport refreshes keep it current.
+- Added a subtle active highlight in `css/style.css` so remote follower mode is visible without changing the panel layout.
+- Added `tasks/midi-follower-status-ui-test.mjs`, a focused fake-DOM regression that verifies the label and highlight switch between `Local output` and `Remote follower active` through the normal controller event path.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `index.html`, `js/ui.js`, `css/style.css`, `tasks/midi-follower-status-ui-test.mjs`, `tasks/todo.md`, and `tasks/lessons.md` files; only pre-existing/non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/midi-follower-status-ui-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-clock-master-test.mjs` passed.
+- `npm run build` completed successfully after adding the MIDI follower status label.
+
+---
+
+# Task: Relay Per-Channel MIDI Note Output Across Tabs
+
+## Plan
+- [x] Inspect the current scheduled MIDI note-output path in `js/audio-engine.js` and `js/midi-engine.js` and confirm where cross-tab relay is still missing.
+- [x] Relay resolved per-channel MIDI note output events across tabs from the send boundary, using exact note bytes plus safe relative timing data.
+- [x] Prevent cross-tab follower tabs from also generating their own scheduled MIDI note output locally, so relayed note events do not double-send.
+- [x] Add focused regression coverage for relayed note output and follower-tab suppression, then rerun the MIDI tests plus `npm run build`.
+
+## Progress Notes
+- Added `remoteNoteOutputActive` to shared MIDI state so tabs can tell when transport is being driven by a remote cross-tab source and suppress their own scheduled MIDI note sends.
+- Extended `js/midi-engine.js` so `sendMidiNoteForPreset(...)` now relays fully resolved per-channel note-on/note-off bytes across tabs using relative delay timing, even when the origin tab has no selected hardware output.
+- Added remote `midi-note-output` replay in `js/midi-engine.js`, so follower tabs with a selected hardware output can emit the relayed bytes directly instead of depending on their own local channel mappings or note state.
+- Updated `js/audio-state-controller.js` transport/clock handlers to toggle follower-note-output mode based on `source`, preventing duplicate local scheduled MIDI sends while following a remote tab.
+- Extended `tasks/midi-clock-master-test.mjs` to verify that note output is relayed with no local hardware output selected and that follower tabs replay the relayed bytes without sending their own scheduled duplicates first.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/midi-engine.js`, `js/audio-state-controller.js`, `js/state.js`, `tasks/test-helpers/fake-audio-midi.mjs`, `tasks/midi-clock-master-test.mjs`, `tasks/todo.md`, and `tasks/lessons.md` files; only pre-existing non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/midi-clock-master-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-note-routing-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-clock-sync-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-logging-test.mjs` passed.
+- `npm run build` completed successfully after adding cross-tab per-channel MIDI note-output relay.
+
+---
+
+# Task: Add Logging For MIDI Send And Receive Events
+
+## Plan
+- [x] Inspect the real MIDI I/O boundaries in `js/midi-engine.js`, plus the controller/audio call sites that feed note send and receive behavior.
+- [x] Add one minimal logging helper in `js/midi-engine.js` that logs inbound and outbound MIDI bytes together with parsed type/channel/note/velocity metadata.
+- [x] Keep the logging behavior passive (`console.debug`) so MIDI routing, clock sync, and tests keep their current behavior.
+- [x] Add focused MIDI regression coverage for the new logging and rerun the MIDI tests plus `npm run build`.
+
+## Progress Notes
+- Added passive MIDI logging helpers in `js/midi-engine.js` that normalize raw bytes into readable metadata (`type`, `midiChannel`, `noteNumber`, `velocity`) and write them via `console.debug`.
+- Wired the logging into both hardware boundaries (`handleMidiInputMessage(...)` and output-port `send(...)`) plus cross-tab relay publish/receive, so note and clock traffic are visible in both directions.
+- Kept the change behavior-free by logging only after successful output sends and on existing input/relay paths, with no controller or scheduler semantics changed.
+- Added `tasks/midi-logging-test.mjs` to verify logged hardware send, hardware receive, cross-tab publish, and cross-tab receive behavior in the fake MIDI environment.
+
+## Review
+- `get_errors` reported no errors in the edited `js/midi-engine.js`, `tasks/midi-logging-test.mjs`, `tasks/todo.md`, and `tasks/lessons.md` files.
+- `node --experimental-default-type=module tasks/midi-logging-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-note-routing-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-clock-master-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-clock-sync-test.mjs` passed.
+- `npm run build` completed successfully after adding MIDI send/receive logging.
+
+---
+
 # Task: Add Left-Column Separator Between Global And Local Controls
 
 ## Plan
