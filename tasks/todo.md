@@ -1,3 +1,48 @@
+# Task: Sync MIDI Across Multiple Browser Tabs
+
+## Plan
+- [x] Inspect the current MIDI input/output and clock flow so cross-tab sync can reuse those real event boundaries instead of introducing a second transport model.
+- [x] Add one BroadcastChannel-based relay inside the existing MIDI runtime with tab/event deduplication, so incoming hardware MIDI and locally generated master-clock events can fan out to sibling tabs safely.
+- [x] Update the controller’s incoming MIDI handlers so relayed cross-tab events are accepted without echoing back into the relay path, while hardware-origin behavior stays unchanged.
+- [x] Surface the new sync state in the existing MIDI status UI and keep the shared test reset helper aware of the new cross-tab fields.
+- [x] Extend focused MIDI regression coverage for cross-tab relay behavior and rerun the MIDI tests plus `npm run build`.
+
+## Progress Notes
+- Added a BroadcastChannel-backed cross-tab coordinator directly in `js/midi-engine.js`, including per-tab ids, seen-event deduplication, and relay hooks for hardware MIDI clock, hardware note input, and locally generated master-clock start/pulse/stop events.
+- Extended `state.midi` with `crossTabSyncSupported`, `crossTabSyncActive`, and `tabId`, then surfaced that status in `js/ui.js` so the global MIDI panel now reports when cross-tab sync is active.
+- Updated `AudioStateController.handleIncomingMidiClockStart(...)`, `handleIncomingMidiClockContinue(...)`, `handleIncomingMidiClockStop(...)`, `handleIncomingMidiClockPulse(...)`, and `handleIncomingMidiNoteMessage(...)` to accept a source descriptor, letting relayed cross-tab MIDI events drive follower tabs without looping back into the relay.
+- Corrected master-clock ordering in `playAll()` so MIDI `Start` is emitted before the first scheduled note, which also made the master-clock regression reflect real device expectations.
+- Extended `tasks/test-helpers/fake-audio-midi.mjs` with a fake `BroadcastChannel`, then expanded `tasks/midi-clock-master-test.mjs` to verify cross-tab relay ordering and deduplication.
+- Follow-up correction: added explicit `transport-start` / `transport-stop` cross-tab messages for app-level play/stop actions, and made remote transport handling source-aware so follower tabs react without echoing hardware MIDI start/stop back out.
+- Follow-up correction: decoupled master `Send` mode from physical MIDI output selection, so cross-tab transport and clock relay now still run when no external MIDI output port is selected.
+
+## Review
+- `node --experimental-default-type=module tasks/midi-clock-master-test.mjs` passed, including the new cross-tab relay assertions.
+- `node --experimental-default-type=module tasks/midi-note-routing-test.mjs` passed after isolating the test from the default MIDI-channel-5 collision on another strip.
+- `node --experimental-default-type=module tasks/midi-clock-sync-test.mjs` passed.
+- `npm run build` completed successfully after the cross-tab MIDI sync changes.
+- Follow-up verification: the updated `tasks/midi-clock-master-test.mjs` now also asserts that local `playAll()` and `stopAll()` publish explicit `transport-start` and `transport-stop` cross-tab events, and that check passed.
+- Additional follow-up verification: `tasks/midi-clock-master-test.mjs` now also confirms that `Send` mode still relays `transport-start`, `midi-clock-start`, and `midi-clock-pulse` events with no hardware output port selected, and that check passed.
+
+---
+
+# Task: Add MIDI Clock And Per-Channel MIDI I/O Layer
+
+## Plan
+- [ ] Inspect the current transport, scheduling, controller, UI, and note-pattern boundaries so MIDI clock and note routing attach to the real app source of truth instead of duplicating timing state.
+- [ ] Add one dedicated `js/midi-engine.js` runtime layer for Web MIDI access, port discovery, external-clock master/slave behavior, and per-channel note send/receive bookkeeping.
+- [ ] Extend shared state, controller actions, and startup initialization so MIDI settings can be changed from the app, clock sync can drive or follow transport safely, and per-channel note send/receive can be enabled independently.
+- [ ] Add a compact global MIDI panel plus per-channel MIDI channel controls/status in the existing UI, keeping the current mixer workflow intact.
+- [ ] Add focused regression coverage for MIDI clock master/slave behavior, per-channel note output, and per-channel note input, then run the relevant tests plus `npm run build`.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
 # Task: Add Seed Delete Button That Also Clears The URL Param
 
 ## Plan

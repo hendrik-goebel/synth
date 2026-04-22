@@ -1,4 +1,5 @@
 import {
+  DEFAULT_MIDI_CHANNEL_SETTINGS_BY_PRESET_ID,
   DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX,
   DEFAULT_PRESET_ID,
   INITIAL_SYNTH_PARAMS,
@@ -39,6 +40,7 @@ export const state = {
   instrumentNoteIdsByPresetId: {},
   instrumentNoteLengthInitializedByPresetId: {},
   instrumentPatternsByPresetId: {},
+  instrumentPatternNoteIdsByPresetId: {},
   globalArpeggioKeyIndex: DEFAULT_GLOBAL_ARPEGGIO_KEY_INDEX,
   startupRandomizationApplied: false,
   currentStateSeed: "",
@@ -46,4 +48,24 @@ export const state = {
   arpeggioHistoryIndex: 0,
   activeInstrumentPresetId: DEFAULT_PRESET_ID,
   playingPresetIds: new Set(),
+  midi: {
+    supported: false,
+    accessGranted: false,
+    crossTabSyncSupported: false,
+    crossTabSyncActive: false,
+    tabId: "",
+    inputPortId: "",
+    outputPortId: "",
+    availableInputs: [],
+    availableOutputs: [],
+    clockMode: "off",
+    clockMasterRunning: false,
+    awaitingExternalClockStart: false,
+    externalClockPulseCount: 0,
+    externalClockTempoBpm: 0,
+    lastExternalClockTimestampMs: 0,
+    channelSettingsByPresetId: Object.fromEntries(
+      Object.entries(DEFAULT_MIDI_CHANNEL_SETTINGS_BY_PRESET_ID).map(([presetId, value]) => [presetId, { ...value }]),
+    ),
+  },
 };

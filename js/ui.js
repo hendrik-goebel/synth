@@ -6,6 +6,8 @@ import {
   delayDivisionIndexFromUiValue,
   extractOctave,
   getCircleOfFifthsKeyLabel,
+  MIDI_CHANNEL_MAX,
+  MIDI_CHANNEL_MIN,
   getPitchClassLabel,
   getPitchClassesForMajorKey,
   GLOBAL_CONTROL_KEYS,
@@ -53,6 +55,12 @@ let globalKeyValueElement = null;
 let globalKeyNoteListElement = null;
 let globalPlayButtonElement = null;
 let globalStopButtonElement = null;
+let midiStatusElement = null;
+let midiClockStatusElement = null;
+let midiInputPortElement = null;
+let midiOutputPortElement = null;
+let midiClockModeElement = null;
+let midiRefreshElement = null;
 let stateSeedInputElement = null;
 let stateSeedSaveElement = null;
 let stateSeedLoadElement = null;
@@ -188,6 +196,48 @@ function getGlobalStopButtonElement() {
   return globalStopButtonElement;
 }
 
+function getMidiStatusElement() {
+  if (!midiStatusElement) {
+    midiStatusElement = document.getElementById("midi-status");
+  }
+  return midiStatusElement;
+}
+
+function getMidiClockStatusElement() {
+  if (!midiClockStatusElement) {
+    midiClockStatusElement = document.getElementById("midi-clock-status");
+  }
+  return midiClockStatusElement;
+}
+
+function getMidiInputPortElement() {
+  if (!midiInputPortElement) {
+    midiInputPortElement = document.getElementById("midi-input-port");
+  }
+  return midiInputPortElement;
+}
+
+function getMidiOutputPortElement() {
+  if (!midiOutputPortElement) {
+    midiOutputPortElement = document.getElementById("midi-output-port");
+  }
+  return midiOutputPortElement;
+}
+
+function getMidiClockModeElement() {
+  if (!midiClockModeElement) {
+    midiClockModeElement = document.getElementById("midi-clock-mode");
+  }
+  return midiClockModeElement;
+}
+
+function getMidiRefreshElement() {
+  if (!midiRefreshElement) {
+    midiRefreshElement = document.getElementById("midi-refresh");
+  }
+  return midiRefreshElement;
+}
+
 function getStateSeedInputElement() {
   if (!stateSeedInputElement) {
     stateSeedInputElement = document.getElementById("state-seed-input");
@@ -317,6 +367,98 @@ function syncStateSeedField(seed = state.currentStateSeed) {
   }
 }
 
+function getMidiChannelSettings(presetId) {
+  const channelSettings = state.midi.channelSettingsByPresetId[presetId];
+  if (channelSettings) {
+    return channelSettings;
+  }
+
+  return {
+    midiChannel: Math.min(MIDI_CHANNEL_MAX, Math.max(MIDI_CHANNEL_MIN, getPresetIds().indexOf(presetId) + 1 || 1)),
+    sendEnabled: 1,
+    receiveEnabled: 1,
+  };
+}
+
+function replaceSelectOptions(selectElement, items, selectedValue, emptyLabel = "None") {
+  if (!selectElement) {
+    return;
+  }
+
+  const previousValue = selectElement.value;
+  selectElement.replaceChildren();
+
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = emptyLabel;
+  selectElement.append(emptyOption);
+
+  items.forEach(({ id, name, manufacturer }) => {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = manufacturer ? `${name} — ${manufacturer}` : name;
+    selectElement.append(option);
+  });
+
+  const nextValue = selectedValue ?? previousValue;
+  selectElement.value = Array.from(selectElement.options).some((option) => option.value === nextValue)
+    ? nextValue
+    : "";
+}
+
+function getMidiClockStatusText() {
+  if (!state.midi.supported) {
+    return "Unsupported";
+  }
+
+  if (state.midi.clockMode === "slave") {
+    if (state.transportState === "playing") {
+      const externalTempoBpm = state.midi.externalClockTempoBpm;
+      return Number.isFinite(externalTempoBpm) && externalTempoBpm > 0
+        ? `Following ${externalTempoBpm.toFixed(1)} BPM`
+        : "Following external clock";
+    }
+
+    return state.midi.awaitingExternalClockStart ? "Waiting for external start" : "External clock armed";
+  }
+
+  if (state.midi.clockMode === "master") {
+    return state.midi.clockMasterRunning ? "Sending MIDI clock" : "Ready to send clock";
+  }
+
+  return "Off";
+}
+
+function syncMidiGlobalUI() {
+  const midiStatus = getMidiStatusElement();
+  const midiClockStatus = getMidiClockStatusElement();
+  const midiInputPort = getMidiInputPortElement();
+  const midiOutputPort = getMidiOutputPortElement();
+  const midiClockMode = getMidiClockModeElement();
+
+  if (midiStatus) {
+    const baseStatus = !state.midi.supported
+      ? "Web MIDI unavailable"
+      : state.midi.accessGranted
+        ? "Ready"
+        : "No device access";
+    midiStatus.textContent = state.midi.crossTabSyncActive
+      ? `${baseStatus} · Cross-tab sync on`
+      : baseStatus;
+  }
+
+  if (midiClockStatus) {
+    midiClockStatus.textContent = getMidiClockStatusText();
+  }
+
+  replaceSelectOptions(midiInputPort, state.midi.availableInputs, state.midi.inputPortId, "None");
+  replaceSelectOptions(midiOutputPort, state.midi.availableOutputs, state.midi.outputPortId, "None");
+
+  if (midiClockMode) {
+    midiClockMode.value = state.midi.clockMode;
+  }
+}
+
 // Cache control config entries once
 const controlConfigEntries = Object.keys(controlConfig).map((id) => ({ id, ...controlConfig[id] }));
 
@@ -383,12 +525,13 @@ export function renderMixerChannels() {
 
   // Incremental update: if channels are already rendered, only patch class state
   if (mixerChannelCache.size > 0) {
-    mixerChannelCache.forEach(({ strip, indicator, instrumentSelect, playBtn, muteBtn, volumeSlider }, presetId) => {
+    mixerChannelCache.forEach(({ strip, indicator, instrumentSelect, playBtn, muteBtn, volumeSlider, midiChannelSelect, midiSendBtn, midiReceiveBtn }, presetId) => {
       const isPlaying = state.playingPresetIds.has(presetId);
       const isCurrent = presetId === state.activeInstrumentPresetId;
       const assignedPresetId = getAssignedPresetId(presetId);
       const instrumentParams = getInstrumentParams(presetId);
       const isMuted = Boolean(Number(instrumentParams.channelMuted));
+      const midiChannelSettings = getMidiChannelSettings(presetId);
 
       strip.classList.toggle("is-current", isCurrent);
       strip.classList.toggle("is-muted", isMuted);
@@ -412,6 +555,22 @@ export function renderMixerChannels() {
       if (volumeSlider) {
         volumeSlider.classList.toggle("is-muted", isMuted);
       }
+
+      if (midiChannelSelect && midiChannelSelect.value !== String(midiChannelSettings.midiChannel)) {
+        midiChannelSelect.value = String(midiChannelSettings.midiChannel);
+      }
+
+      if (midiSendBtn) {
+        const sendEnabled = Boolean(Number(midiChannelSettings.sendEnabled));
+        midiSendBtn.classList.toggle("is-active", sendEnabled);
+        midiSendBtn.setAttribute("aria-pressed", String(sendEnabled));
+      }
+
+      if (midiReceiveBtn) {
+        const receiveEnabled = Boolean(Number(midiChannelSettings.receiveEnabled));
+        midiReceiveBtn.classList.toggle("is-active", receiveEnabled);
+        midiReceiveBtn.setAttribute("aria-pressed", String(receiveEnabled));
+      }
     });
     return;
   }
@@ -432,6 +591,7 @@ export function renderMixerChannels() {
     }
 
     const isMuted = Boolean(Number(instrumentParams.channelMuted));
+    const midiChannelSettings = getMidiChannelSettings(presetId);
     if (isMuted) {
       channelStrip.classList.add("is-muted");
     }
@@ -513,7 +673,42 @@ export function renderMixerChannels() {
     volumeSlider.dataset.presetId = presetId;
     volumeSlider.classList.toggle("is-muted", isMuted);
 
-    buttonsDiv.append(playBtn, variationBtn, muteBtn, noteLengthBtn, volumeSlider);
+    const midiRow = document.createElement("div");
+    midiRow.className = "channel-midi-row";
+
+    const midiChannelSelect = document.createElement("select");
+    midiChannelSelect.className = "channel-midi-channel-select";
+    midiChannelSelect.dataset.presetId = presetId;
+    midiChannelSelect.setAttribute("aria-label", `MIDI channel for channel ${index + 1}`);
+    for (let midiChannel = MIDI_CHANNEL_MIN; midiChannel <= MIDI_CHANNEL_MAX; midiChannel += 1) {
+      const option = document.createElement("option");
+      option.value = String(midiChannel);
+      option.textContent = `Ch ${midiChannel}`;
+      midiChannelSelect.append(option);
+    }
+    midiChannelSelect.value = String(midiChannelSettings.midiChannel);
+
+    const midiSendBtn = document.createElement("button");
+    midiSendBtn.type = "button";
+    midiSendBtn.className = "channel-midi-toggle-btn channel-midi-send-btn";
+    midiSendBtn.dataset.presetId = presetId;
+    midiSendBtn.textContent = "Out";
+    const sendEnabled = Boolean(Number(midiChannelSettings.sendEnabled));
+    midiSendBtn.classList.toggle("is-active", sendEnabled);
+    midiSendBtn.setAttribute("aria-pressed", String(sendEnabled));
+
+    const midiReceiveBtn = document.createElement("button");
+    midiReceiveBtn.type = "button";
+    midiReceiveBtn.className = "channel-midi-toggle-btn channel-midi-receive-btn";
+    midiReceiveBtn.dataset.presetId = presetId;
+    midiReceiveBtn.textContent = "In";
+    const receiveEnabled = Boolean(Number(midiChannelSettings.receiveEnabled));
+    midiReceiveBtn.classList.toggle("is-active", receiveEnabled);
+    midiReceiveBtn.setAttribute("aria-pressed", String(receiveEnabled));
+
+    midiRow.append(midiChannelSelect, midiSendBtn, midiReceiveBtn);
+
+    buttonsDiv.append(playBtn, variationBtn, muteBtn, noteLengthBtn, volumeSlider, midiRow);
     channelStrip.append(instrumentSelect, nameDiv, indicator, buttonsDiv);
     mixerChannelsContainer.append(channelStrip);
 
@@ -525,6 +720,9 @@ export function renderMixerChannels() {
       muteBtn,
       noteLengthBtn,
       volumeSlider,
+      midiChannelSelect,
+      midiSendBtn,
+      midiReceiveBtn,
     });
   });
 }
@@ -615,6 +813,7 @@ function syncGlobalTransportButtons() {
 
 export function updateTransportUI() {
   renderMixerChannels();
+  syncMidiGlobalUI();
   syncGlobalTransportButtons();
 
   if (!statusLabel) {
@@ -623,6 +822,17 @@ export function updateTransportUI() {
 
   if (state.transportState === "paused") {
     statusLabel.textContent = "Paused";
+    return;
+  }
+
+   if (state.midi.awaitingExternalClockStart && state.playingPresetIds.size > 0) {
+     statusLabel.textContent = "Waiting for external MIDI clock";
+     return;
+   }
+
+  if (state.midi.clockMode === "slave" && state.transportState === "playing") {
+    const playingCount = state.playingPresetIds.size;
+    statusLabel.textContent = `Synced to external MIDI clock (${playingCount} instrument${playingCount === 1 ? "" : "s"})`;
     return;
   }
 
@@ -728,6 +938,7 @@ export function syncControlsFromActiveInstrumentPage() {
     instrumentParams.endPauseCount ?? DEAD_NOTE_PAUSE_COUNT_MIN,
   );
   syncArpeggioSettingsHistoryView(state.activeInstrumentPresetId);
+  syncMidiGlobalUI();
   updateTransportUI();
 }
 
@@ -825,6 +1036,32 @@ export function bindGlobalTransportControls(controller) {
   });
 
   syncGlobalTransportButtons();
+}
+
+export function bindMidiControls(controller) {
+  const midiInputPort = getMidiInputPortElement();
+  const midiOutputPort = getMidiOutputPortElement();
+  const midiClockMode = getMidiClockModeElement();
+  const midiRefresh = getMidiRefreshElement();
+
+  midiInputPort?.addEventListener("change", (event) => {
+    controller.setMidiInputPort(event.target.value);
+  });
+
+  midiOutputPort?.addEventListener("change", (event) => {
+    controller.setMidiOutputPort(event.target.value);
+  });
+
+  midiClockMode?.addEventListener("change", (event) => {
+    controller.setMidiClockMode(event.target.value);
+  });
+
+  midiRefresh?.addEventListener("click", async () => {
+    await controller.initializeMidi();
+    controller.refreshMidiPorts();
+  });
+
+  syncMidiGlobalUI();
 }
 
 export function bindStateSeedControls(controller) {
@@ -1100,12 +1337,23 @@ export function bindMixerChannels(controller) {
 
   mixerChannelsContainer.addEventListener("change", (event) => {
     if (!event.target.classList.contains("channel-instrument-select")) {
-      return;
+      if (!event.target.classList.contains("channel-midi-channel-select")) {
+        return;
+      }
     }
 
     const channelId = event.target.dataset.presetId;
+    if (!channelId) {
+      return;
+    }
+
+    if (event.target.classList.contains("channel-midi-channel-select")) {
+      controller.setChannelMidiChannel(channelId, event.target.value);
+      return;
+    }
+
     const assignedPresetId = event.target.value;
-    if (!channelId || !assignedPresetId) {
+    if (!assignedPresetId) {
       return;
     }
 
@@ -1140,6 +1388,8 @@ export function bindMixerChannels(controller) {
     const variationBtn = event.target.closest(".channel-variation-btn");
     const muteBtn = event.target.closest(".channel-mute-btn");
     const noteLengthBtn = event.target.closest(".channel-note-length-btn");
+    const midiSendBtn = event.target.closest(".channel-midi-send-btn");
+    const midiReceiveBtn = event.target.closest(".channel-midi-receive-btn");
     const presetId = strip.dataset.presetId;
     if (!presetId) {
       return;
@@ -1171,6 +1421,15 @@ export function bindMixerChannels(controller) {
       const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % NOTE_LENGTH_OPTIONS.length;
       controller.setControlValue("note-length-toggle", NOTE_LENGTH_OPTIONS[nextIndex]);
       return;
+    }
+
+    if (midiSendBtn) {
+      controller.toggleChannelMidiSend(presetId);
+      return;
+    }
+
+    if (midiReceiveBtn) {
+      controller.toggleChannelMidiReceive(presetId);
     }
   });
 }
@@ -1252,12 +1511,32 @@ export function bindControllerEvents(controller) {
       return;
     }
 
+    if (type === "midi-ports-updated" || type === "midi-settings-updated" || type === "midi-clock-state-updated") {
+      syncMidiGlobalUI();
+      updateTransportUI();
+      return;
+    }
+
+    if (type === "midi-clock-tempo-updated") {
+      setControlUIValue("tempo-bpm", event.detail.value);
+      syncMidiGlobalUI();
+      return;
+    }
+
+    if (type === "channel-midi-updated") {
+      renderMixerChannels();
+      return;
+    }
+
     if (type === "control-updated") {
       if (GLOBAL_CONTROL_KEYS.has(controlConfig[controlId].key) || presetId === state.activeInstrumentPresetId) {
         setControlUIValue(controlId, value);
       }
       if (controlId === "note-length-toggle") {
         updateChannelNoteLengthButton(presetId, value);
+      }
+      if (controlId === "tempo-bpm") {
+        syncMidiGlobalUI();
       }
       return;
     }

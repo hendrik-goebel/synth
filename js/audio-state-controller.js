@@ -29,12 +29,34 @@ import {
   applyLiveChannelLevelUpdates,
   ensureAudioContext,
   pauseAllPlayback,
+  resetTransportTimeline,
+  scheduleCurrentTransportStep,
   syncDelayTimeToTempo,
+  startSchedulerLoop,
   startGlobalPlaybackFromBeginning,
   startPresetPlayback,
+  stopSchedulerLoop,
   stopAllPlayback,
   stopPresetPlayback,
+  triggerImmediateMidiNote,
 } from "./audio-engine.js";
+import {
+  clampMidiChannel,
+  MIDI_CHANNEL_MAX,
+  MIDI_CHANNEL_MIN,
+} from "./constants.js";
+import {
+  broadcastCrossTabTransportStart,
+  broadcastCrossTabTransportStop,
+  initializeMidi as initializeMidiRuntime,
+  isValidMidiClockMode,
+  refreshMidiPorts as refreshMidiPortSnapshots,
+  resyncMidiClockTempo,
+  startMidiClockOutput,
+  setMidiInputPort as applyMidiInputPortSelection,
+  setMidiOutputPort as applyMidiOutputPortSelection,
+  syncMidiClockOutputState,
+} from "./midi-engine.js";
 import {
   createInstrumentNoteVariation,
   ensureInstrumentNoteState,
@@ -75,6 +97,20 @@ const validPostFilterTypes = new Set(POST_FILTER_TYPE_OPTIONS);
 const validArpeggioOctaves = new Set(ARPEGGIO_OCTAVE_OPTIONS);
 const noteIdOrderIndexMap = new Map(NOTE_OPTIONS.map(({ id }, index) => [id, index]));
 const validOscillatorTypes = new Set(["sine", "square", "sawtooth", "triangle"]);
+
+function ensureMidiChannelSettings(presetId) {
+  if (!state.midi.channelSettingsByPresetId[presetId]) {
+    const presetIds = getPresetIds();
+    const fallbackChannel = clampMidiChannel(presetIds.indexOf(presetId) + 1 || MIDI_CHANNEL_MIN);
+    state.midi.channelSettingsByPresetId[presetId] = {
+      midiChannel: fallbackChannel,
+      sendEnabled: 1,
+      receiveEnabled: 1,
+    };
+  }
+
+  return state.midi.channelSettingsByPresetId[presetId];
+}
 
 function shuffle(values) {
   const clone = values.slice();
@@ -496,6 +532,22 @@ function applySeedSnapshotToState(seedSnapshot) {
   state.currentStateSeed = encodeStateSeedSnapshot();
 }
 
+function getExternalMidiTempoBpm(timestampMs) {
+  const previousTimestamp = state.midi.lastExternalClockTimestampMs;
+  state.midi.lastExternalClockTimestampMs = timestampMs;
+
+  if (!Number.isFinite(previousTimestamp) || previousTimestamp <= 0) {
+    return null;
+  }
+
+  const intervalMs = timestampMs - previousTimestamp;
+  if (!Number.isFinite(intervalMs) || intervalMs <= 0 || intervalMs > 250) {
+    return null;
+  }
+
+  return 60000 / (intervalMs * 24);
+}
+
 export class AudioStateController extends EventTarget {
   emitTransportStateChange(type = "transport-state-updated", detail = {}) {
     this.emitStateChange(type, {
@@ -556,6 +608,326 @@ export class AudioStateController extends EventTarget {
       initialized: true,
       seedLoaded: loadedSeed,
     };
+  }
+
+  async initializeMidi() {
+    return initializeMidiRuntime(this);
+  }
+
+  refreshMidiPorts() {
+    const refreshed = refreshMidiPortSnapshots();
+    this.emitAction("midi-ports-refreshed", {
+      inputPortId: state.midi.inputPortId,
+      outputPortId: state.midi.outputPortId,
+    });
+    return refreshed;
+  }
+
+  setMidiInputPort(portId) {
+    const changed = applyMidiInputPortSelection(`${portId ?? ""}`);
+    if (!changed) {
+      this.emitError(`Unknown MIDI input port: ${portId}`, { portId });
+      return false;
+    }
+
+    this.emitAction("midi-input-port-updated", {
+      inputPortId: state.midi.inputPortId,
+    });
+    return true;
+  }
+
+  setMidiOutputPort(portId) {
+    const changed = applyMidiOutputPortSelection(`${portId ?? ""}`);
+    if (!changed) {
+      this.emitError(`Unknown MIDI output port: ${portId}`, { portId });
+      return false;
+    }
+
+    syncMidiClockOutputState();
+    this.emitAction("midi-output-port-updated", {
+      outputPortId: state.midi.outputPortId,
+    });
+    return true;
+  }
+
+  setMidiClockMode(mode) {
+    const normalizedMode = `${mode ?? "off"}`.trim().toLowerCase();
+    if (!isValidMidiClockMode(normalizedMode)) {
+      this.emitError(`Unknown MIDI clock mode: ${mode}`, { mode });
+      return false;
+    }
+
+    const previousMode = state.midi.clockMode;
+    if (previousMode === normalizedMode) {
+      return true;
+    }
+
+    state.midi.clockMode = normalizedMode;
+    state.midi.externalClockPulseCount = 0;
+    state.midi.lastExternalClockTimestampMs = 0;
+
+    if (normalizedMode === "slave") {
+      stopSchedulerLoop();
+      state.transportState = "stopped";
+      state.midi.awaitingExternalClockStart = state.playingPresetIds.size > 0;
+      resetTransportTimeline();
+    } else {
+      state.midi.awaitingExternalClockStart = false;
+    }
+
+    syncMidiClockOutputState({ sendStopMessage: previousMode === "master" && normalizedMode !== "master" });
+
+    this.emitAction("midi-clock-mode-updated", {
+      mode: normalizedMode,
+      previousMode,
+    });
+    this.emitStateChange("midi-settings-updated", {
+      clockMode: normalizedMode,
+      previousMode,
+    });
+    this.emitTransportStateChange("transport-state-updated", {
+      source: "midi-clock-mode",
+    });
+    return true;
+  }
+
+  setChannelMidiChannel(presetId, midiChannel) {
+    if (!validChannelIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const normalizedChannel = clampMidiChannel(midiChannel, 0);
+    if (normalizedChannel < MIDI_CHANNEL_MIN || normalizedChannel > MIDI_CHANNEL_MAX) {
+      this.emitError(`MIDI channel must stay between ${MIDI_CHANNEL_MIN} and ${MIDI_CHANNEL_MAX}`, {
+        presetId,
+        midiChannel,
+      });
+      return false;
+    }
+
+    const channelSettings = ensureMidiChannelSettings(presetId);
+    channelSettings.midiChannel = normalizedChannel;
+
+    this.emitAction("channel-midi-updated", {
+      presetId,
+      midiChannel: normalizedChannel,
+      sendEnabled: channelSettings.sendEnabled,
+      receiveEnabled: channelSettings.receiveEnabled,
+    });
+    this.emitStateChange("channel-midi-updated", {
+      presetId,
+      midiChannel: normalizedChannel,
+      sendEnabled: channelSettings.sendEnabled,
+      receiveEnabled: channelSettings.receiveEnabled,
+    });
+    return true;
+  }
+
+  toggleChannelMidiSend(presetId) {
+    if (!validChannelIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const channelSettings = ensureMidiChannelSettings(presetId);
+    channelSettings.sendEnabled = channelSettings.sendEnabled ? 0 : 1;
+
+    this.emitAction("channel-midi-updated", {
+      presetId,
+      midiChannel: channelSettings.midiChannel,
+      sendEnabled: channelSettings.sendEnabled,
+      receiveEnabled: channelSettings.receiveEnabled,
+    });
+    this.emitStateChange("channel-midi-updated", {
+      presetId,
+      midiChannel: channelSettings.midiChannel,
+      sendEnabled: channelSettings.sendEnabled,
+      receiveEnabled: channelSettings.receiveEnabled,
+    });
+    return true;
+  }
+
+  toggleChannelMidiReceive(presetId) {
+    if (!validChannelIds.has(presetId)) {
+      this.emitError(`Unknown preset id: ${presetId}`, { presetId });
+      return false;
+    }
+
+    const channelSettings = ensureMidiChannelSettings(presetId);
+    channelSettings.receiveEnabled = channelSettings.receiveEnabled ? 0 : 1;
+
+    this.emitAction("channel-midi-updated", {
+      presetId,
+      midiChannel: channelSettings.midiChannel,
+      sendEnabled: channelSettings.sendEnabled,
+      receiveEnabled: channelSettings.receiveEnabled,
+    });
+    this.emitStateChange("channel-midi-updated", {
+      presetId,
+      midiChannel: channelSettings.midiChannel,
+      sendEnabled: channelSettings.sendEnabled,
+      receiveEnabled: channelSettings.receiveEnabled,
+    });
+    return true;
+  }
+
+  async handleIncomingMidiClockStart({ source = "hardware" } = {}) {
+    if (source === "hardware" && state.midi.clockMode !== "slave") {
+      return false;
+    }
+
+    try {
+      await ensureAudioContext();
+      stopSchedulerLoop();
+      if (state.playingPresetIds.size === 0) {
+        getPresetIds().forEach((presetId) => state.playingPresetIds.add(presetId));
+      }
+      state.transportState = "playing";
+      state.midi.awaitingExternalClockStart = false;
+      state.midi.externalClockPulseCount = 0;
+      resetTransportTimeline(0.005);
+      scheduleCurrentTransportStep(state.audioContext.currentTime + 0.005);
+
+        this.emitAction("midi-clock-started", {
+          source,
+        presetIds: Array.from(state.playingPresetIds),
+      });
+      this.emitTransportStateChange("transport-state-updated", {
+          source: source === "cross-tab" ? "cross-tab-midi-clock" : "external-midi-clock",
+      });
+      return true;
+    } catch (error) {
+      this.emitError("Unable to start external MIDI clock sync", { error });
+      return false;
+    }
+  }
+
+  async handleIncomingMidiClockContinue({ source = "hardware" } = {}) {
+    if (source === "hardware" && state.midi.clockMode !== "slave") {
+      return false;
+    }
+
+    try {
+      await ensureAudioContext();
+      stopSchedulerLoop();
+      if (state.playingPresetIds.size === 0) {
+        getPresetIds().forEach((presetId) => state.playingPresetIds.add(presetId));
+      }
+      state.transportState = "playing";
+      state.midi.awaitingExternalClockStart = false;
+
+      this.emitTransportStateChange("transport-state-updated", {
+        source: source === "cross-tab" ? "cross-tab-midi-clock" : "external-midi-clock",
+        continued: true,
+      });
+      return true;
+    } catch (error) {
+      this.emitError("Unable to continue external MIDI clock sync", { error });
+      return false;
+    }
+  }
+
+  handleIncomingMidiClockStop({ source = "hardware" } = {}) {
+    if (source === "hardware" && state.midi.clockMode !== "slave") {
+      return false;
+    }
+
+    stopSchedulerLoop();
+    state.transportState = "stopped";
+    state.midi.awaitingExternalClockStart = state.playingPresetIds.size > 0;
+    state.midi.externalClockPulseCount = 0;
+    state.midi.lastExternalClockTimestampMs = 0;
+    resetTransportTimeline();
+
+    this.emitAction("midi-clock-stopped", {
+      source,
+      presetIds: Array.from(state.playingPresetIds),
+    });
+    this.emitTransportStateChange("transport-state-updated", {
+      source: source === "cross-tab" ? "cross-tab-midi-clock" : "external-midi-clock",
+      stoppedByExternalClock: true,
+    });
+    return true;
+  }
+
+  handleIncomingMidiClockPulse(timestampMs = globalThis.performance?.now?.() ?? Date.now(), { source = "hardware" } = {}) {
+    if (source === "hardware" && state.midi.clockMode !== "slave") {
+      return false;
+    }
+
+    const nextTempoBpm = getExternalMidiTempoBpm(timestampMs);
+    if (Number.isFinite(nextTempoBpm)) {
+      const previousTempoBpm = state.synthParams.tempoBpm;
+      const smoothedTempoBpm = previousTempoBpm
+        ? (previousTempoBpm * 0.75) + (nextTempoBpm * 0.25)
+        : nextTempoBpm;
+      const roundedTempoBpm = Math.max(20, Math.min(300, smoothedTempoBpm));
+      state.synthParams.tempoBpm = roundedTempoBpm;
+      state.midi.externalClockTempoBpm = roundedTempoBpm;
+      syncDelayTimeToTempo();
+
+      if (Math.abs((previousTempoBpm ?? 0) - roundedTempoBpm) >= 0.25) {
+        this.emitStateChange("midi-clock-tempo-updated", {
+          value: roundedTempoBpm,
+        });
+      }
+    }
+
+    if (state.transportState !== "playing") {
+      return true;
+    }
+
+    state.midi.externalClockPulseCount += 1;
+    if (state.midi.externalClockPulseCount % 2 === 0 && state.audioContext) {
+      scheduleCurrentTransportStep(state.audioContext.currentTime + 0.005);
+    }
+    return true;
+  }
+
+  async handleIncomingMidiNoteMessage({ type, midiChannel, noteNumber, velocity = 0 }, { source = "hardware" } = {}) {
+    if (type !== "noteon") {
+      return false;
+    }
+
+    const targetPresetIds = getPresetIds().filter((presetId) => {
+      const channelSettings = ensureMidiChannelSettings(presetId);
+      return Number(channelSettings.receiveEnabled) && clampMidiChannel(channelSettings.midiChannel) === midiChannel;
+    });
+
+    if (targetPresetIds.length === 0) {
+      return false;
+    }
+
+    try {
+      await ensureAudioContext();
+      targetPresetIds.forEach((presetId) => {
+        triggerImmediateMidiNote(presetId, noteNumber, velocity);
+      });
+
+      this.emitAction("midi-note-received", {
+        source,
+        midiChannel,
+        noteNumber,
+        velocity,
+        presetIds: targetPresetIds,
+      });
+      this.emitStateChange("midi-note-received", {
+        source,
+        midiChannel,
+        noteNumber,
+        velocity,
+        presetIds: targetPresetIds,
+      });
+      return true;
+    } catch (error) {
+      this.emitError("Unable to handle incoming MIDI note", {
+        error,
+        midiChannel,
+        noteNumber,
+      });
+      return false;
+    }
   }
 
   getStateSeed() {
@@ -756,6 +1128,10 @@ export class AudioStateController extends EventTarget {
     const { key } = controlConfig[controlId];
     if (GLOBAL_CONTROL_KEYS.has(key)) {
       state.synthParams[key] = numericValue;
+      if (key === "tempoBpm") {
+        syncDelayTimeToTempo();
+        resyncMidiClockTempo();
+      }
       applyLiveAudioUpdates(key, numericValue);
     } else {
       const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
@@ -1178,10 +1554,63 @@ export class AudioStateController extends EventTarget {
     return true;
   }
 
-  async playAll() {
+  async playAll({ source = "local" } = {}) {
+    if (state.midi.clockMode === "slave") {
+      try {
+        await ensureAudioContext();
+        stopSchedulerLoop();
+        state.playingPresetIds.clear();
+        getPresetIds().forEach((presetId) => state.playingPresetIds.add(presetId));
+        state.transportState = "stopped";
+        state.midi.awaitingExternalClockStart = true;
+        state.midi.externalClockPulseCount = 0;
+        state.midi.lastExternalClockTimestampMs = 0;
+        resetTransportTimeline();
+
+        this.emitAction("global-playback-armed", {
+          presetIds: Array.from(state.playingPresetIds),
+          awaitingExternalMidiClock: true,
+        });
+        this.emitTransportStateChange("transport-state-updated", {
+          awaitingExternalMidiClock: true,
+          source,
+        });
+        return true;
+      } catch (error) {
+        this.emitError("Unable to arm external MIDI clock playback", { error });
+        return false;
+      }
+    }
+
     try {
       await stopAllPlayback();
       await ensureAudioContext();
+
+      if (state.midi.clockMode === "master") {
+        stopSchedulerLoop();
+        state.playingPresetIds.clear();
+        getPresetIds().forEach((presetId) => state.playingPresetIds.add(presetId));
+        state.transportState = "playing";
+        resetTransportTimeline();
+        startMidiClockOutput({ sendStartMessage: source !== "cross-tab" });
+        startSchedulerLoop();
+
+        this.emitAction("global-playback-started", {
+          presetIds: Array.from(state.playingPresetIds),
+          source,
+        });
+        if (source !== "cross-tab") {
+          broadcastCrossTabTransportStart({
+            presetIds: Array.from(state.playingPresetIds),
+          });
+        }
+        this.emitTransportStateChange("transport-state-updated", {
+          restartedFromBeginning: true,
+          source,
+        });
+        return true;
+      }
+
       const result = startGlobalPlaybackFromBeginning(getPresetIds());
       if (!result.started) {
         this.emitError(result.reason, { presetIds: getPresetIds() });
@@ -1190,9 +1619,15 @@ export class AudioStateController extends EventTarget {
 
       this.emitAction("global-playback-started", {
         presetIds: result.presetIds,
+        source,
       });
+      if (source !== "cross-tab") {
+        broadcastCrossTabTransportStart({ presetIds: result.presetIds });
+      }
+      syncMidiClockOutputState({ sendStartMessage: source !== "cross-tab" });
       this.emitTransportStateChange("transport-state-updated", {
         restartedFromBeginning: true,
+        source,
       });
       return true;
     } catch (error) {
@@ -1201,26 +1636,31 @@ export class AudioStateController extends EventTarget {
     }
   }
 
-  pauseAll() {
+  pauseAll({ source = "local" } = {}) {
     const paused = pauseAllPlayback();
     if (!paused) {
       return false;
     }
 
-    this.emitAction("global-playback-paused", {});
-    this.emitTransportStateChange();
+    this.emitAction("global-playback-paused", { source });
+    syncMidiClockOutputState({ sendStopMessage: source !== "cross-tab" });
+    this.emitTransportStateChange("transport-state-updated", { source });
     return true;
   }
 
-  async stopAll() {
+  async stopAll({ source = "local" } = {}) {
     try {
       const stopped = await stopAllPlayback();
       if (!stopped) {
         return false;
       }
 
-      this.emitAction("global-playback-stopped", {});
-      this.emitTransportStateChange();
+      this.emitAction("global-playback-stopped", { source });
+      if (source !== "cross-tab") {
+        broadcastCrossTabTransportStop({});
+      }
+      syncMidiClockOutputState({ sendStopMessage: source !== "cross-tab" });
+      this.emitTransportStateChange("transport-state-updated", { source });
       return true;
     } catch (error) {
       this.emitError("Unable to stop audio", { error });
@@ -1234,9 +1674,48 @@ export class AudioStateController extends EventTarget {
       return false;
     }
 
+    if (state.midi.clockMode === "slave") {
+      try {
+        await ensureAudioContext();
+        const isArmed = state.playingPresetIds.has(presetId);
+        if (isArmed) {
+          state.playingPresetIds.delete(presetId);
+          if (state.playingPresetIds.size === 0) {
+            state.transportState = "stopped";
+            state.midi.awaitingExternalClockStart = false;
+            resetTransportTimeline();
+          }
+        } else {
+          state.playingPresetIds.add(presetId);
+          if (state.transportState !== "playing") {
+            state.transportState = "stopped";
+            state.midi.awaitingExternalClockStart = true;
+            resetTransportTimeline();
+          }
+        }
+
+        this.emitAction(isArmed ? "playback-unarmed" : "playback-armed", {
+          presetId,
+          awaitingExternalMidiClock: state.midi.awaitingExternalClockStart,
+        });
+        this.emitStateChange("playback-toggled", {
+          presetId,
+          isPlaying: !isArmed,
+        });
+        this.emitTransportStateChange("transport-state-updated", {
+          awaitingExternalMidiClock: state.midi.awaitingExternalClockStart,
+        });
+        return true;
+      } catch (error) {
+        this.emitError("Unable to arm channel for external MIDI clock", { presetId, error });
+        return false;
+      }
+    }
+
     if (state.playingPresetIds.has(presetId)) {
       stopPresetPlayback(presetId);
       this.emitAction("playback-stopped", { presetId });
+      syncMidiClockOutputState({ sendStopMessage: state.playingPresetIds.size === 0 });
       this.emitStateChange("playback-toggled", {
         presetId,
         isPlaying: false,
@@ -1254,6 +1733,7 @@ export class AudioStateController extends EventTarget {
       }
 
       this.emitAction("playback-started", { presetId });
+      syncMidiClockOutputState({ sendStartMessage: state.playingPresetIds.size === 1 });
       this.emitStateChange("playback-toggled", {
         presetId,
         isPlaying: true,

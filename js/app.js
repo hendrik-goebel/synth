@@ -7,6 +7,7 @@ import {
   bindGlobalKeyActions,
   bindStateSeedControls,
   bindGlobalTransportControls,
+  bindMidiControls,
   bindNoteSelector,
   bindMixerChannels,
   bindKeyboardShortcuts,
@@ -23,6 +24,7 @@ bindDelayToggleButtons(audioStateController);
 bindGlobalKeyActions(audioStateController);
 bindStateSeedControls(audioStateController);
 bindGlobalTransportControls(audioStateController);
+bindMidiControls(audioStateController);
 bindNoteSelector(audioStateController);
 bindDeadNoteToggle(audioStateController);
 bindSettingsDialog(audioStateController);
@@ -31,6 +33,7 @@ bindKeyboardShortcuts(audioStateController);
 bindPostFilterTypeToggle(audioStateController);
 
 audioStateController.initialize({ seed: getStateSeedFromLocation() });
+audioStateController.initializeMidi();
 
 window.audioStateController = audioStateController;
 

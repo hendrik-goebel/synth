@@ -47,6 +47,43 @@
             </div>
           </div>
 
+          <div class="control-group control-group--midi">
+            <h3 class="control-group-title">MIDI</h3>
+            <div class="control-group-items">
+              <div class="control-item control-item--midi-status">
+                <span class="midi-status-label">Status</span>
+                <span id="midi-status" class="midi-status-value">Checking…</span>
+              </div>
+              <div class="control-item">
+                <label for="midi-input-port">Input</label>
+                <select id="midi-input-port" class="midi-port-select" aria-label="MIDI input port">
+                  <option value="">None</option>
+                </select>
+              </div>
+              <div class="control-item">
+                <label for="midi-output-port">Output</label>
+                <select id="midi-output-port" class="midi-port-select" aria-label="MIDI output port">
+                  <option value="">None</option>
+                </select>
+              </div>
+              <div class="control-item">
+                <label for="midi-clock-mode">Clock</label>
+                <select id="midi-clock-mode" class="midi-port-select" aria-label="MIDI clock mode">
+                  <option value="off">Off</option>
+                  <option value="slave">External</option>
+                  <option value="master">Send</option>
+                </select>
+              </div>
+              <div class="control-item control-item--midi-refresh">
+                <button id="midi-refresh" type="button" class="control-toggle-btn midi-refresh-btn">Refresh MIDI</button>
+              </div>
+              <div class="control-item control-item--midi-status">
+                <span class="midi-status-label">Clock</span>
+                <span id="midi-clock-status" class="midi-status-value">Off</span>
+              </div>
+            </div>
+          </div>
+
 
 
           <div class="control-group">

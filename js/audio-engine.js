@@ -1,8 +1,11 @@
 import {
   clampLfoRateHz,
+  getFrequencyFromMidiNoteNumber,
+  getMidiNoteNumberFromNoteId,
   HUMANIZE,
   LFO_TARGET_OPTIONS,
   MAX_SIMULTANEOUS_PRESETS,
+  MIDI_VELOCITY_MAX,
   TAPE_DELAY_SEND_MAX,
 } from "./constants.js";
 import {
@@ -19,7 +22,8 @@ import {
   handleReverbLiveAudioUpdate,
   initializeReverbEffectGraph,
 } from "./effects/reverb-effect.js";
-import { getInstrumentPattern } from "./patterns.js";
+import { sendMidiNoteForPreset } from "./midi-engine.js";
+import { getInstrumentPattern, getInstrumentPatternNoteIds } from "./patterns.js";
 import { getInstrumentParams, getPlayablePresetIds } from "./presets.js";
 import { state } from "./state.js";
 import { clamp, randomCentered } from "./utils.js";
@@ -166,7 +170,7 @@ export function applyLiveChannelLevelUpdates(presetId, voiceParams) {
   });
 }
 
-function stopSchedulerLoop() {
+export function stopSchedulerLoop() {
   state.schedulerId = null;
 
   if (!state.schedulerChannel) {
@@ -177,14 +181,14 @@ function stopSchedulerLoop() {
   state.schedulerChannel = null;
 }
 
-function resetSchedulerTimeline(startOffsetSeconds = 0.05) {
+export function resetTransportTimeline(startOffsetSeconds = 0.05) {
   state.stepIndex = 0;
   state.nextNoteTime = state.audioContext
     ? state.audioContext.currentTime + startOffsetSeconds
     : 0;
 }
 
-function startSchedulerLoop() {
+export function startSchedulerLoop() {
   if (!state.audioContext || state.schedulerId !== null) {
     return;
   }
@@ -238,6 +242,7 @@ export function scheduleNote(
   layerCount,
   presetId,
   noteLength = 8,
+  velocity = MIDI_VELOCITY_MAX,
 ) {
   const ctx = state.audioContext;
   const effectiveChannelLevel = getEffectiveChannelLevel(voiceParams);
@@ -339,13 +344,18 @@ export function scheduleNote(
     0.01,
     1.2,
   );
+  const velocityScale = clamp(
+    0.3 + ((Math.max(0, Math.min(MIDI_VELOCITY_MAX, Number(velocity) || MIDI_VELOCITY_MAX)) / MIDI_VELOCITY_MAX) * 0.7),
+    0.2,
+    1,
+  );
   const basePeakGain = clamp(
-    0.19 * (1 + randomCentered(HUMANIZE.gainAmount)) * layerGainScale,
+    0.19 * (1 + randomCentered(HUMANIZE.gainAmount)) * layerGainScale * velocityScale,
     0.03,
     0.26,
   );
   const baseSustainGain = clamp(
-    0.11 * (1 + randomCentered(HUMANIZE.gainAmount)) * layerGainScale,
+    0.11 * (1 + randomCentered(HUMANIZE.gainAmount)) * layerGainScale * velocityScale,
     0.02,
     0.16,
   );
@@ -591,6 +601,7 @@ export function scheduleInstrumentStackNote(time, layerCount, stepIndex = state.
 
     const voiceParams = getInstrumentParams(presetId);
     const pattern = getInstrumentPattern(presetId);
+    const noteIdPattern = getInstrumentPatternNoteIds(presetId);
     const noteLength = voiceParams.noteLength || 8;
     const stepInterval = SCHEDULER_GRID_DIVISION / noteLength;
 
@@ -600,9 +611,20 @@ export function scheduleInstrumentStackNote(time, layerCount, stepIndex = state.
 
     const patternStepIndex = Math.floor(stepIndex / stepInterval);
     const layerFrequency = pattern[patternStepIndex % pattern.length];
+    const noteId = noteIdPattern[patternStepIndex % noteIdPattern.length];
     if (layerFrequency == null) {
       continue;
     }
+
+    const midiNoteNumber = noteId ? getMidiNoteNumberFromNoteId(noteId) : null;
+    if (Number.isInteger(midiNoteNumber)) {
+      sendMidiNoteForPreset(presetId, midiNoteNumber, {
+        timeSeconds: time,
+        durationSeconds: getNoteDuration(noteLength),
+        velocity: 96,
+      });
+    }
+
     scheduleNote(
       layerFrequency,
       time,
@@ -611,8 +633,49 @@ export function scheduleInstrumentStackNote(time, layerCount, stepIndex = state.
       layerCount,
       presetId,
       noteLength,
+      MIDI_VELOCITY_MAX,
     );
   }
+}
+
+export function scheduleCurrentTransportStep(time = state.audioContext?.currentTime + 0.005) {
+  if (!state.audioContext || state.playingPresetIds.size === 0) {
+    return false;
+  }
+
+  const layerCount = getPlayablePresetIds().length;
+  if (layerCount === 0) {
+    return false;
+  }
+
+  scheduleInstrumentStackNote(time, layerCount, state.stepIndex);
+  state.stepIndex += 1;
+  state.nextNoteTime = time + getStepDuration();
+  return true;
+}
+
+export function triggerImmediateMidiNote(presetId, midiNoteNumber, velocity = MIDI_VELOCITY_MAX) {
+  if (!state.audioContext) {
+    return false;
+  }
+
+  const frequency = getFrequencyFromMidiNoteNumber(midiNoteNumber);
+  if (!Number.isFinite(frequency)) {
+    return false;
+  }
+
+  const voiceParams = getInstrumentParams(presetId);
+  scheduleNote(
+    frequency,
+    state.audioContext.currentTime + 0.005,
+    voiceParams,
+    0,
+    1,
+    presetId,
+    voiceParams.noteLength || 8,
+    velocity,
+  );
+  return true;
 }
 
 export function scheduleAhead() {
@@ -650,7 +713,7 @@ export function startPresetPlayback(presetId) {
   state.transportState = "playing";
 
   if (state.schedulerId === null) {
-    resetSchedulerTimeline();
+    resetTransportTimeline();
     startSchedulerLoop();
   }
 
@@ -684,7 +747,7 @@ export function startGlobalPlaybackFromBeginning(presetIds = state.activePresetI
   state.playingPresetIds.clear();
   normalizedPresetIds.forEach((presetId) => state.playingPresetIds.add(presetId));
   state.transportState = "playing";
-  resetSchedulerTimeline();
+  resetTransportTimeline();
   startSchedulerLoop();
 
   return {
@@ -701,7 +764,7 @@ export function pauseAllPlayback() {
   stopSchedulerLoop();
   state.playingPresetIds.clear();
   state.transportState = "paused";
-  resetSchedulerTimeline();
+  resetTransportTimeline();
   return true;
 }
 
@@ -714,7 +777,7 @@ export function stopPresetPlayback(presetId) {
 
   if (state.playingPresetIds.size === 0) {
     state.transportState = "stopped";
-    resetSchedulerTimeline();
+    resetTransportTimeline();
   }
 }
 

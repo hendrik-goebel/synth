@@ -273,6 +273,10 @@ export function rebuildInstrumentPattern(presetId) {
     .map((id) => noteFrequencyMap.get(id))
     .filter(Boolean);
 
+  state.instrumentPatternNoteIdsByPresetId[presetId] = buildArpeggioPattern(
+    selectedNoteIds,
+    instrumentParams.deadNoteAtEnd ? instrumentParams.endPauseCount ?? 1 : 0,
+  );
   state.instrumentPatternsByPresetId[presetId] = buildArpeggioPattern(
     selectedFrequencies,
     instrumentParams.deadNoteAtEnd ? instrumentParams.endPauseCount ?? 1 : 0,
@@ -439,6 +443,11 @@ export function ensureInstrumentNoteState(presetId) {
 export function getInstrumentPattern(presetId) {
   ensureInstrumentNoteState(presetId);
   return state.instrumentPatternsByPresetId[presetId] || [];
+}
+
+export function getInstrumentPatternNoteIds(presetId) {
+  ensureInstrumentNoteState(presetId);
+  return state.instrumentPatternNoteIdsByPresetId[presetId] || [];
 }
 
 export function syncNoteButtonsFromActiveInstrumentPage() {

@@ -13,6 +13,18 @@ export const HUMANIZE = {
   pitchDropCents: 0.22,
 };
 export const MAX_SIMULTANEOUS_PRESETS = 8;
+export const MIDI_CHANNEL_MIN = 1;
+export const MIDI_CHANNEL_MAX = 16;
+export const MIDI_VELOCITY_MIN = 0;
+export const MIDI_VELOCITY_MAX = 127;
+export const MIDI_CLOCK_MODE_OPTIONS = ["off", "slave", "master"];
+export const MIDI_CLOCK_MODE_LABELS = {
+  off: "Off",
+  slave: "External",
+  master: "Send",
+};
+export const MIDI_CLOCK_PULSES_PER_QUARTER = 24;
+export const MIDI_CLOCK_PULSES_PER_TRANSPORT_STEP = 2;
 export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
 export const DEAD_NOTE_PAUSE_COUNT_MIN = 1;
 export const DEAD_NOTE_PAUSE_COUNT_MAX = 16;
@@ -208,6 +220,64 @@ export function extractOctave(noteId) {
   const match = /([0-9]+)$/.exec(noteId);
   return match ? Number.parseInt(match[1], 10) : null;
 }
+
+const PITCH_CLASS_SEMITONE_BY_KEY = Object.fromEntries(
+  PITCH_CLASS_OPTIONS.map(({ key }, index) => [key, index]),
+);
+
+export function clampMidiChannel(value, fallback = MIDI_CHANNEL_MIN) {
+  const numeric = Number.parseInt(value, 10);
+  const safeFallback = Math.min(MIDI_CHANNEL_MAX, Math.max(MIDI_CHANNEL_MIN, Number.parseInt(fallback, 10) || MIDI_CHANNEL_MIN));
+  if (!Number.isInteger(numeric)) {
+    return safeFallback;
+  }
+
+  return Math.min(MIDI_CHANNEL_MAX, Math.max(MIDI_CHANNEL_MIN, numeric));
+}
+
+export function clampMidiVelocity(value, fallback = MIDI_VELOCITY_MAX) {
+  const numeric = Number.parseInt(value, 10);
+  const safeFallback = Math.min(MIDI_VELOCITY_MAX, Math.max(MIDI_VELOCITY_MIN, Number.parseInt(fallback, 10) || MIDI_VELOCITY_MAX));
+  if (!Number.isInteger(numeric)) {
+    return safeFallback;
+  }
+
+  return Math.min(MIDI_VELOCITY_MAX, Math.max(MIDI_VELOCITY_MIN, numeric));
+}
+
+export function getMidiNoteNumberFromNoteId(noteId) {
+  const pitchClassKey = extractPitchClass(noteId);
+  const octave = extractOctave(noteId);
+  const semitone = PITCH_CLASS_SEMITONE_BY_KEY[pitchClassKey];
+  if (!Number.isInteger(octave) || !Number.isInteger(semitone)) {
+    return null;
+  }
+
+  return ((octave + 1) * 12) + semitone;
+}
+
+export function getFrequencyFromMidiNoteNumber(midiNoteNumber) {
+  const numeric = Number.parseFloat(midiNoteNumber);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+
+  return 440 * Math.pow(2, (numeric - 69) / 12);
+}
+
+const NOTE_ID_BY_MIDI_NOTE_NUMBER = new Map(
+  NOTE_OPTIONS.map(({ id }) => [getMidiNoteNumberFromNoteId(id), id]),
+);
+
+export function getNoteIdFromMidiNoteNumber(midiNoteNumber) {
+  const numeric = Number.parseInt(midiNoteNumber, 10);
+  if (!Number.isInteger(numeric)) {
+    return null;
+  }
+
+  return NOTE_ID_BY_MIDI_NOTE_NUMBER.get(numeric) || null;
+}
+
 export const ARPEGGIO_OCTAVE_OPTIONS = Array.from(
   new Set(NOTE_OPTIONS.map(({ id }) => extractOctave(id)).filter(Number.isInteger)),
 ).sort((left, right) => left - right);
@@ -731,6 +801,13 @@ export const BASE_SOUND_PRESETS = {
   },
 };
 export const MIXER_CHANNEL_IDS = ["warm", "pluck", "organ", "bass", "glass", "acid", "noisy", "deep"];
+export const DEFAULT_MIDI_CHANNEL_SETTINGS_BY_PRESET_ID = Object.fromEntries(
+  MIXER_CHANNEL_IDS.map((presetId, index) => [presetId, {
+    midiChannel: clampMidiChannel(index + 1),
+    sendEnabled: 1,
+    receiveEnabled: 1,
+  }]),
+);
 export const INITIAL_CHANNEL_SCENES = {
   warm: {
     params: {
