@@ -23,243 +23,217 @@
 </head>
 
 <body>
-  <main class="app">
-    <p id="status">Stopped</p>
-    <div class="global-transport" aria-label="Global transport controls">
-      <button id="global-play" type="button" class="transport-btn transport-btn--play" aria-label="Play all">▶</button>
-      <button id="global-stop" type="button" class="transport-btn transport-btn--stop" disabled aria-disabled="true" aria-label="Stop all">■</button>
-    </div>
-    <section class="controls" aria-label="Synth controls">
+<main class="app">
+  <p id="status">Stopped</p>
+  <div class="global-transport" aria-label="Global transport controls">
+    <button id="global-play" type="button" class="transport-btn transport-btn--play" aria-label="Play all">▶</button>
+    <button id="global-stop" type="button" class="transport-btn transport-btn--stop" disabled aria-disabled="true"
+            aria-label="Stop all">■
+    </button>
+  </div>
+  <section class="controls" aria-label="Synth controls">
 
-      <div class="controls-top-row">
-        <section class="mixer" aria-label="Audio mixer">
-          <div id="mixer-channels" class="mixer-channels"></div>
-        </section>
-        <section class="controls controls--global controls-global-panel" aria-label="Global settings">
+    <div class="controls-top-row">
+      <section class="mixer" aria-label="Audio mixer">
+        <div id="mixer-channels" class="mixer-channels"></div>
+      </section>
+      <section class="controls controls--global controls-global-panel" aria-label="Global settings">
 
-          <div class="control-group">
-            <h3 class="control-group-title">Timing</h3>
-            <div class="control-group-items">
-              <div class="control-item">
-                <label for="tempo-bpm">Tempo (<span id="tempo-bpm-value">120</span> BPM)</label>
-                <input id="tempo-bpm" type="range" min="60" max="220" step="1" value="120">
-              </div>
+        <div class="control-group">
+          <h3 class="control-group-title">Timing</h3>
+          <div class="control-group-items">
+            <div class="control-item">
+              <label for="tempo-bpm">Tempo (<span id="tempo-bpm-value">120</span> BPM)</label>
+              <input id="tempo-bpm" type="range" min="60" max="220" step="1" value="120">
             </div>
           </div>
+        </div>
 
-          <div class="control-group control-group--midi">
-            <h3 class="control-group-title">MIDI</h3>
-            <div class="control-group-items">
-              <div class="control-item control-item--midi-status">
-                <span class="midi-status-label">Status</span>
-                <span id="midi-status" class="midi-status-value">Checking…</span>
-              </div>
-              <div class="control-item">
-                <label for="midi-input-port">Input</label>
-                <select id="midi-input-port" class="midi-port-select" aria-label="MIDI input port">
-                  <option value="">None</option>
-                </select>
-              </div>
-              <div class="control-item">
-                <label for="midi-output-port">Output</label>
-                <select id="midi-output-port" class="midi-port-select" aria-label="MIDI output port">
-                  <option value="">None</option>
-                </select>
-              </div>
-              <div class="control-item">
-                <label for="midi-clock-mode">Clock</label>
-                <select id="midi-clock-mode" class="midi-port-select" aria-label="MIDI clock mode">
-                  <option value="off">Off</option>
-                  <option value="slave">External</option>
-                  <option value="master">Send</option>
-                </select>
-              </div>
-              <div class="control-item control-item--midi-refresh">
-                <button id="midi-refresh" type="button" class="control-toggle-btn midi-refresh-btn">Refresh MIDI</button>
-              </div>
-              <div class="control-item control-item--midi-status">
-                <span class="midi-status-label">Clock</span>
-                <span id="midi-clock-status" class="midi-status-value">Off</span>
-              </div>
+        <div class="control-group">
+          <h3 class="control-group-title">Output</h3>
+          <div class="control-group-items">
+            <div class="control-item">
+              <label for="global-timbre">Timbre (<span id="global-timbre-value">Neutral</span>)</label>
+              <input id="global-timbre" type="range" min="-1" max="1" step="0.01" value="0">
+            </div>
+            <div class="control-item">
+              <label for="reverb-mix">Reverb Mix (<span id="reverb-mix-value">0.35</span>)</label>
+              <input id="reverb-mix" type="range" min="0" max="1" step="0.01" value="0.35">
+            </div>
+            <div class="control-item">
+              <label for="master-volume">Master Volume (<span id="master-volume-value">0.75</span>)</label>
+              <input id="master-volume" type="range" min="0" max="1" step="0.01" value="0.75">
             </div>
           </div>
-
-
-
-          <div class="control-group">
-            <h3 class="control-group-title">Tape Delay</h3>
-            <div class="control-group-items">
-              <div class="control-item">
-                <label for="tape-delay-enabled">Enabled (<span id="tape-delay-enabled-value">On</span>)</label>
-                <button
-                  id="tape-delay-enabled"
-                  type="button"
-                  class="control-toggle-btn delay-enabled-toggle is-active"
-                  value="1"
-                  aria-pressed="true"
-                >
-                  On
-                </button>
-              </div>
-              <div class="control-item">
-                <label for="delay-time">Time (<span id="delay-time-value">1/8</span>)</label>
-                <input id="delay-time" type="range" min="0" max="7" step="1" value="3">
-              </div>
-              <div class="control-item">
-                <label for="delay-feedback">Feedback (<span id="delay-feedback-value">0.06</span>)</label>
-                <input id="delay-feedback" type="range" min="0" max="1" step="0.001" value="0.592717">
-              </div>
+        </div>
+        <div class="control-group control-group--seed">
+          <h3 class="control-group-title">Seed</h3>
+          <div class="seed-panel" aria-label="Save and load the current state via a seed">
+            <label class="seed-label" for="state-seed-input">Current seed</label>
+            <textarea
+              id="state-seed-input"
+              class="seed-input"
+              rows="3"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              placeholder="Generate a seed, or paste one here to restore a saved state"
+            ></textarea>
+            <div class="seed-actions">
+              <button id="state-seed-save" type="button" class="control-toggle-btn seed-action-btn">Save</button>
+              <button id="state-seed-load" type="button" class="control-toggle-btn seed-action-btn">Load</button>
+              <button id="state-seed-delete" type="button" class="control-toggle-btn seed-action-btn">Delete</button>
             </div>
           </div>
+        </div>
 
-          <div class="control-group">
-            <h3 class="control-group-title">Clean Delay</h3>
-            <div class="control-group-items">
-              <div class="control-item">
-                <label for="clean-delay-enabled">Enabled (<span id="clean-delay-enabled-value">On</span>)</label>
-                <button
-                  id="clean-delay-enabled"
-                  type="button"
-                  class="control-toggle-btn delay-enabled-toggle is-active"
-                  value="1"
-                  aria-pressed="true"
-                >
-                  On
-                </button>
-              </div>
-              <div class="control-item">
-                <label for="clean-delay-time">Time (<span id="clean-delay-time-value">1/8</span>)</label>
-                <input id="clean-delay-time" type="range" min="0" max="7" step="1" value="3">
-              </div>
-              <div class="control-item">
-                <label for="clean-delay-repetitions">Repetitions (<span id="clean-delay-repetitions-value">4 repeats</span>)</label>
-                <input id="clean-delay-repetitions" type="range" min="1" max="12" step="1" value="4">
-              </div>
+      </section>
+      <fieldset class="note-selector">
+        <legend>Arpeggio Notes (C3–B6)</legend>
+        <div class="note-grid-rows" id="note-grid">
+          <div class="note-row" data-note-octave="3">
+            <div class="note-row-side">
+              <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="3" value="1"
+                      aria-pressed="true">On
+              </button>
+            </div>
+            <div class="note-row-buttons">
+              <button id="note-c3" data-note-id="note-c3" type="button" class="note-toggle" aria-pressed="false">C3
+              </button>
+              <button id="note-cs3" data-note-id="note-cs3" type="button" class="note-toggle" aria-pressed="false">C#3
+              </button>
+              <button id="note-d3" data-note-id="note-d3" type="button" class="note-toggle" aria-pressed="false">D3
+              </button>
+              <button id="note-ds3" data-note-id="note-ds3" type="button" class="note-toggle" aria-pressed="false">D#3
+              </button>
+              <button id="note-e3" data-note-id="note-e3" type="button" class="note-toggle" aria-pressed="false">E3
+              </button>
+              <button id="note-f3" data-note-id="note-f3" type="button" class="note-toggle" aria-pressed="false">F3
+              </button>
+              <button id="note-fs3" data-note-id="note-fs3" type="button" class="note-toggle" aria-pressed="false">F#3
+              </button>
+              <button id="note-g3" data-note-id="note-g3" type="button" class="note-toggle" aria-pressed="false">G3
+              </button>
+              <button id="note-gs3" data-note-id="note-gs3" type="button" class="note-toggle" aria-pressed="false">G#3
+              </button>
+              <button id="note-a3" data-note-id="note-a3" type="button" class="note-toggle" aria-pressed="false">A3
+              </button>
+              <button id="note-as3" data-note-id="note-as3" type="button" class="note-toggle" aria-pressed="false">A#3
+              </button>
+              <button id="note-b3" data-note-id="note-b3" type="button" class="note-toggle" aria-pressed="false">B3
+              </button>
             </div>
           </div>
-
-          <div class="control-group">
-            <h3 class="control-group-title">Output</h3>
-            <div class="control-group-items">
-              <div class="control-item">
-                <label for="global-timbre">Timbre (<span id="global-timbre-value">Neutral</span>)</label>
-                <input id="global-timbre" type="range" min="-1" max="1" step="0.01" value="0">
-              </div>
-              <div class="control-item">
-                <label for="reverb-mix">Reverb Mix (<span id="reverb-mix-value">0.35</span>)</label>
-                <input id="reverb-mix" type="range" min="0" max="1" step="0.01" value="0.35">
-              </div>
-              <div class="control-item">
-                <label for="master-volume">Master Volume (<span id="master-volume-value">0.75</span>)</label>
-                <input id="master-volume" type="range" min="0" max="1" step="0.01" value="0.75">
-              </div>
+          <div class="note-row" data-note-octave="4">
+            <div class="note-row-side">
+              <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="4" value="1"
+                      aria-pressed="true">On
+              </button>
+            </div>
+            <div class="note-row-buttons">
+              <button id="note-c4" data-note-id="note-c4" type="button" class="note-toggle is-active"
+                      aria-pressed="true">C4
+              </button>
+              <button id="note-cs4" data-note-id="note-cs4" type="button" class="note-toggle" aria-pressed="false">C#4
+              </button>
+              <button id="note-d4" data-note-id="note-d4" type="button" class="note-toggle" aria-pressed="false">D4
+              </button>
+              <button id="note-ds4" data-note-id="note-ds4" type="button" class="note-toggle" aria-pressed="false">D#4
+              </button>
+              <button id="note-e4" data-note-id="note-e4" type="button" class="note-toggle is-active"
+                      aria-pressed="true">E4
+              </button>
+              <button id="note-f4" data-note-id="note-f4" type="button" class="note-toggle" aria-pressed="false">F4
+              </button>
+              <button id="note-fs4" data-note-id="note-fs4" type="button" class="note-toggle" aria-pressed="false">F#4
+              </button>
+              <button id="note-g4" data-note-id="note-g4" type="button" class="note-toggle is-active"
+                      aria-pressed="true">G4
+              </button>
+              <button id="note-gs4" data-note-id="note-gs4" type="button" class="note-toggle" aria-pressed="false">G#4
+              </button>
+              <button id="note-a4" data-note-id="note-a4" type="button" class="note-toggle" aria-pressed="false">A4
+              </button>
+              <button id="note-as4" data-note-id="note-as4" type="button" class="note-toggle" aria-pressed="false">A#4
+              </button>
+              <button id="note-b4" data-note-id="note-b4" type="button" class="note-toggle" aria-pressed="false">B4
+              </button>
             </div>
           </div>
-
-          <div class="control-group control-group--seed">
-            <h3 class="control-group-title">Seed</h3>
-            <div class="seed-panel" aria-label="Save and load the current state via a seed">
-              <label class="seed-label" for="state-seed-input">Current seed</label>
-              <textarea
-                id="state-seed-input"
-                class="seed-input"
-                rows="3"
-                spellcheck="false"
-                autocapitalize="off"
-                autocomplete="off"
-                placeholder="Generate a seed, or paste one here to restore a saved state"
-              ></textarea>
-              <div class="seed-actions">
-                <button id="state-seed-save" type="button" class="control-toggle-btn seed-action-btn">Save</button>
-                <button id="state-seed-load" type="button" class="control-toggle-btn seed-action-btn">Load</button>
-                <button id="state-seed-delete" type="button" class="control-toggle-btn seed-action-btn">Delete</button>
-              </div>
+          <div class="note-row" data-note-octave="5">
+            <div class="note-row-side">
+              <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="5" value="1"
+                      aria-pressed="true">On
+              </button>
+            </div>
+            <div class="note-row-buttons">
+              <button id="note-c5" data-note-id="note-c5" type="button" class="note-toggle" aria-pressed="false">C5
+              </button>
+              <button id="note-cs5" data-note-id="note-cs5" type="button" class="note-toggle" aria-pressed="false">C#5
+              </button>
+              <button id="note-d5" data-note-id="note-d5" type="button" class="note-toggle" aria-pressed="false">D5
+              </button>
+              <button id="note-ds5" data-note-id="note-ds5" type="button" class="note-toggle" aria-pressed="false">D#5
+              </button>
+              <button id="note-e5" data-note-id="note-e5" type="button" class="note-toggle" aria-pressed="false">E5
+              </button>
+              <button id="note-f5" data-note-id="note-f5" type="button" class="note-toggle" aria-pressed="false">F5
+              </button>
+              <button id="note-fs5" data-note-id="note-fs5" type="button" class="note-toggle" aria-pressed="false">F#5
+              </button>
+              <button id="note-g5" data-note-id="note-g5" type="button" class="note-toggle" aria-pressed="false">G5
+              </button>
+              <button id="note-gs5" data-note-id="note-gs5" type="button" class="note-toggle" aria-pressed="false">G#5
+              </button>
+              <button id="note-a5" data-note-id="note-a5" type="button" class="note-toggle" aria-pressed="false">A5
+              </button>
+              <button id="note-as5" data-note-id="note-as5" type="button" class="note-toggle" aria-pressed="false">A#5
+              </button>
+              <button id="note-b5" data-note-id="note-b5" type="button" class="note-toggle" aria-pressed="false">B5
+              </button>
             </div>
           </div>
-        </section>
-       <fieldset class="note-selector">
-         <legend>Arpeggio Notes (C3–B6)</legend>
-         <div class="note-grid-rows" id="note-grid">
-           <div class="note-row" data-note-octave="3">
-             <div class="note-row-side">
-               <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="3" value="1" aria-pressed="true">On</button>
-             </div>
-             <div class="note-row-buttons">
-               <button id="note-c3" data-note-id="note-c3" type="button" class="note-toggle" aria-pressed="false">C3</button>
-               <button id="note-cs3" data-note-id="note-cs3" type="button" class="note-toggle" aria-pressed="false">C#3</button>
-               <button id="note-d3" data-note-id="note-d3" type="button" class="note-toggle" aria-pressed="false">D3</button>
-               <button id="note-ds3" data-note-id="note-ds3" type="button" class="note-toggle" aria-pressed="false">D#3</button>
-               <button id="note-e3" data-note-id="note-e3" type="button" class="note-toggle" aria-pressed="false">E3</button>
-               <button id="note-f3" data-note-id="note-f3" type="button" class="note-toggle" aria-pressed="false">F3</button>
-               <button id="note-fs3" data-note-id="note-fs3" type="button" class="note-toggle" aria-pressed="false">F#3</button>
-               <button id="note-g3" data-note-id="note-g3" type="button" class="note-toggle" aria-pressed="false">G3</button>
-               <button id="note-gs3" data-note-id="note-gs3" type="button" class="note-toggle" aria-pressed="false">G#3</button>
-               <button id="note-a3" data-note-id="note-a3" type="button" class="note-toggle" aria-pressed="false">A3</button>
-               <button id="note-as3" data-note-id="note-as3" type="button" class="note-toggle" aria-pressed="false">A#3</button>
-               <button id="note-b3" data-note-id="note-b3" type="button" class="note-toggle" aria-pressed="false">B3</button>
-             </div>
-           </div>
-           <div class="note-row" data-note-octave="4">
-             <div class="note-row-side">
-               <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="4" value="1" aria-pressed="true">On</button>
-             </div>
-             <div class="note-row-buttons">
-               <button id="note-c4" data-note-id="note-c4" type="button" class="note-toggle is-active" aria-pressed="true">C4</button>
-               <button id="note-cs4" data-note-id="note-cs4" type="button" class="note-toggle" aria-pressed="false">C#4</button>
-               <button id="note-d4" data-note-id="note-d4" type="button" class="note-toggle" aria-pressed="false">D4</button>
-               <button id="note-ds4" data-note-id="note-ds4" type="button" class="note-toggle" aria-pressed="false">D#4</button>
-               <button id="note-e4" data-note-id="note-e4" type="button" class="note-toggle is-active" aria-pressed="true">E4</button>
-               <button id="note-f4" data-note-id="note-f4" type="button" class="note-toggle" aria-pressed="false">F4</button>
-               <button id="note-fs4" data-note-id="note-fs4" type="button" class="note-toggle" aria-pressed="false">F#4</button>
-               <button id="note-g4" data-note-id="note-g4" type="button" class="note-toggle is-active" aria-pressed="true">G4</button>
-               <button id="note-gs4" data-note-id="note-gs4" type="button" class="note-toggle" aria-pressed="false">G#4</button>
-               <button id="note-a4" data-note-id="note-a4" type="button" class="note-toggle" aria-pressed="false">A4</button>
-               <button id="note-as4" data-note-id="note-as4" type="button" class="note-toggle" aria-pressed="false">A#4</button>
-               <button id="note-b4" data-note-id="note-b4" type="button" class="note-toggle" aria-pressed="false">B4</button>
-             </div>
-           </div>
-           <div class="note-row" data-note-octave="5">
-             <div class="note-row-side">
-               <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="5" value="1" aria-pressed="true">On</button>
-             </div>
-             <div class="note-row-buttons">
-               <button id="note-c5" data-note-id="note-c5" type="button" class="note-toggle" aria-pressed="false">C5</button>
-               <button id="note-cs5" data-note-id="note-cs5" type="button" class="note-toggle" aria-pressed="false">C#5</button>
-               <button id="note-d5" data-note-id="note-d5" type="button" class="note-toggle" aria-pressed="false">D5</button>
-               <button id="note-ds5" data-note-id="note-ds5" type="button" class="note-toggle" aria-pressed="false">D#5</button>
-               <button id="note-e5" data-note-id="note-e5" type="button" class="note-toggle" aria-pressed="false">E5</button>
-               <button id="note-f5" data-note-id="note-f5" type="button" class="note-toggle" aria-pressed="false">F5</button>
-               <button id="note-fs5" data-note-id="note-fs5" type="button" class="note-toggle" aria-pressed="false">F#5</button>
-               <button id="note-g5" data-note-id="note-g5" type="button" class="note-toggle" aria-pressed="false">G5</button>
-               <button id="note-gs5" data-note-id="note-gs5" type="button" class="note-toggle" aria-pressed="false">G#5</button>
-               <button id="note-a5" data-note-id="note-a5" type="button" class="note-toggle" aria-pressed="false">A5</button>
-               <button id="note-as5" data-note-id="note-as5" type="button" class="note-toggle" aria-pressed="false">A#5</button>
-               <button id="note-b5" data-note-id="note-b5" type="button" class="note-toggle" aria-pressed="false">B5</button>
-             </div>
-           </div>
-           <div class="note-row" data-note-octave="6">
-             <div class="note-row-side">
-               <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="6" value="1" aria-pressed="true">On</button>
-             </div>
-             <div class="note-row-buttons">
-               <button id="note-c6" data-note-id="note-c6" type="button" class="note-toggle" aria-pressed="false">C6</button>
-               <button id="note-cs6" data-note-id="note-cs6" type="button" class="note-toggle" aria-pressed="false">C#6</button>
-               <button id="note-d6" data-note-id="note-d6" type="button" class="note-toggle" aria-pressed="false">D6</button>
-               <button id="note-ds6" data-note-id="note-ds6" type="button" class="note-toggle" aria-pressed="false">D#6</button>
-               <button id="note-e6" data-note-id="note-e6" type="button" class="note-toggle" aria-pressed="false">E6</button>
-               <button id="note-f6" data-note-id="note-f6" type="button" class="note-toggle" aria-pressed="false">F6</button>
-               <button id="note-fs6" data-note-id="note-fs6" type="button" class="note-toggle" aria-pressed="false">F#6</button>
-               <button id="note-g6" data-note-id="note-g6" type="button" class="note-toggle" aria-pressed="false">G6</button>
-               <button id="note-gs6" data-note-id="note-gs6" type="button" class="note-toggle" aria-pressed="false">G#6</button>
-               <button id="note-a6" data-note-id="note-a6" type="button" class="note-toggle" aria-pressed="false">A6</button>
-               <button id="note-as6" data-note-id="note-as6" type="button" class="note-toggle" aria-pressed="false">A#6</button>
-               <button id="note-b6" data-note-id="note-b6" type="button" class="note-toggle" aria-pressed="false">B6</button>
-             </div>
-           </div>
+          <div class="note-row" data-note-octave="6">
+            <div class="note-row-side">
+              <button type="button" class="control-toggle-btn note-row-toggle is-active" data-note-octave="6" value="1"
+                      aria-pressed="true">On
+              </button>
+            </div>
+            <div class="note-row-buttons">
+              <button id="note-c6" data-note-id="note-c6" type="button" class="note-toggle" aria-pressed="false">C6
+              </button>
+              <button id="note-cs6" data-note-id="note-cs6" type="button" class="note-toggle" aria-pressed="false">C#6
+              </button>
+              <button id="note-d6" data-note-id="note-d6" type="button" class="note-toggle" aria-pressed="false">D6
+              </button>
+              <button id="note-ds6" data-note-id="note-ds6" type="button" class="note-toggle" aria-pressed="false">D#6
+              </button>
+              <button id="note-e6" data-note-id="note-e6" type="button" class="note-toggle" aria-pressed="false">E6
+              </button>
+              <button id="note-f6" data-note-id="note-f6" type="button" class="note-toggle" aria-pressed="false">F6
+              </button>
+              <button id="note-fs6" data-note-id="note-fs6" type="button" class="note-toggle" aria-pressed="false">F#6
+              </button>
+              <button id="note-g6" data-note-id="note-g6" type="button" class="note-toggle" aria-pressed="false">G6
+              </button>
+              <button id="note-gs6" data-note-id="note-gs6" type="button" class="note-toggle" aria-pressed="false">G#6
+              </button>
+              <button id="note-a6" data-note-id="note-a6" type="button" class="note-toggle" aria-pressed="false">A6
+              </button>
+              <button id="note-as6" data-note-id="note-as6" type="button" class="note-toggle" aria-pressed="false">A#6
+              </button>
+              <button id="note-b6" data-note-id="note-b6" type="button" class="note-toggle" aria-pressed="false">B6
+              </button>
+            </div>
+          </div>
         </div>
         <div class="note-selector-actions">
-          <button id="dead-note-toggle" type="button" class="control-toggle-btn dead-note-toggle" aria-pressed="false" value="0">Pause</button>
-          <button id="dead-note-count-toggle" type="button" class="control-toggle-btn dead-note-count-toggle" value="1">Pause Count: 1</button>
+          <button id="dead-note-toggle" type="button" class="control-toggle-btn dead-note-toggle" aria-pressed="false"
+                  value="0">Pause
+          </button>
+          <button id="dead-note-count-toggle" type="button" class="control-toggle-btn dead-note-count-toggle" value="1">
+            Pause Count: 1
+          </button>
           <button
             id="arpeggio-settings-toggle"
             type="button"
@@ -270,76 +244,192 @@
             Settings
           </button>
         </div>
-       </fieldset>
+      </fieldset>
 
-       <dialog id="arpeggio-settings-dialog" class="settings-dialog" aria-labelledby="arpeggio-settings-title">
-         <div class="settings-dialog-content">
-           <div class="settings-dialog-header">
-             <h2 id="arpeggio-settings-title">Arpeggio Settings</h2>
-             <button id="arpeggio-settings-close" type="button" class="settings-dialog-close" aria-label="Close settings dialog">×</button>
-           </div>
-           <section class="settings-dialog-section" aria-labelledby="arpeggio-settings-notes-title">
-             <h3 id="arpeggio-settings-notes-title" class="settings-dialog-section-title">Notes</h3>
-             <div class="settings-channel-selector" aria-label="Channels that receive applied arpeggio settings">
-               <div class="settings-channel-selector-label">Apply to channels</div>
-               <div class="settings-channel-button-row" id="arpeggio-settings-channel-buttons">
-                 <button type="button" class="control-toggle-btn settings-channel-btn is-active" data-settings-channel-id="warm" aria-pressed="true" aria-label="Apply to channel 1">1</button>
-                 <button type="button" class="control-toggle-btn settings-channel-btn is-active" data-settings-channel-id="pluck" aria-pressed="true" aria-label="Apply to channel 2">2</button>
-                 <button type="button" class="control-toggle-btn settings-channel-btn is-active" data-settings-channel-id="organ" aria-pressed="true" aria-label="Apply to channel 3">3</button>
-                 <button type="button" class="control-toggle-btn settings-channel-btn is-active" data-settings-channel-id="bass" aria-pressed="true" aria-label="Apply to channel 4">4</button>
-                 <button type="button" class="control-toggle-btn settings-channel-btn is-active" data-settings-channel-id="glass" aria-pressed="true" aria-label="Apply to channel 5">5</button>
-                 <button type="button" class="control-toggle-btn settings-channel-btn is-active" data-settings-channel-id="acid" aria-pressed="true" aria-label="Apply to channel 6">6</button>
-                 <button type="button" class="control-toggle-btn settings-channel-btn is-active" data-settings-channel-id="noisy" aria-pressed="true" aria-label="Apply to channel 7">7</button>
-                 <button type="button" class="control-toggle-btn settings-channel-btn is-active" data-settings-channel-id="deep" aria-pressed="true" aria-label="Apply to channel 8">8</button>
-               </div>
-             </div>
-             <div class="settings-note-grid" aria-label="Chromatic note buttons">
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="c" aria-pressed="false">C</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="cs" aria-pressed="false">C#</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="d" aria-pressed="false">D</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="ds" aria-pressed="false">D#</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="e" aria-pressed="false">E</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="f" aria-pressed="false">F</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="fs" aria-pressed="false">F#</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="g" aria-pressed="false">G</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="gs" aria-pressed="false">G#</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="a" aria-pressed="false">A</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="as" aria-pressed="false">A#</button>
-               <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="b" aria-pressed="false">B</button>
-             </div>
-           </section>
-           <section class="settings-dialog-section" aria-labelledby="arpeggio-settings-key-title">
-             <h3 id="arpeggio-settings-key-title" class="settings-dialog-section-title">Key</h3>
-             <div class="settings-key-controls" aria-label="Global arpeggio key controls">
-               <button id="arpeggio-settings-key-prev" type="button" class="control-toggle-btn settings-key-step-btn" aria-label="Previous key in circle of fifths">-</button>
-               <div class="settings-key-display">
-                 <span class="settings-key-value" id="arpeggio-settings-key-value">C</span>
-                 <span class="settings-key-caption"></span>
-               </div>
-               <button id="arpeggio-settings-key-next" type="button" class="control-toggle-btn settings-key-step-btn" aria-label="Next key in circle of fifths">+</button>
-             </div>
-             <div class="settings-key-transpose" aria-label="Shift selected settings notes within current key">
-               <span class="settings-key-transpose-label">Shift selected notes</span>
-               <div class="settings-key-transpose-actions">
-                 <button id="global-key-transpose-down" type="button" class="control-toggle-btn settings-key-transpose-btn" title="Shift selected settings notes down within the current key">t-</button>
-                 <button id="global-key-transpose-up" type="button" class="control-toggle-btn settings-key-transpose-btn" title="Shift selected settings notes up within the current key">t+</button>
-               </div>
-             </div>
-           </section>
-           <div class="settings-dialog-actions">
-              <div class="settings-dialog-history-actions" aria-label="Stored arpeggio preset navigation">
-                <button id="arpeggio-settings-history-prev" type="button" class="control-toggle-btn settings-history-btn" disabled aria-disabled="true">Prev</button>
-                 <span id="arpeggio-settings-history-position" class="settings-history-position" aria-live="polite">0 / 0</span>
-                <button id="arpeggio-settings-history-next" type="button" class="control-toggle-btn settings-history-btn" disabled aria-disabled="true">Next</button>
+      <dialog id="arpeggio-settings-dialog" class="settings-dialog" aria-labelledby="arpeggio-settings-title">
+        <div class="settings-dialog-content">
+          <div class="settings-dialog-header">
+            <h2 id="arpeggio-settings-title">Arpeggio Settings</h2>
+            <button id="arpeggio-settings-close" type="button" class="settings-dialog-close"
+                    aria-label="Close settings dialog">×
+            </button>
+          </div>
+          <section class="settings-dialog-section" aria-labelledby="arpeggio-settings-notes-title">
+            <h3 id="arpeggio-settings-notes-title" class="settings-dialog-section-title">Notes</h3>
+            <div class="settings-channel-selector" aria-label="Channels that receive applied arpeggio settings">
+              <div class="settings-channel-selector-label">Apply to channels</div>
+              <div class="settings-channel-button-row" id="arpeggio-settings-channel-buttons">
+                <button type="button" class="control-toggle-btn settings-channel-btn is-active"
+                        data-settings-channel-id="warm" aria-pressed="true" aria-label="Apply to channel 1">1
+                </button>
+                <button type="button" class="control-toggle-btn settings-channel-btn is-active"
+                        data-settings-channel-id="pluck" aria-pressed="true" aria-label="Apply to channel 2">2
+                </button>
+                <button type="button" class="control-toggle-btn settings-channel-btn is-active"
+                        data-settings-channel-id="organ" aria-pressed="true" aria-label="Apply to channel 3">3
+                </button>
+                <button type="button" class="control-toggle-btn settings-channel-btn is-active"
+                        data-settings-channel-id="bass" aria-pressed="true" aria-label="Apply to channel 4">4
+                </button>
+                <button type="button" class="control-toggle-btn settings-channel-btn is-active"
+                        data-settings-channel-id="glass" aria-pressed="true" aria-label="Apply to channel 5">5
+                </button>
+                <button type="button" class="control-toggle-btn settings-channel-btn is-active"
+                        data-settings-channel-id="acid" aria-pressed="true" aria-label="Apply to channel 6">6
+                </button>
+                <button type="button" class="control-toggle-btn settings-channel-btn is-active"
+                        data-settings-channel-id="noisy" aria-pressed="true" aria-label="Apply to channel 7">7
+                </button>
+                <button type="button" class="control-toggle-btn settings-channel-btn is-active"
+                        data-settings-channel-id="deep" aria-pressed="true" aria-label="Apply to channel 8">8
+                </button>
               </div>
-             <button id="arpeggio-settings-apply" type="button" class="control-toggle-btn settings-apply-btn">Apply</button>
-           </div>
-         </div>
-       </dialog>
+            </div>
+            <div class="settings-note-grid" aria-label="Chromatic note buttons">
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="c"
+                      aria-pressed="false">C
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="cs"
+                      aria-pressed="false">C#
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="d"
+                      aria-pressed="false">D
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="ds"
+                      aria-pressed="false">D#
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="e"
+                      aria-pressed="false">E
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="f"
+                      aria-pressed="false">F
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="fs"
+                      aria-pressed="false">F#
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="g"
+                      aria-pressed="false">G
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="gs"
+                      aria-pressed="false">G#
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="a"
+                      aria-pressed="false">A
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="as"
+                      aria-pressed="false">A#
+              </button>
+              <button type="button" class="note-toggle settings-note-toggle" data-pitch-class-key="b"
+                      aria-pressed="false">B
+              </button>
+            </div>
+          </section>
+          <section class="settings-dialog-section" aria-labelledby="arpeggio-settings-key-title">
+            <h3 id="arpeggio-settings-key-title" class="settings-dialog-section-title">Key</h3>
+            <div class="settings-key-controls" aria-label="Global arpeggio key controls">
+              <button id="arpeggio-settings-key-prev" type="button" class="control-toggle-btn settings-key-step-btn"
+                      aria-label="Previous key in circle of fifths">-
+              </button>
+              <div class="settings-key-display">
+                <span class="settings-key-value" id="arpeggio-settings-key-value">C</span>
+                <span class="settings-key-caption"></span>
+              </div>
+              <button id="arpeggio-settings-key-next" type="button" class="control-toggle-btn settings-key-step-btn"
+                      aria-label="Next key in circle of fifths">+
+              </button>
+            </div>
+            <div class="settings-key-transpose" aria-label="Shift selected settings notes within current key">
+              <span class="settings-key-transpose-label">Shift selected notes</span>
+              <div class="settings-key-transpose-actions">
+                <button id="global-key-transpose-down" type="button"
+                        class="control-toggle-btn settings-key-transpose-btn"
+                        title="Shift selected settings notes down within the current key">t-
+                </button>
+                <button id="global-key-transpose-up" type="button" class="control-toggle-btn settings-key-transpose-btn"
+                        title="Shift selected settings notes up within the current key">t+
+                </button>
+              </div>
+            </div>
+          </section>
+          <div class="settings-dialog-actions">
+            <div class="settings-dialog-history-actions" aria-label="Stored arpeggio preset navigation">
+              <button id="arpeggio-settings-history-prev" type="button" class="control-toggle-btn settings-history-btn"
+                      disabled aria-disabled="true">Prev
+              </button>
+              <span id="arpeggio-settings-history-position" class="settings-history-position"
+                    aria-live="polite">0 / 0</span>
+              <button id="arpeggio-settings-history-next" type="button" class="control-toggle-btn settings-history-btn"
+                      disabled aria-disabled="true">Next
+              </button>
+            </div>
+            <button id="arpeggio-settings-apply" type="button" class="control-toggle-btn settings-apply-btn">Apply
+            </button>
+          </div>
+        </div>
+      </dialog>
 
 
+    </div>
+
+    <div class="controls-main-panel">
+      <div class="controls-section-separator">
+        <span class="controls-section-separator-label">Global effects</span>
       </div>
 
+      <div class="control-group">
+        <h3 class="control-group-title">Tape Delay</h3>
+        <div class="control-group-items">
+          <div class="control-item">
+            <label for="tape-delay-enabled">Enabled (<span id="tape-delay-enabled-value">On</span>)</label>
+            <button
+              id="tape-delay-enabled"
+              type="button"
+              class="control-toggle-btn delay-enabled-toggle is-active"
+              value="1"
+              aria-pressed="true"
+            >
+              On
+            </button>
+          </div>
+          <div class="control-item">
+            <label for="delay-time">Time (<span id="delay-time-value">1/8</span>)</label>
+            <input id="delay-time" type="range" min="0" max="7" step="1" value="3">
+          </div>
+          <div class="control-item">
+            <label for="delay-feedback">Feedback (<span id="delay-feedback-value">0.06</span>)</label>
+            <input id="delay-feedback" type="range" min="0" max="1" step="0.001" value="0.592717">
+          </div>
+        </div>
+      </div>
+      <div class="control-group">
+        <h3 class="control-group-title">Clean Delay</h3>
+        <div class="control-group-items">
+          <div class="control-item">
+            <label for="clean-delay-enabled">Enabled (<span id="clean-delay-enabled-value">On</span>)</label>
+            <button
+              id="clean-delay-enabled"
+              type="button"
+              class="control-toggle-btn delay-enabled-toggle is-active"
+              value="1"
+              aria-pressed="true"
+            >
+              On
+            </button>
+          </div>
+          <div class="control-item">
+            <label for="clean-delay-time">Time (<span id="clean-delay-time-value">1/8</span>)</label>
+            <input id="clean-delay-time" type="range" min="0" max="7" step="1" value="3">
+          </div>
+          <div class="control-item">
+            <label for="clean-delay-repetitions">Repetitions (<span id="clean-delay-repetitions-value">4 repeats</span>)</label>
+            <input id="clean-delay-repetitions" type="range" min="1" max="12" step="1" value="4">
+          </div>
+        </div>
+      </div>
+
+      <div class="controls-section-separator" >
+        <span class="controls-section-separator-label">Instrument effects</span>
+      </div>
 
       <div class="control-group">
         <h3 class="control-group-title">Oscillator</h3>
@@ -447,13 +537,13 @@
         <h3 class="control-group-title">Send &amp; Pan</h3>
         <div class="control-group-items">
           <div class="control-item">
-                <label for="delay-send">Tape Delay Send (<span id="delay-send-value">0.10</span>)</label>
+            <label for="delay-send">Tape Delay Send (<span id="delay-send-value">0.10</span>)</label>
             <input id="delay-send" type="range" min="0" max="0.10" step="0.01" value="0.10">
           </div>
-              <div class="control-item">
-                <label for="clean-delay-send">Clean Delay Send (<span id="clean-delay-send-value">0.00</span>)</label>
-                <input id="clean-delay-send" type="range" min="0" max="0.6" step="0.01" value="0">
-              </div>
+          <div class="control-item">
+            <label for="clean-delay-send">Clean Delay Send (<span id="clean-delay-send-value">0.00</span>)</label>
+            <input id="clean-delay-send" type="range" min="0" max="0.6" step="0.01" value="0">
+          </div>
           <div class="control-item">
             <label for="reverb-send">Reverb Send (<span id="reverb-send-value">0.24</span>)</label>
             <input id="reverb-send" type="range" min="0" max="0.8" step="0.01" value="0.24">
@@ -465,10 +555,51 @@
         </div>
       </div>
 
-    </section>
-  </main>
+      <div class="control-group control-group--midi">
+        <h3 class="control-group-title">MIDI</h3>
+        <div class="control-group-items">
+          <div class="control-item control-item--midi-status">
+            <span class="midi-status-label">Status</span>
+            <span id="midi-status" class="midi-status-value">Checking…</span>
+          </div>
+          <div class="control-item">
+            <label for="midi-input-port">Input</label>
+            <select id="midi-input-port" class="midi-port-select" aria-label="MIDI input port">
+              <option value="">None</option>
+            </select>
+          </div>
+          <div class="control-item">
+            <label for="midi-output-port">Output</label>
+            <select id="midi-output-port" class="midi-port-select" aria-label="MIDI output port">
+              <option value="">None</option>
+            </select>
+          </div>
+          <div class="control-item">
+            <label for="midi-clock-mode">Clock</label>
+            <select id="midi-clock-mode" class="midi-port-select" aria-label="MIDI clock mode">
+              <option value="off">Off</option>
+              <option value="slave">External</option>
+              <option value="master">Send</option>
+            </select>
+          </div>
+          <div class="control-item control-item--midi-refresh">
+            <button id="midi-refresh" type="button" class="control-toggle-btn midi-refresh-btn">Refresh MIDI</button>
+          </div>
+          <div class="control-item control-item--midi-status">
+            <span class="midi-status-label">Clock</span>
+            <span id="midi-clock-status" class="midi-status-value">Off</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  <script src="js/app.js"></script>
+    </div>
+
+
+  </section>
+</main>
+
+<script src="js/app.js"></script>
 </body>
 
 </html>

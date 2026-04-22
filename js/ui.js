@@ -443,7 +443,7 @@ function syncMidiGlobalUI() {
         ? "Ready"
         : "No device access";
     midiStatus.textContent = state.midi.crossTabSyncActive
-      ? `${baseStatus} · Cross-tab sync on`
+      ? `${baseStatus}`
       : baseStatus;
   }
 

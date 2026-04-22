@@ -1,3 +1,19 @@
+# Task: Add Left-Column Separator Between Global And Local Controls
+
+## Plan
+- [ ] Inspect the current left-column layout boundary between the top-row/global area and the per-channel controls below it.
+- [ ] Add one minimal visual separator in `index.html` that clearly marks where local channel controls begin.
+- [ ] Style the separator in `css/style.css` so it matches the existing UI and remains readable on narrow screens.
+- [ ] Validate the edited files, run a production build, and record the result plus a lesson.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
 # Task: Sync MIDI Across Multiple Browser Tabs
 
 ## Plan

@@ -475,6 +475,35 @@ body {
   gap: 0.6rem;
 }
 
+.controls-section-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0.15rem 0 0.1rem;
+}
+
+.controls-section-separator::before,
+.controls-section-separator::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.18) 0%, rgba(96, 165, 250, 0.52) 100%);
+}
+
+.controls-section-separator::after {
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.52) 0%, rgba(96, 165, 250, 0.18) 100%);
+}
+
+.controls-section-separator-label {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #93c5fd;
+  white-space: nowrap;
+}
+
 @media (min-width: 900px) {
   .controls-top-row {
     display: grid;
@@ -506,6 +535,10 @@ body {
   .controls-top-row > .note-selector {
     grid-column: 1;
     grid-row: 2;
+  }
+
+  .controls-main-panel {
+    margin-top: 0.15rem;
   }
 }
 
