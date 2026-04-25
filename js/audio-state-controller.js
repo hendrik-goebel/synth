@@ -293,6 +293,19 @@ function sanitizeSeedGlobalParamValue(key, value, fallback) {
 }
 
 function sanitizeSeedChannelParamValue(key, value, fallback, currentParams = {}) {
+  if (LFO_TARGET_PARAM_KEYS.includes(key)) {
+    const numeric = toNumber(value);
+    return numeric === null ? fallback : Math.max(0, Math.min(LFO_TARGET_OPTIONS.length - 1, Math.round(numeric)));
+  }
+
+  if (LFO_RATE_PARAM_KEYS.includes(key)) {
+    return clampLfoRateHz(toNumber(value) ?? fallback);
+  }
+
+  if (LFO_DEPTH_PARAM_KEYS.includes(key)) {
+    return clampNumber(value, 0, 1, fallback);
+  }
+
   switch (key) {
     case "attack":
       return clampNumber(value, ENVELOPE_ATTACK_MIN_SECONDS, ENVELOPE_ATTACK_MAX_SECONDS, fallback);
@@ -493,6 +506,23 @@ function getArpeggioHistoryStepAvailability() {
 }
 
 function applySeedSnapshotToState(seedSnapshot) {
+  const legacyGlobalLfoParams = [...new Set([
+    ...LFO_TARGET_PARAM_KEYS,
+    ...LFO_RATE_PARAM_KEYS,
+    ...LFO_DEPTH_PARAM_KEYS,
+  ])].reduce((result, key) => {
+    if (seedSnapshot.synthParams?.[key] === undefined) {
+      return result;
+    }
+
+    result[key] = sanitizeSeedGlobalParamValue(
+      key,
+      seedSnapshot.synthParams[key],
+      INITIAL_SYNTH_PARAMS[key],
+    );
+    return result;
+  }, {});
+
   STATE_SEED_GLOBAL_PARAM_KEYS.forEach((key) => {
     const fallback = state.synthParams[key] ?? INITIAL_SYNTH_PARAMS[key];
     const nextValue = seedSnapshot.synthParams?.[key] === undefined
@@ -516,6 +546,9 @@ function applySeedSnapshotToState(seedSnapshot) {
 
     STATE_SEED_CHANNEL_PARAM_KEYS.forEach((key) => {
       if (channelSeed.params?.[key] === undefined) {
+        if (legacyGlobalLfoParams[key] !== undefined) {
+          instrumentParams[key] = legacyGlobalLfoParams[key];
+        }
         return;
       }
 

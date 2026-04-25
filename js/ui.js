@@ -516,17 +516,17 @@ export function setControlLabel(controlId, value) {
 
   if (valueElement) {
     const lfoSlotConfig = getLfoSlotConfigByControlId(controlId);
+    const activeInstrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
     if (controlId === "pitch-shift") {
-      const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
       valueElement.textContent = formatPitchShiftSemitones(
         value,
-        isContinuousPitchShiftEnabled(instrumentParams.pitchShiftContinuous),
+        isContinuousPitchShiftEnabled(activeInstrumentParams.pitchShiftContinuous),
       );
       return;
     }
 
     if (lfoSlotConfig?.depthControlId === controlId) {
-      valueElement.textContent = formatLfoDepth(value, state.synthParams[lfoSlotConfig.targetKey]);
+      valueElement.textContent = formatLfoDepth(value, activeInstrumentParams[lfoSlotConfig.targetKey]);
       return;
     }
 
@@ -586,7 +586,8 @@ export function setControlUIValue(controlId, value) {
   } else {
     const lfoSlotConfig = getLfoSlotConfigByControlId(controlId);
     if (lfoSlotConfig?.targetControlId === controlId) {
-      setControlLabel(lfoSlotConfig.depthControlId, state.synthParams[lfoSlotConfig.depthKey] ?? 0);
+      const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
+      setControlLabel(lfoSlotConfig.depthControlId, instrumentParams[lfoSlotConfig.depthKey] ?? 0);
     }
   }
 }

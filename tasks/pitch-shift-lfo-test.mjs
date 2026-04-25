@@ -10,6 +10,7 @@ import {
 import { ensureAudioContext, scheduleInstrumentStackNote } from "../js/audio-engine.js";
 import { AudioStateController } from "../js/audio-state-controller.js";
 import { rebuildInstrumentPattern } from "../js/patterns.js";
+import { getInstrumentParams } from "../js/presets.js";
 import { state } from "../js/state.js";
 import {
   installFakeAudioAndMidiEnvironment,
@@ -48,7 +49,7 @@ try {
   assert.equal(controller.setControlValue("lfo-target", 3), true, "the LFO target control should accept the new pitch-shift target");
   assert.equal(controller.setControlValue("lfo-rate", 1), true, "the LFO rate should remain configurable");
   assert.equal(controller.setControlValue("lfo-depth", 0.5), true, "the LFO depth should remain configurable");
-  assert.equal(state.synthParams.lfoTarget, 3, "pitch-shift should be stored as the active LFO target");
+  assert.equal(getInstrumentParams("warm").lfoTarget, 3, "pitch-shift should be stored on the current instrument");
 
   assert.equal(await controller.initializeMidi(), true, "fake MIDI initialization should succeed");
   await ensureAudioContext();

@@ -1,3 +1,19 @@
+# Task: Scope LFOs And Parameter Controls To The Current Instrument
+
+## Plan
+- [ ] Audit the current LFO ownership across `js/constants.js`, `js/presets.js`, `js/audio-state-controller.js`, `js/audio-engine.js`, `js/state-seed.js`, and `js/ui.js` to confirm why LFOs still behave as shared/global controls.
+- [ ] Move all four `lfo*` target/rate/depth values to instrument-scoped params so editing them only changes the selected channel and playback reads the scheduled channel's own LFO configuration.
+- [ ] Update UI control syncing so switching the current instrument refreshes the visible LFO controls and labels from that instrument's params instead of shared global state.
+- [ ] Add regression coverage for per-instrument LFO isolation and current-instrument control syncing, then run the focused tests plus `npm run build`.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
 # Task: Add Three More Independent LFOs
 
 ## Plan

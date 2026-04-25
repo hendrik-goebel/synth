@@ -66,21 +66,21 @@ function getGlobalTimbreBias() {
   return clamp(state.synthParams.globalTimbre ?? 0, -1, 1);
 }
 
-function getLfoTargetOption(targetIndex = state.synthParams.lfoTarget) {
+function getLfoTargetOption(targetIndex = 0) {
   const normalizedIndex = clamp(Math.round(targetIndex ?? 0), 0, LFO_TARGET_OPTIONS.length - 1);
   return LFO_TARGET_OPTIONS[normalizedIndex];
 }
 
-function getLfoModulationsAtTime(time) {
+function getLfoModulationsAtTime(time, voiceParams = {}) {
   return LFO_SLOT_CONFIGS
     .map(({ targetKey, rateKey, depthKey, slot }) => {
-      const targetOption = getLfoTargetOption(state.synthParams[targetKey]);
+      const targetOption = getLfoTargetOption(voiceParams[targetKey]);
       if (!targetOption.key) {
         return null;
       }
 
-      const rate = clampLfoRateHz(state.synthParams[rateKey] ?? 1.2);
-      const depth = clamp(state.synthParams[depthKey] ?? 0, 0, 1);
+      const rate = clampLfoRateHz(voiceParams[rateKey] ?? 1.2);
+      const depth = clamp(voiceParams[depthKey] ?? 0, 0, 1);
       const phase = time * Math.PI * 2 * rate;
       return {
         slot,
@@ -92,8 +92,8 @@ function getLfoModulationsAtTime(time) {
     .filter(Boolean);
 }
 
-function getLfoTargetedValue(baseValue, time, fallbackTargetKey = null) {
-  const lfoModulations = getLfoModulationsAtTime(time);
+function getLfoTargetedValue(baseValue, time, fallbackTargetKey = null, voiceParams = {}) {
+  const lfoModulations = getLfoModulationsAtTime(time, voiceParams);
   const fallbackModulation = lfoModulations[0] || { key: null };
   const targetKey = fallbackTargetKey ?? fallbackModulation.key;
   const targetOption = LFO_TARGET_OPTIONS.find((option) => option.key === targetKey);
@@ -133,7 +133,7 @@ function getPitchShiftSemitones(voiceParams, time = 0) {
     continuous: isContinuousPitchShiftEnabled(voiceParams?.pitchShiftContinuous),
   });
   return clampPitchShiftSemitones(
-    getLfoTargetedValue(basePitchShiftSemitones, time, "pitchShiftSemitones"),
+    getLfoTargetedValue(basePitchShiftSemitones, time, "pitchShiftSemitones", voiceParams),
     { continuous: true },
   );
 }
@@ -333,10 +333,10 @@ export function scheduleNote(
   const ctx = state.audioContext;
   const lfoVoiceParams = {
     ...voiceParams,
-    detuneSpread: getLfoTargetedValue(voiceParams.detuneSpread ?? 0, time, "detuneSpread"),
-    subLevel: getLfoTargetedValue(voiceParams.subLevel ?? 0.55, time, "subLevel"),
-    distortionDrive: getLfoTargetedValue(voiceParams.distortionDrive ?? 0, time, "distortionDrive"),
-    distortionTone: getLfoTargetedValue(voiceParams.distortionTone ?? 4500, time, "distortionTone"),
+    detuneSpread: getLfoTargetedValue(voiceParams.detuneSpread ?? 0, time, "detuneSpread", voiceParams),
+    subLevel: getLfoTargetedValue(voiceParams.subLevel ?? 0.55, time, "subLevel", voiceParams),
+    distortionDrive: getLfoTargetedValue(voiceParams.distortionDrive ?? 0, time, "distortionDrive", voiceParams),
+    distortionTone: getLfoTargetedValue(voiceParams.distortionTone ?? 4500, time, "distortionTone", voiceParams),
   };
   const pitchedFrequency = getPitchShiftedFrequency(frequency, voiceParams, time);
   if (!Number.isFinite(pitchedFrequency) || pitchedFrequency <= 0) {
@@ -429,17 +429,17 @@ export function scheduleNote(
     240,
   );
   const attackTime = clamp(
-    getLfoTargetedValue(voiceParams.attack, time, "attack") + randomCentered(HUMANIZE.attackSeconds),
+    getLfoTargetedValue(voiceParams.attack, time, "attack", voiceParams) + randomCentered(HUMANIZE.attackSeconds),
     ENVELOPE_ATTACK_MIN_SECONDS,
     ENVELOPE_ATTACK_MAX_SECONDS,
   );
   const decayTime = clamp(
-    getLfoTargetedValue(voiceParams.decay, time, "decay") + randomCentered(HUMANIZE.decaySeconds),
+    getLfoTargetedValue(voiceParams.decay, time, "decay", voiceParams) + randomCentered(HUMANIZE.decaySeconds),
     ENVELOPE_DECAY_MIN_SECONDS,
     ENVELOPE_DECAY_MAX_SECONDS,
   );
   const releaseTime = clamp(
-    getLfoTargetedValue(voiceParams.release, time, "release"),
+    getLfoTargetedValue(voiceParams.release, time, "release", voiceParams),
     ENVELOPE_RELEASE_MIN_SECONDS,
     ENVELOPE_RELEASE_MAX_SECONDS,
   );
@@ -465,20 +465,20 @@ export function scheduleNote(
   const peakGain = basePeakGain;
   const sustainGain = baseSustainGain;
   let cutoffWithVariation = clamp(
-    (Math.min(8000, getLfoTargetedValue(voiceParams.filterCutoff, time, "filterCutoff") + pitchedFrequency * filterTracking)) *
+    (Math.min(8000, getLfoTargetedValue(voiceParams.filterCutoff, time, "filterCutoff", voiceParams) + pitchedFrequency * filterTracking)) *
       (1 - warmAmount * 0.35 + coldAmount * 0.55) *
       (1 + randomCentered(HUMANIZE.cutoffAmount)),
     250,
     8000,
   );
   let filterQValue = clamp(
-    getLfoTargetedValue(voiceParams.filterQ, time, "filterQ") * (1 - warmAmount * 0.12 + coldAmount * 0.18),
+    getLfoTargetedValue(voiceParams.filterQ, time, "filterQ", voiceParams) * (1 - warmAmount * 0.12 + coldAmount * 0.18),
     0.2,
     12,
   );
   const tapeDelaySendValue = Number(state.synthParams.tapeDelayEnabled)
     ? clamp(
-      getLfoTargetedValue(voiceParams.delaySend, time, "delaySend") * (1 + randomCentered(HUMANIZE.fxSendAmount)),
+      getLfoTargetedValue(voiceParams.delaySend, time, "delaySend", voiceParams) * (1 + randomCentered(HUMANIZE.fxSendAmount)),
       0,
       TAPE_DELAY_SEND_MAX,
     )

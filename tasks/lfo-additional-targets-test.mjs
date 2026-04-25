@@ -59,7 +59,7 @@ try {
     true,
     "the controller should accept the highest appended LFO target index",
   );
-  assert.equal(state.synthParams.lfoTarget, tapeDelaySendTargetIndex, "the newly added target index should be stored in shared synth state");
+  assert.equal(getInstrumentParams("warm").lfoTarget, tapeDelaySendTargetIndex, "the newly added target index should be stored on the current instrument");
 
   assert.equal(controller.setControlValue("lfo-target", detuneSpreadTargetIndex), true, "the controller should accept the detune spread LFO target");
   assert.equal(controller.setControlValue("lfo-rate", 1), true, "the LFO rate should remain configurable with the new target list");

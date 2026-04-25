@@ -69,18 +69,32 @@ try {
   assert.equal(controller.setControlValue("lfo-4-target", 0), true, "LFO 4 should be independently switchable off");
   assert.equal(controller.setControlValue("lfo-4-depth", 0.9), true, "LFO 4 depth should still be storable while the target is off");
 
+  controller.selectInstrument("bass");
+  assert.equal(controller.setControlValue("lfo-target", 0), true, "bass LFO 1 should stay independently switchable off");
+  assert.equal(controller.setControlValue("lfo-rate", 0.35), true, "bass LFO 1 rate should stay instrument-local");
+  assert.equal(controller.setControlValue("lfo-depth", 0), true, "bass LFO 1 depth should stay instrument-local");
+  assert.equal(controller.setControlValue("lfo-2-target", 0), true, "bass LFO 2 should stay independently switchable off");
+  assert.equal(controller.setControlValue("lfo-2-depth", 0), true, "bass LFO 2 depth should stay instrument-local");
+  assert.equal(controller.setControlValue("lfo-3-target", 0), true, "bass LFO 3 should stay independently switchable off");
+  assert.equal(controller.setControlValue("lfo-3-depth", 0), true, "bass LFO 3 depth should stay instrument-local");
+
+  controller.selectInstrument("warm");
+
   await ensureAudioContext();
   state.instrumentNoteIdsByPresetId.warm = ["note-c4"];
   rebuildInstrumentPattern("warm");
-  state.playingPresetIds.add("warm");
+  state.instrumentNoteIdsByPresetId.bass = ["note-c3"];
+  rebuildInstrumentPattern("bass");
   state.transportState = "playing";
 
   Math.random = () => 0.5;
   const scheduledTime = 0.25;
-  const oscillatorCountBefore = state.audioContext.createdOscillators.length;
+  state.activePresetIds = ["warm"];
+  state.playingPresetIds = new Set(["warm"]);
+  const oscillatorCountBeforeWarm = state.audioContext.createdOscillators.length;
   scheduleInstrumentStackNote(scheduledTime, 1, 0);
-  const createdOscillators = state.audioContext.createdOscillators.slice(oscillatorCountBefore);
-  assert.equal(createdOscillators.length, 3, "multiple configured LFOs should still schedule exactly one synth voice");
+  const warmOscillators = state.audioContext.createdOscillators.slice(oscillatorCountBeforeWarm);
+  assert.equal(warmOscillators.length, 3, "multiple configured warm LFOs should still schedule exactly one synth voice");
 
   const warmParams = getInstrumentParams("warm");
   const pitchAmount1 = LFO_TARGET_OPTIONS[pitchTargetIndex].modulationAmount * 0.5;
@@ -88,21 +102,45 @@ try {
   const expectedPitchShiftSemitones = pitchAmount1 + pitchAmount2;
   const expectedFrequency = 261.63 * Math.pow(2, expectedPitchShiftSemitones / 12);
   assertClose(
-    createdOscillators[0].frequency.value,
+    warmOscillators[0].frequency.value,
     expectedFrequency,
     "two independent pitch-targeted LFOs should sum their modulation amounts on the scheduled note",
   );
 
   const expectedDetuneSpread = warmParams.detuneSpread + (LFO_TARGET_OPTIONS[detuneTargetIndex].modulationAmount * 0.5);
   assertClose(
-    createdOscillators[0].detune.value,
+    warmOscillators[0].detune.value,
     -expectedDetuneSpread,
     "a separate detune-targeted LFO should modulate oscillator A independently of the pitch-targeted LFOs",
   );
   assertClose(
-    createdOscillators[1].detune.value,
+    warmOscillators[1].detune.value,
     expectedDetuneSpread,
     "a separate detune-targeted LFO should modulate oscillator B independently of the pitch-targeted LFOs",
+  );
+
+  state.activePresetIds = ["bass"];
+  state.playingPresetIds = new Set(["bass"]);
+  const oscillatorCountBeforeBass = state.audioContext.createdOscillators.length;
+  scheduleInstrumentStackNote(scheduledTime, 1, 0);
+  const bassOscillators = state.audioContext.createdOscillators.slice(oscillatorCountBeforeBass);
+  assert.equal(bassOscillators.length, 3, "a second instrument should still schedule exactly one synth voice");
+
+  const bassParams = getInstrumentParams("bass");
+  assertClose(
+    bassOscillators[0].frequency.value,
+    130.81,
+    "warm pitch LFO settings should not leak into bass when bass LFOs are off",
+  );
+  assertClose(
+    bassOscillators[0].detune.value,
+    -bassParams.detuneSpread,
+    "warm detune LFO settings should not leak into bass oscillator A when bass LFOs are off",
+  );
+  assertClose(
+    bassOscillators[1].detune.value,
+    bassParams.detuneSpread,
+    "warm detune LFO settings should not leak into bass oscillator B when bass LFOs are off",
   );
 
   console.log("multi LFO independent checks passed");
