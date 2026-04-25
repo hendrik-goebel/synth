@@ -1,5 +1,13 @@
 # Lessons Learned
 
+- When expanding a shared discrete target list like `LFO_TARGET_OPTIONS`, append new targets instead of reordering existing ones so saved numeric indices stay compatible, and apply the new modulation at the per-note derived-value boundary rather than mutating shared live state for already-running voices.
+
+- When a control chooses one item from a small named option set, prefer a `<select>` over a numeric slider; discrete labels are easier to scan, and the existing state model can still store numeric indices behind the UI.
+
+- When a user asks for a dedicated UI section, move the existing controls into their own titled group and preserve the original IDs/bindings instead of only relocating them to the nearest related section; layout intent and control behavior should be treated as separate concerns.
+
+- When a modulation feature can reuse an existing target/rate/depth system, extend that shared target model first (for example add `Pitch Shift` to `LFO_TARGET_OPTIONS`) instead of building a parallel modulation UI; then make target-dependent labels refresh from the same state so `Depth` can switch cleanly between percent-style and semitone-style displays.
+
 - When many modules share bound-style constants, extract them into one dedicated limits module and let the broader `js/constants.js` layer re-export them temporarily during migration; that keeps the source of truth singular while reducing import-churn risk.
 
 - When extracting a family of related bounds (for example envelope timings), migrate the whole set at once — minima and maxima for attack, decay, and release — or one sibling literal will stay behind and reintroduce drift between UI, validation, and runtime behavior.

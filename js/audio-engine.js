@@ -85,28 +85,57 @@ function getLfoModulationAtTime(time) {
   };
 }
 
-function getPitchShiftSemitones(voiceParams) {
-  return clampPitchShiftSemitones(voiceParams?.pitchShiftSemitones ?? 0, {
-    continuous: isContinuousPitchShiftEnabled(voiceParams?.pitchShiftContinuous),
-  });
+function getLfoTargetedValue(baseValue, time, fallbackTargetKey = null) {
+  const lfoModulation = getLfoModulationAtTime(time);
+  const targetKey = fallbackTargetKey ?? lfoModulation.key;
+  const targetOption = LFO_TARGET_OPTIONS.find((option) => option.key === targetKey);
+  if (!targetOption || lfoModulation.key !== targetKey) {
+    return baseValue;
+  }
+
+  const numericBaseValue = Number.parseFloat(baseValue);
+  if (!Number.isFinite(numericBaseValue)) {
+    return baseValue;
+  }
+
+  const modulationAmount = Number.parseFloat(targetOption.modulationAmount);
+  if (!Number.isFinite(modulationAmount) || modulationAmount <= 0) {
+    return numericBaseValue;
+  }
+
+  return clamp(
+    numericBaseValue + (lfoModulation.amount * modulationAmount),
+    targetOption.min,
+    targetOption.max,
+  );
 }
 
-function getPitchShiftedFrequency(frequency, voiceParams) {
+function getPitchShiftSemitones(voiceParams, time = 0) {
+  const basePitchShiftSemitones = clampPitchShiftSemitones(voiceParams?.pitchShiftSemitones ?? 0, {
+    continuous: isContinuousPitchShiftEnabled(voiceParams?.pitchShiftContinuous),
+  });
+  return clampPitchShiftSemitones(
+    getLfoTargetedValue(basePitchShiftSemitones, time, "pitchShiftSemitones"),
+    { continuous: true },
+  );
+}
+
+function getPitchShiftedFrequency(frequency, voiceParams, time) {
   const numericFrequency = Number.parseFloat(frequency);
   if (!Number.isFinite(numericFrequency) || numericFrequency <= 0) {
     return numericFrequency;
   }
 
-  return numericFrequency * Math.pow(2, getPitchShiftSemitones(voiceParams) / 12);
+  return numericFrequency * Math.pow(2, getPitchShiftSemitones(voiceParams, time) / 12);
 }
 
-function getTransposedMidiNoteNumber(midiNoteNumber, voiceParams) {
+function getTransposedMidiNoteNumber(midiNoteNumber, voiceParams, time) {
   const numericMidiNoteNumber = Number.parseInt(midiNoteNumber, 10);
   if (!Number.isInteger(numericMidiNoteNumber)) {
     return null;
   }
 
-  const shiftedMidiNoteNumber = Math.round(numericMidiNoteNumber + getPitchShiftSemitones(voiceParams));
+  const shiftedMidiNoteNumber = Math.round(numericMidiNoteNumber + getPitchShiftSemitones(voiceParams, time));
   if (shiftedMidiNoteNumber < 0 || shiftedMidiNoteNumber > 127) {
     return null;
   }
@@ -284,7 +313,14 @@ export function scheduleNote(
   velocity = MIDI_VELOCITY_MAX,
 ) {
   const ctx = state.audioContext;
-  const pitchedFrequency = getPitchShiftedFrequency(frequency, voiceParams);
+  const lfoVoiceParams = {
+    ...voiceParams,
+    detuneSpread: getLfoTargetedValue(voiceParams.detuneSpread ?? 0, time, "detuneSpread"),
+    subLevel: getLfoTargetedValue(voiceParams.subLevel ?? 0.55, time, "subLevel"),
+    distortionDrive: getLfoTargetedValue(voiceParams.distortionDrive ?? 0, time, "distortionDrive"),
+    distortionTone: getLfoTargetedValue(voiceParams.distortionTone ?? 4500, time, "distortionTone"),
+  };
+  const pitchedFrequency = getPitchShiftedFrequency(frequency, voiceParams, time);
   if (!Number.isFinite(pitchedFrequency) || pitchedFrequency <= 0) {
     return;
   }
@@ -333,15 +369,6 @@ export function scheduleNote(
 
   const noteDuration = getNoteDuration(noteLength);
   const preStartTime = Math.max(0, time - 0.002);
-  const releaseTime = clamp(
-    voiceParams.release,
-    ENVELOPE_RELEASE_MIN_SECONDS,
-    ENVELOPE_RELEASE_MAX_SECONDS,
-  );
-  const releaseStartTime = Math.max(time + 0.02, time + noteDuration - releaseTime);
-  const releaseTimeConstant = Math.max(0.008, releaseTime / 3);
-  const stopTime = releaseStartTime + Math.max(0.08, releaseTimeConstant * 6);
-  const voiceFadeOutTime = Math.max(releaseStartTime + 0.01, stopTime - 0.004);
   const layerGainScale = 1 / Math.sqrt(layerCount);
   const timbreBias = getGlobalTimbreBias();
   const warmAmount = Math.max(0, -timbreBias);
@@ -359,7 +386,7 @@ export function scheduleNote(
     1.3,
   );
   const subLevel = clamp(
-    (voiceParams.subLevel ?? 0.55) * (1 + warmAmount * 0.18 - coldAmount * 0.12),
+    (lfoVoiceParams.subLevel ?? 0.55) * (1 + warmAmount * 0.18 - coldAmount * 0.12),
     0,
     1.3,
   );
@@ -384,15 +411,24 @@ export function scheduleNote(
     240,
   );
   const attackTime = clamp(
-    voiceParams.attack + randomCentered(HUMANIZE.attackSeconds),
+    getLfoTargetedValue(voiceParams.attack, time, "attack") + randomCentered(HUMANIZE.attackSeconds),
     ENVELOPE_ATTACK_MIN_SECONDS,
     ENVELOPE_ATTACK_MAX_SECONDS,
   );
   const decayTime = clamp(
-    voiceParams.decay + randomCentered(HUMANIZE.decaySeconds),
+    getLfoTargetedValue(voiceParams.decay, time, "decay") + randomCentered(HUMANIZE.decaySeconds),
     ENVELOPE_DECAY_MIN_SECONDS,
     ENVELOPE_DECAY_MAX_SECONDS,
   );
+  const releaseTime = clamp(
+    getLfoTargetedValue(voiceParams.release, time, "release"),
+    ENVELOPE_RELEASE_MIN_SECONDS,
+    ENVELOPE_RELEASE_MAX_SECONDS,
+  );
+  const releaseStartTime = Math.max(time + 0.02, time + noteDuration - releaseTime);
+  const releaseTimeConstant = Math.max(0.008, releaseTime / 3);
+  const stopTime = releaseStartTime + Math.max(0.08, releaseTimeConstant * 6);
+  const voiceFadeOutTime = Math.max(releaseStartTime + 0.01, stopTime - 0.004);
   const velocityScale = clamp(
     0.3 + ((Math.max(0, Math.min(MIDI_VELOCITY_MAX, Number(velocity) || MIDI_VELOCITY_MAX)) / MIDI_VELOCITY_MAX) * 0.7),
     0.2,
@@ -411,27 +447,20 @@ export function scheduleNote(
   const peakGain = basePeakGain;
   const sustainGain = baseSustainGain;
   let cutoffWithVariation = clamp(
-    (Math.min(8000, voiceParams.filterCutoff + pitchedFrequency * filterTracking)) *
+    (Math.min(8000, getLfoTargetedValue(voiceParams.filterCutoff, time, "filterCutoff") + pitchedFrequency * filterTracking)) *
       (1 - warmAmount * 0.35 + coldAmount * 0.55) *
       (1 + randomCentered(HUMANIZE.cutoffAmount)),
     250,
     8000,
   );
   let filterQValue = clamp(
-    voiceParams.filterQ * (1 - warmAmount * 0.12 + coldAmount * 0.18),
+    getLfoTargetedValue(voiceParams.filterQ, time, "filterQ") * (1 - warmAmount * 0.12 + coldAmount * 0.18),
     0.2,
     12,
   );
-  const lfoModulation = getLfoModulationAtTime(time);
-  if (lfoModulation.key === "filterCutoff") {
-    cutoffWithVariation = clamp(cutoffWithVariation + lfoModulation.amount * 2200, 250, 8000);
-  }
-  if (lfoModulation.key === "filterQ") {
-    filterQValue = clamp(filterQValue + lfoModulation.amount * 2.5, 0.2, 12);
-  }
   const tapeDelaySendValue = Number(state.synthParams.tapeDelayEnabled)
     ? clamp(
-      voiceParams.delaySend * (1 + randomCentered(HUMANIZE.fxSendAmount)),
+      getLfoTargetedValue(voiceParams.delaySend, time, "delaySend") * (1 + randomCentered(HUMANIZE.fxSendAmount)),
       0,
       TAPE_DELAY_SEND_MAX,
     )
@@ -448,8 +477,8 @@ export function scheduleNote(
     0,
     1,
   );
-  const oscABaseDetune = -voiceParams.detuneSpread + driftCents;
-  const oscBBaseDetune = voiceParams.detuneSpread + driftCents;
+  const oscABaseDetune = -(lfoVoiceParams.detuneSpread ?? 0) + driftCents;
+  const oscBBaseDetune = (lfoVoiceParams.detuneSpread ?? 0) + driftCents;
   const subBaseDetune = driftCents * 0.35;
   const pitchDropRampTime = time + Math.max(0.01, transientDecay * 1.5);
 
@@ -551,7 +580,7 @@ export function scheduleNote(
     attackTime,
     presetId,
     noteDurationSeconds: noteDuration,
-    voiceParams,
+    voiceParams: lfoVoiceParams,
     warmAmount,
     coldAmount,
   });
@@ -666,7 +695,7 @@ export function scheduleInstrumentStackNote(time, layerCount, stepIndex = state.
     }
 
     const midiNoteNumber = noteId ? getMidiNoteNumberFromNoteId(noteId) : null;
-    const shiftedMidiNoteNumber = getTransposedMidiNoteNumber(midiNoteNumber, voiceParams);
+    const shiftedMidiNoteNumber = getTransposedMidiNoteNumber(midiNoteNumber, voiceParams, time);
     if (Number.isInteger(shiftedMidiNoteNumber)) {
       sendMidiNoteForPreset(presetId, shiftedMidiNoteNumber, {
         timeSeconds: time,

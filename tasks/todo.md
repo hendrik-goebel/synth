@@ -1,16 +1,112 @@
+# Task: Add More Synth Parameters As LFO Targets
+
+## Plan
+- [x] Inspect the current `LFO_TARGET_OPTIONS` source of truth plus the note-scheduling path in `js/audio-engine.js`.
+- [x] Add the requested additional LFO targets for `detuneSpread`, `subLevel`, `attack`, `decay`, `release`, `distortionDrive`, `distortionTone`, and `delaySend` while preserving the existing target order.
+- [x] Apply the new targets safely at the per-note scheduling boundary so only newly scheduled voices are modulated.
+- [x] Extend focused regression coverage for the expanded option list and at least one new runtime target, then run those checks plus `npm run build`.
+
+## Progress Notes
+- Extended `LFO_TARGET_OPTIONS` in `js/constants.js` with `Detune Spread`, `Sub Level`, `Attack`, `Decay`, `Release`, `Drive`, `Tone`, and `Tape Delay Send`, keeping the old target indices untouched and appending the new ones after `Pitch Shift`.
+- Updated the `#lfo-target` select in `index.html` so the dedicated `LFO` section exposes the full expanded option set directly in the UI.
+- Added one reusable `getLfoTargetedValue(...)` helper in `js/audio-engine.js` and used it to modulate derived per-note values for filter cutoff, filter resonance, pitch shift, detune spread, sub level, attack, decay, release, distortion drive, distortion tone, and tape delay send.
+- Kept the modulation scoped to newly scheduled voices only, avoiding live mutation of already-running envelopes or shared delay buses.
+- Added `tasks/lfo-additional-targets-test.mjs` to verify the appended target indices are accepted and that `Detune Spread` LFO modulation changes oscillator detune by the expected amount at an LFO peak.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/constants.js`, `js/audio-engine.js`, `index.html`, `tasks/pitch-shift-lfo-ui-placement-test.mjs`, `tasks/lfo-additional-targets-test.mjs`, and `tasks/todo.md` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/lfo-additional-targets-test.mjs` passed.
+- `node --experimental-default-type=module tasks/pitch-shift-lfo-ui-placement-test.mjs` passed.
+- `node --experimental-default-type=module tasks/pitch-shift-lfo-test.mjs` passed.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `npm run build` completed successfully after expanding the LFO target list.
+
+---
+
+# Task: Make LFO Target A Select Box
+
+## Plan
+- [x] Inspect the current `lfo-target` control markup and generic control binding in `index.html` and `js/ui.js`.
+- [x] Replace the `lfo-target` range input with a `<select>` while keeping the same control id/value label wiring and numeric target indices.
+- [x] Update the focused UI regression so it verifies the dedicated `LFO` section now contains a select-based `lfo-target` control with the expected options.
+- [x] Run the focused regression plus `npm run build`, then document the result and lesson.
+
+## Progress Notes
+- Replaced the `lfo-target` range slider in `index.html` with a real `<select>` while preserving the same `id` and the same numeric option-index state model.
+- Updated `js/ui.js` so generic control binding treats `<select>` elements like other change-driven controls instead of range-slider `input` events.
+- Extended `tasks/pitch-shift-lfo-ui-placement-test.mjs` so it now checks that the `LFO` section renders `lfo-target` as a select box with the expected target options.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `index.html`, `js/ui.js`, `tasks/pitch-shift-lfo-ui-placement-test.mjs`, `tasks/todo.md`, and `tasks/lessons.md` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/pitch-shift-lfo-ui-placement-test.mjs` passed.
+- `npm run build` completed successfully after changing `lfo-target` to a select box.
+
+---
+
+# Task: Move LFO Controls Into A Separate Section
+
+## Plan
+- [x] Inspect the current placement of `lfo-target`, `lfo-rate`, and `lfo-depth` in `index.html` and keep the existing IDs so the current UI/controller wiring stays intact.
+- [x] Move the existing LFO controls into their own `LFO` control group without changing their behavior.
+- [x] Add a focused regression that verifies the three LFO controls now live inside the dedicated `LFO` section in source markup.
+- [x] Run the new check plus `npm run build`, then document the correction and lesson.
+
+## Progress Notes
+- Moved the existing `lfo-target`, `lfo-rate`, and `lfo-depth` control markup out of the `Oscillator` group and into a new dedicated `LFO` control group in `index.html`.
+- Kept all LFO control IDs, labels, and value spans unchanged, so the existing `js/ui.js` / `js/constants.js` binding and formatting logic needed no behavior changes.
+- Reworked the focused placement regression so it now asserts the three LFO controls exist only inside the new `LFO` section and no longer inside `Oscillator` or `Filter`.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `index.html`, `tasks/pitch-shift-lfo-ui-placement-test.mjs`, `tasks/todo.md`, and `tasks/lessons.md` files.
+- `node --experimental-default-type=module tasks/pitch-shift-lfo-ui-placement-test.mjs` passed.
+- `npm run build` completed successfully after moving the LFO controls into their own section.
+
+---
+
+# Task: Add LFO Support To Pitch Shifting
+
+## Plan
+- [x] Trace the current LFO and pitch-shift flow across `index.html`, `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, and `js/audio-engine.js` so pitch modulation can reuse the real control path.
+- [x] Extend the existing shared LFO target model with a `Pitch Shift` target instead of introducing a parallel modulation system.
+- [x] Apply the sampled LFO amount to per-note pitch shifting for audio and outgoing MIDI, and make the `LFO Depth` label reflect semitone depth when pitch is targeted.
+- [x] Add a focused regression plus related verification and `npm run build`, then document the result and lesson.
+
+## Progress Notes
+- Extended `LFO_TARGET_OPTIONS` with a new `Pitch Shift` target and added a shared `LFO_PITCH_SHIFT_MAX_SEMITONES` bound so the audio layer and UI formatting use the same modulation range.
+- Kept the existing global LFO controls (`Target`, `Rate`, `Depth`) and simply widened the `#lfo-target` slider range in `index.html`, avoiding a second parallel LFO UI.
+- Updated `js/audio-engine.js` so scheduled notes sample the LFO at note time and add the resulting bounded semitone offset to both oscillator frequency and outgoing MIDI note-number transposition.
+- Updated `js/ui.js` / `js/constants.js` so `LFO Depth` now displays percent for filter targets and `±… st` for pitch-shift targeting.
+- Added `tasks/pitch-shift-lfo-test.mjs` to verify pitch-targeted LFO retunes audio by the expected semitone amount, rounds outgoing MIDI correctly, and cleanly disables when the target is switched back off.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/value-limits.js`, `js/constants.js`, `js/audio-engine.js`, `js/ui.js`, `index.html`, and `tasks/pitch-shift-lfo-test.mjs` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/pitch-shift-lfo-test.mjs` passed.
+- `node --experimental-default-type=module tasks/pitch-shift-mode-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-note-routing-test.mjs` passed.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `npm run build` completed successfully after adding pitch-targeted LFO support.
+
+---
+
 # Task: Add Continuous Pitch Shift Toggle Beside The Pitch Control
 
 ## Plan
-- [ ] Trace the current pitch-shift flow across `index.html`, `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/presets.js`, `js/state-seed.js`, and `js/audio-engine.js` so the new mode stays per-channel and persistent.
-- [ ] Add one per-channel pitch-mode control that switches the existing `Pitch Shift` slider between semitone-stepped and continuous behavior without changing its range.
-- [ ] Update validation, formatting, seed persistence, and audio/MIDI behavior so stepped mode keeps the current integer semitone semantics while continuous mode allows bounded fractional shifts.
-- [ ] Add a focused regression plus targeted verification and `npm run build`, then document the result and any lesson.
+- [x] Trace the current pitch-shift flow across `index.html`, `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/presets.js`, `js/state-seed.js`, and `js/audio-engine.js` so the new mode stays per-channel and persistent.
+- [x] Add one per-channel pitch-mode control that switches the existing `Pitch Shift` slider between semitone-stepped and continuous behavior without changing its range.
+- [x] Update validation, formatting, seed persistence, and audio/MIDI behavior so stepped mode keeps the current integer semitone semantics while continuous mode allows bounded fractional shifts.
+- [x] Add a focused regression plus targeted verification and `npm run build`, then document the result and any lesson.
 
 ## Progress Notes
-- Pending.
+- Added `pitchShiftContinuous` as a per-channel parameter, registered a new `pitch-shift-mode` control, and inserted a compact `Pitch Mode` toggle beside the existing pitch slider in `index.html`.
+- Updated `js/ui.js` so the mode toggle stays synced to the active channel, flips the pitch slider step between `1` and `0.01`, and formats the pitch label as either integer semitones or bounded fractional semitones.
+- Extended `AudioStateController.setControlValue(...)`, preset hydration, and seed sanitization/round-tripping so stepped mode preserves integer-only semantics while continuous mode allows fractional pitch values and switching back to stepped rounds the stored value safely.
+- Updated `js/audio-engine.js` so audio uses fractional pitch shifts directly while outgoing MIDI rounds the final shifted note number to the nearest semitone.
+- Added `tasks/pitch-shift-mode-test.mjs` to verify stepped-mode rejection of fractional values, continuous-mode acceptance and seed persistence, MIDI rounding, and safe rounding back to semitone mode.
 
 ## Review
-- Pending.
+- `get_errors` reported no blocking errors in the edited `js/constants.js`, `js/ui.js`, `js/app.js`, `js/audio-state-controller.js`, `js/audio-engine.js`, `index.html`, `css/style.css`, `tasks/pitch-shift-mode-test.mjs`, and `tasks/todo.md` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/pitch-shift-mode-test.mjs` passed.
+- Follow-up verification after adding pitch-targeted LFO: `node --experimental-default-type=module tasks/midi-note-routing-test.mjs` passed, `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed, and `npm run build` completed successfully with the continuous pitch-shift mode still intact.
 
 ---
 

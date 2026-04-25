@@ -12,6 +12,7 @@ import {
   ENVELOPE_DECAY_MIN_SECONDS,
   ENVELOPE_RELEASE_MAX_SECONDS,
   ENVELOPE_RELEASE_MIN_SECONDS,
+  LFO_PITCH_SHIFT_MAX_SEMITONES,
   LFO_RATE_MAX_HZ,
   LFO_RATE_MIN_HZ,
   MAX_SIMULTANEOUS_PRESETS,
@@ -39,6 +40,7 @@ export {
   ENVELOPE_DECAY_MIN_SECONDS,
   ENVELOPE_RELEASE_MAX_SECONDS,
   ENVELOPE_RELEASE_MIN_SECONDS,
+  LFO_PITCH_SHIFT_MAX_SEMITONES,
   LFO_RATE_MAX_HZ,
   LFO_RATE_MIN_HZ,
   MAX_SIMULTANEOUS_PRESETS,
@@ -87,8 +89,17 @@ export const DELAY_DIVISION_OPTIONS = [
 ];
 export const LFO_TARGET_OPTIONS = [
   { label: "Off", key: null, min: 0, max: 0 },
-  { label: "Filter Cutoff", key: "filterCutoff", min: 250, max: 8000 },
-  { label: "Filter Resonance", key: "filterQ", min: 0.2, max: 12 },
+  { label: "Filter Cutoff", key: "filterCutoff", min: 250, max: 8000, modulationAmount: 2200 },
+  { label: "Filter Resonance", key: "filterQ", min: 0.2, max: 12, modulationAmount: 2.5 },
+  { label: "Pitch Shift", key: "pitchShiftSemitones", min: -LFO_PITCH_SHIFT_MAX_SEMITONES, max: LFO_PITCH_SHIFT_MAX_SEMITONES, modulationAmount: LFO_PITCH_SHIFT_MAX_SEMITONES },
+  { label: "Detune Spread", key: "detuneSpread", min: 0, max: 20, modulationAmount: 6 },
+  { label: "Sub Level", key: "subLevel", min: 0, max: 1.3, modulationAmount: 0.45 },
+  { label: "Attack", key: "attack", min: ENVELOPE_ATTACK_MIN_SECONDS, max: ENVELOPE_ATTACK_MAX_SECONDS, modulationAmount: 0.18 },
+  { label: "Decay", key: "decay", min: ENVELOPE_DECAY_MIN_SECONDS, max: ENVELOPE_DECAY_MAX_SECONDS, modulationAmount: 0.35 },
+  { label: "Release", key: "release", min: ENVELOPE_RELEASE_MIN_SECONDS, max: ENVELOPE_RELEASE_MAX_SECONDS, modulationAmount: 0.28 },
+  { label: "Drive", key: "distortionDrive", min: 0, max: 1, modulationAmount: 0.4 },
+  { label: "Tone", key: "distortionTone", min: 500, max: 12000, modulationAmount: 3200 },
+  { label: "Tape Delay Send", key: "delaySend", min: 0, max: TAPE_DELAY_SEND_MAX, modulationAmount: TAPE_DELAY_SEND_MAX },
 ];
 export const LFO_RATE_CURVE_EXPONENT = 1.15;
 
@@ -151,6 +162,19 @@ export function formatPitchShiftSemitones(value, continuous = false) {
     ? `${semitones > 0 ? "+" : ""}${semitones.toFixed(2).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1")}`
     : `${semitones > 0 ? "+" : ""}${Math.round(semitones)}`;
   return `${formattedValue} st`;
+}
+
+export function formatLfoDepth(value, targetIndex = 0) {
+  const depth = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+  const targetOption = LFO_TARGET_OPTIONS[Math.max(0, Math.min(LFO_TARGET_OPTIONS.length - 1, Math.round(targetIndex)))]
+    || LFO_TARGET_OPTIONS[0];
+
+  if (targetOption.key === "pitchShiftSemitones") {
+    const semitoneDepth = depth * LFO_PITCH_SHIFT_MAX_SEMITONES;
+    return `±${semitoneDepth.toFixed(semitoneDepth >= 1 ? 1 : 2).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1")} st`;
+  }
+
+  return `${Math.round(depth * 100)}%`;
 }
 
 export function formatEnvelopeSeconds(value) {
@@ -1118,7 +1142,7 @@ export const controlConfig = {
   "lfo-depth": {
     key: "lfoDepth",
     valueId: "lfo-depth-value",
-    formatter: (value) => `${Math.round(value * 100)}%`,
+    formatter: (value) => formatLfoDepth(value),
   },
   "tempo-bpm": {
     key: "tempoBpm",

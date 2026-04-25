@@ -3,6 +3,7 @@ import {
   delayFeedbackFromNormalized,
   delayDivisionIndexFromUiValue,
   extractOctave,
+  formatLfoDepth,
   formatPitchShiftSemitones,
   getCircleOfFifthsKeyLabel,
   getPitchClassLabel,
@@ -522,6 +523,11 @@ export function setControlLabel(controlId, value) {
       return;
     }
 
+    if (controlId === "lfo-depth") {
+      valueElement.textContent = formatLfoDepth(value, state.synthParams.lfoTarget);
+      return;
+    }
+
     valueElement.textContent = config.formatter(value);
   }
 }
@@ -575,6 +581,8 @@ export function setControlUIValue(controlId, value) {
   if (controlId === "pitch-shift-mode") {
     const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
     setControlLabel("pitch-shift", instrumentParams.pitchShiftSemitones ?? 0);
+  } else if (controlId === "lfo-target") {
+    setControlLabel("lfo-depth", state.synthParams.lfoDepth ?? 0);
   }
 }
 
@@ -1014,7 +1022,7 @@ export function bindControls() {
       return;
     }
 
-    const eventName = input.type === "checkbox" ? "change" : "input";
+    const eventName = input.tagName === "SELECT" || input.type === "checkbox" ? "change" : "input";
     input.addEventListener(eventName, (event) => {
       const controller = event.currentTarget?.controllerRef;
       if (!controller) {

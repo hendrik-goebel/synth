@@ -25,6 +25,7 @@ export const DISTORTION_FEEDBACK_RETURN_MAX = 0.2;
 
 export const PITCH_SHIFT_MIN_SEMITONES = -24;
 export const PITCH_SHIFT_MAX_SEMITONES = 24;
+export const LFO_PITCH_SHIFT_MAX_SEMITONES = 4;
 
 export const LFO_RATE_MIN_HZ = 0.05;
 export const LFO_RATE_MAX_HZ = 12;
