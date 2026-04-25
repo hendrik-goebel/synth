@@ -1,3 +1,26 @@
+# Task: Add Pitch Slider To Change Sound Frequency
+
+## Plan
+- [x] Inspect the existing instrument control pipeline across `index.html`, `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/presets.js`, `js/state-seed.js`, and `js/audio-engine.js` so the new pitch control stays per-channel and persistent.
+- [x] Add one per-instrument `Pitch` slider in the existing `Oscillator` group, wire it through `controlConfig`, and keep the live value label readable in semitones.
+- [x] Apply the pitch offset centrally in `js/audio-engine.js` so scheduled transport notes and immediate MIDI-triggered notes both use the shifted base frequency consistently.
+- [x] Add a focused regression that proves the oscillator frequencies follow the pitch slider, then run the relevant task tests plus `npm run build`.
+
+## Progress Notes
+- Added shared pitch-shift limits plus `pitchShiftSemitones` in `js/constants.js`, registered the new `pitch-shift` control, and inserted a `Pitch` slider (`-24..+24 st`) into the existing `Oscillator` control group in `index.html`.
+- Extended `AudioStateController.setControlValue(...)` and seed sanitization so the pitch value is validated as an integer semitone offset and persists through the normal per-channel parameter snapshot flow.
+- Updated `js/audio-engine.js` to apply the pitch shift once at scheduling time, so `scheduleNote(...)` retunes both main oscillators and the sub oscillator from the same shifted base frequency and transport-driven MIDI note output stays in sync with the heard pitch.
+- Added `tasks/pitch-slider-frequency-test.mjs`, which verifies upward and downward pitch shifts on immediate note triggers, rejects out-of-range values, and confirms transport MIDI output uses the same transposed note number.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/constants.js`, `js/audio-state-controller.js`, `js/audio-engine.js`, `index.html`, `tasks/pitch-slider-frequency-test.mjs`, and `tasks/todo.md` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/pitch-slider-frequency-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-note-routing-test.mjs` passed.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `npm run build` completed successfully after adding the pitch slider.
+
+---
+
 # Task: Show Cross-Tab MIDI Follower Status In The MIDI Panel
 
 ## Plan

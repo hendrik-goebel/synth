@@ -35,6 +35,8 @@ export const CLEAN_DELAY_REPETITIONS_MIN = 1;
 export const CLEAN_DELAY_REPETITIONS_MAX = 12;
 export const DISTORTION_FEEDBACK_MAX = 0.35;
 export const TAPE_DELAY_SEND_MAX = 0.1;
+export const PITCH_SHIFT_MIN_SEMITONES = -24;
+export const PITCH_SHIFT_MAX_SEMITONES = 24;
 export const DELAY_DIVISION_OPTIONS = [
   { label: "1/32", beats: 0.125 },
   { label: "1/16T", beats: 1 / 6 },
@@ -91,6 +93,15 @@ export function normalizedFromDelayFeedback(value) {
 
   const ratio = DELAY_FEEDBACK_MAX / DELAY_FEEDBACK_LOG_MIN;
   return Math.log(clampedValue / DELAY_FEEDBACK_LOG_MIN) / Math.log(ratio);
+}
+
+export function clampPitchShiftSemitones(value) {
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  return Math.min(PITCH_SHIFT_MAX_SEMITONES, Math.max(PITCH_SHIFT_MIN_SEMITONES, Math.round(numeric)));
 }
 
 export function delayDivisionIndexFromUiValue(uiValue) {
@@ -980,6 +991,7 @@ export const INITIAL_SYNTH_PARAMS = {
   detuneSpread: 3,
   subLevel: 0.62,
   upperLevel: 0.58,
+  pitchShiftSemitones: 0,
   stereoPan: 0,
   distortionDrive: 0.45,
   distortionMix: 0.32,
@@ -1093,6 +1105,14 @@ export const controlConfig = {
     key: "subLevel",
     valueId: "sub-level-value",
     formatter: (value) => value.toFixed(2),
+  },
+  "pitch-shift": {
+    key: "pitchShiftSemitones",
+    valueId: "pitch-shift-value",
+    formatter: (value) => {
+      const semitones = clampPitchShiftSemitones(value);
+      return `${semitones > 0 ? "+" : ""}${semitones} st`;
+    },
   },
   "stereo-pan": {
     key: "stereoPan",

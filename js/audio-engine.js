@@ -1,4 +1,5 @@
 import {
+  clampPitchShiftSemitones,
   clampLfoRateHz,
   getFrequencyFromMidiNoteNumber,
   getMidiNoteNumberFromNoteId,
@@ -73,6 +74,33 @@ function getLfoModulationAtTime(time) {
     key: targetOption.key,
     amount: Math.sin(phase) * depth,
   };
+}
+
+function getPitchShiftSemitones(voiceParams) {
+  return clampPitchShiftSemitones(voiceParams?.pitchShiftSemitones ?? 0);
+}
+
+function getPitchShiftedFrequency(frequency, voiceParams) {
+  const numericFrequency = Number.parseFloat(frequency);
+  if (!Number.isFinite(numericFrequency) || numericFrequency <= 0) {
+    return numericFrequency;
+  }
+
+  return numericFrequency * Math.pow(2, getPitchShiftSemitones(voiceParams) / 12);
+}
+
+function getTransposedMidiNoteNumber(midiNoteNumber, voiceParams) {
+  const numericMidiNoteNumber = Number.parseInt(midiNoteNumber, 10);
+  if (!Number.isInteger(numericMidiNoteNumber)) {
+    return null;
+  }
+
+  const shiftedMidiNoteNumber = numericMidiNoteNumber + getPitchShiftSemitones(voiceParams);
+  if (shiftedMidiNoteNumber < 0 || shiftedMidiNoteNumber > 127) {
+    return null;
+  }
+
+  return shiftedMidiNoteNumber;
 }
 
 export function getStepDuration() {
@@ -245,6 +273,11 @@ export function scheduleNote(
   velocity = MIDI_VELOCITY_MAX,
 ) {
   const ctx = state.audioContext;
+  const pitchedFrequency = getPitchShiftedFrequency(frequency, voiceParams);
+  if (!Number.isFinite(pitchedFrequency) || pitchedFrequency <= 0) {
+    return;
+  }
+
   const effectiveChannelLevel = getEffectiveChannelLevel(voiceParams);
   if (effectiveChannelLevel <= 0.0001) {
     // Hard-skip muted channels so no transient/click can leak into dry or FX paths.
@@ -362,7 +395,7 @@ export function scheduleNote(
   const peakGain = basePeakGain;
   const sustainGain = baseSustainGain;
   let cutoffWithVariation = clamp(
-    (Math.min(8000, voiceParams.filterCutoff + frequency * filterTracking)) *
+    (Math.min(8000, voiceParams.filterCutoff + pitchedFrequency * filterTracking)) *
       (1 - warmAmount * 0.35 + coldAmount * 0.55) *
       (1 + randomCentered(HUMANIZE.cutoffAmount)),
     250,
@@ -405,17 +438,17 @@ export function scheduleNote(
   const pitchDropRampTime = time + Math.max(0.01, transientDecay * 1.5);
 
   oscA.type = voiceParams.oscAWave;
-  oscA.frequency.setValueAtTime(frequency, preStartTime);
+  oscA.frequency.setValueAtTime(pitchedFrequency, preStartTime);
   oscA.detune.setValueAtTime(oscABaseDetune + pitchDropCents, preStartTime);
   oscA.detune.linearRampToValueAtTime(oscABaseDetune, pitchDropRampTime);
 
   oscB.type = voiceParams.oscBWave;
-  oscB.frequency.setValueAtTime(frequency, preStartTime);
+  oscB.frequency.setValueAtTime(pitchedFrequency, preStartTime);
   oscB.detune.setValueAtTime(oscBBaseDetune + pitchDropCents, preStartTime);
   oscB.detune.linearRampToValueAtTime(oscBBaseDetune, pitchDropRampTime);
 
   subOsc.type = voiceParams.subWave;
-  subOsc.frequency.setValueAtTime(frequency / 2, preStartTime);
+  subOsc.frequency.setValueAtTime(pitchedFrequency / 2, preStartTime);
   subOsc.detune.setValueAtTime(subBaseDetune + pitchDropCents * 0.6, preStartTime);
   subOsc.detune.linearRampToValueAtTime(subBaseDetune, pitchDropRampTime);
 
@@ -617,8 +650,9 @@ export function scheduleInstrumentStackNote(time, layerCount, stepIndex = state.
     }
 
     const midiNoteNumber = noteId ? getMidiNoteNumberFromNoteId(noteId) : null;
-    if (Number.isInteger(midiNoteNumber)) {
-      sendMidiNoteForPreset(presetId, midiNoteNumber, {
+    const shiftedMidiNoteNumber = getTransposedMidiNoteNumber(midiNoteNumber, voiceParams);
+    if (Number.isInteger(shiftedMidiNoteNumber)) {
+      sendMidiNoteForPreset(presetId, shiftedMidiNoteNumber, {
         timeSeconds: time,
         durationSeconds: getNoteDuration(noteLength),
         velocity: 96,

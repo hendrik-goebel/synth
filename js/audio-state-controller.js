@@ -3,6 +3,7 @@ import {
   ARPEGGIO_OCTAVE_OPTIONS,
   CLEAN_DELAY_REPETITIONS_MAX,
   CLEAN_DELAY_REPETITIONS_MIN,
+  clampPitchShiftSemitones,
   clampLfoRateHz,
   controlConfig,
   extractOctave,
@@ -21,6 +22,8 @@ import {
   normalizeCircleOfFifthsKeyIndex,
   PITCH_CLASS_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
+  PITCH_SHIFT_MAX_SEMITONES,
+  PITCH_SHIFT_MIN_SEMITONES,
   STARTUP_DELAY_FEEDBACK_MAX,
   TAPE_DELAY_SEND_MAX,
 } from "./constants.js";
@@ -290,6 +293,8 @@ function sanitizeSeedChannelParamValue(key, value, fallback) {
     case "subLevel":
     case "upperLevel":
       return clampNumber(value, 0, 1.3, fallback);
+    case "pitchShiftSemitones":
+      return clampPitchShiftSemitones(value ?? fallback);
     case "stereoPan":
       return clampNumber(value, -1, 1, fallback);
     case "distortionDrive":
@@ -1084,6 +1089,20 @@ export class AudioStateController extends EventTarget {
       if (!isValidRepetitionCount) {
         this.emitError(
           `Clean delay repetitions must stay between ${CLEAN_DELAY_REPETITIONS_MIN} and ${CLEAN_DELAY_REPETITIONS_MAX}`,
+          { controlId, value },
+        );
+        return false;
+      }
+    }
+
+    if (controlId === "pitch-shift") {
+      const isValidPitchShift = Number.isInteger(numericValue)
+        && numericValue >= PITCH_SHIFT_MIN_SEMITONES
+        && numericValue <= PITCH_SHIFT_MAX_SEMITONES;
+
+      if (!isValidPitchShift) {
+        this.emitError(
+          `Pitch must stay between ${PITCH_SHIFT_MIN_SEMITONES} and ${PITCH_SHIFT_MAX_SEMITONES} semitones`,
           { controlId, value },
         );
         return false;

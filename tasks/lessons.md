@@ -1,5 +1,7 @@
 # Lessons Learned
 
+- When adding a new synth slider, register it in the shared control source of truth (`INITIAL_SYNTH_PARAMS` + `controlConfig`), validate it in `AudioStateController`, and apply it once at the scheduling boundary in `js/audio-engine.js`; that keeps UI labels, seed persistence, live playback, and transport-driven MIDI output aligned.
+
 - When surfacing cross-tab runtime state in the UI (for example remote MIDI follower mode), render it from the existing shared sync path (`syncMidiGlobalUI()` / transport refresh) instead of adding one-off DOM updates in transport handlers; mirrored status labels stay correct with less wiring that way.
 
 - When cross-tab transport is supposed to drive hardware MIDI output from another tab, relay the fully resolved per-channel MIDI note bytes plus relative timing from the send boundary and suppress follower tabs' own scheduled note output; otherwise tabs can drift, use different channel mappings, or double-send notes.
