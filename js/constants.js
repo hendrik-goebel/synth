@@ -1,3 +1,57 @@
+import {
+  CLEAN_DELAY_REPETITIONS_MAX,
+  CLEAN_DELAY_REPETITIONS_MIN,
+  DEAD_NOTE_PAUSE_COUNT_MAX,
+  DEAD_NOTE_PAUSE_COUNT_MIN,
+  DELAY_FEEDBACK_LOG_MIN,
+  DELAY_FEEDBACK_MAX,
+  DISTORTION_FEEDBACK_MAX,
+  ENVELOPE_ATTACK_MAX_SECONDS,
+  ENVELOPE_ATTACK_MIN_SECONDS,
+  ENVELOPE_DECAY_MAX_SECONDS,
+  ENVELOPE_DECAY_MIN_SECONDS,
+  ENVELOPE_RELEASE_MAX_SECONDS,
+  ENVELOPE_RELEASE_MIN_SECONDS,
+  LFO_RATE_MAX_HZ,
+  LFO_RATE_MIN_HZ,
+  MAX_SIMULTANEOUS_PRESETS,
+  MIDI_CHANNEL_MAX,
+  MIDI_CHANNEL_MIN,
+  MIDI_VELOCITY_MAX,
+  MIDI_VELOCITY_MIN,
+  PITCH_SHIFT_MAX_SEMITONES,
+  PITCH_SHIFT_MIN_SEMITONES,
+  STARTUP_DELAY_FEEDBACK_MAX,
+  TAPE_DELAY_SEND_MAX,
+} from "./value-limits.js";
+
+export {
+  CLEAN_DELAY_REPETITIONS_MAX,
+  CLEAN_DELAY_REPETITIONS_MIN,
+  DEAD_NOTE_PAUSE_COUNT_MAX,
+  DEAD_NOTE_PAUSE_COUNT_MIN,
+  DELAY_FEEDBACK_LOG_MIN,
+  DELAY_FEEDBACK_MAX,
+  DISTORTION_FEEDBACK_MAX,
+  ENVELOPE_ATTACK_MAX_SECONDS,
+  ENVELOPE_ATTACK_MIN_SECONDS,
+  ENVELOPE_DECAY_MAX_SECONDS,
+  ENVELOPE_DECAY_MIN_SECONDS,
+  ENVELOPE_RELEASE_MAX_SECONDS,
+  ENVELOPE_RELEASE_MIN_SECONDS,
+  LFO_RATE_MAX_HZ,
+  LFO_RATE_MIN_HZ,
+  MAX_SIMULTANEOUS_PRESETS,
+  MIDI_CHANNEL_MAX,
+  MIDI_CHANNEL_MIN,
+  MIDI_VELOCITY_MAX,
+  MIDI_VELOCITY_MIN,
+  PITCH_SHIFT_MAX_SEMITONES,
+  PITCH_SHIFT_MIN_SEMITONES,
+  STARTUP_DELAY_FEEDBACK_MAX,
+  TAPE_DELAY_SEND_MAX,
+} from "./value-limits.js";
+
 export const REVERB_SECONDS = 2;
 export const REVERB_DECAY = 2.4;
 export const HUMANIZE = {
@@ -12,11 +66,6 @@ export const HUMANIZE = {
   transientAmount: 0.18,
   pitchDropCents: 0.22,
 };
-export const MAX_SIMULTANEOUS_PRESETS = 8;
-export const MIDI_CHANNEL_MIN = 1;
-export const MIDI_CHANNEL_MAX = 16;
-export const MIDI_VELOCITY_MIN = 0;
-export const MIDI_VELOCITY_MAX = 127;
 export const MIDI_CLOCK_MODE_OPTIONS = ["off", "slave", "master"];
 export const MIDI_CLOCK_MODE_LABELS = {
   off: "Off",
@@ -26,17 +75,6 @@ export const MIDI_CLOCK_MODE_LABELS = {
 export const MIDI_CLOCK_PULSES_PER_QUARTER = 24;
 export const MIDI_CLOCK_PULSES_PER_TRANSPORT_STEP = 2;
 export const NOTE_LENGTH_OPTIONS = [8, 16, 6, 4, 3];
-export const DEAD_NOTE_PAUSE_COUNT_MIN = 1;
-export const DEAD_NOTE_PAUSE_COUNT_MAX = 16;
-export const DELAY_FEEDBACK_MAX = 1;
-export const STARTUP_DELAY_FEEDBACK_MAX = 0.05;
-export const DELAY_FEEDBACK_LOG_MIN = 0.001;
-export const CLEAN_DELAY_REPETITIONS_MIN = 1;
-export const CLEAN_DELAY_REPETITIONS_MAX = 12;
-export const DISTORTION_FEEDBACK_MAX = 0.35;
-export const TAPE_DELAY_SEND_MAX = 0.1;
-export const PITCH_SHIFT_MIN_SEMITONES = -24;
-export const PITCH_SHIFT_MAX_SEMITONES = 24;
 export const DELAY_DIVISION_OPTIONS = [
   { label: "1/32", beats: 0.125 },
   { label: "1/16T", beats: 1 / 6 },
@@ -52,8 +90,6 @@ export const LFO_TARGET_OPTIONS = [
   { label: "Filter Cutoff", key: "filterCutoff", min: 250, max: 8000 },
   { label: "Filter Resonance", key: "filterQ", min: 0.2, max: 12 },
 ];
-export const LFO_RATE_MIN_HZ = 0.05;
-export const LFO_RATE_MAX_HZ = 12;
 export const LFO_RATE_CURVE_EXPONENT = 1.15;
 
 export function clampLfoRateHz(value) {
@@ -102,6 +138,15 @@ export function clampPitchShiftSemitones(value) {
   }
 
   return Math.min(PITCH_SHIFT_MAX_SEMITONES, Math.max(PITCH_SHIFT_MIN_SEMITONES, Math.round(numeric)));
+}
+
+export function formatEnvelopeSeconds(value) {
+  const numeric = Number.isFinite(value) ? value : 0;
+  if (numeric > 0 && numeric < 0.1) {
+    return numeric.toFixed(3);
+  }
+
+  return numeric.toFixed(2);
 }
 
 export function delayDivisionIndexFromUiValue(uiValue) {
@@ -1074,17 +1119,17 @@ export const controlConfig = {
   attack: {
     key: "attack",
     valueId: "attack-value",
-    formatter: (value) => value.toFixed(2),
+    formatter: formatEnvelopeSeconds,
   },
   decay: {
     key: "decay",
     valueId: "decay-value",
-    formatter: (value) => value.toFixed(2),
+    formatter: formatEnvelopeSeconds,
   },
   release: {
     key: "release",
     valueId: "release-value",
-    formatter: (value) => value.toFixed(2),
+    formatter: formatEnvelopeSeconds,
   },
   "filter-cutoff": {
     key: "filterCutoff",

@@ -5,10 +5,18 @@ import {
   getMidiNoteNumberFromNoteId,
   HUMANIZE,
   LFO_TARGET_OPTIONS,
+} from "./constants.js";
+import {
+  ENVELOPE_ATTACK_MAX_SECONDS,
+  ENVELOPE_ATTACK_MIN_SECONDS,
+  ENVELOPE_DECAY_MAX_SECONDS,
+  ENVELOPE_DECAY_MIN_SECONDS,
+  ENVELOPE_RELEASE_MAX_SECONDS,
+  ENVELOPE_RELEASE_MIN_SECONDS,
   MAX_SIMULTANEOUS_PRESETS,
   MIDI_VELOCITY_MAX,
   TAPE_DELAY_SEND_MAX,
-} from "./constants.js";
+} from "./value-limits.js";
 import {
   getTempoSyncedDelayTime,
   handleDelayLiveAudioUpdate,
@@ -322,8 +330,13 @@ export function scheduleNote(
 
   const noteDuration = getNoteDuration(noteLength);
   const preStartTime = Math.max(0, time - 0.002);
-  const releaseStartTime = Math.max(time + 0.02, time + noteDuration - voiceParams.release);
-  const releaseTimeConstant = Math.max(0.008, voiceParams.release / 3);
+  const releaseTime = clamp(
+    voiceParams.release,
+    ENVELOPE_RELEASE_MIN_SECONDS,
+    ENVELOPE_RELEASE_MAX_SECONDS,
+  );
+  const releaseStartTime = Math.max(time + 0.02, time + noteDuration - releaseTime);
+  const releaseTimeConstant = Math.max(0.008, releaseTime / 3);
   const stopTime = releaseStartTime + Math.max(0.08, releaseTimeConstant * 6);
   const voiceFadeOutTime = Math.max(releaseStartTime + 0.01, stopTime - 0.004);
   const layerGainScale = 1 / Math.sqrt(layerCount);
@@ -369,13 +382,13 @@ export function scheduleNote(
   );
   const attackTime = clamp(
     voiceParams.attack + randomCentered(HUMANIZE.attackSeconds),
-    0.005,
-    0.8,
+    ENVELOPE_ATTACK_MIN_SECONDS,
+    ENVELOPE_ATTACK_MAX_SECONDS,
   );
   const decayTime = clamp(
     voiceParams.decay + randomCentered(HUMANIZE.decaySeconds),
-    0.01,
-    1.2,
+    ENVELOPE_DECAY_MIN_SECONDS,
+    ENVELOPE_DECAY_MAX_SECONDS,
   );
   const velocityScale = clamp(
     0.3 + ((Math.max(0, Math.min(MIDI_VELOCITY_MAX, Number(velocity) || MIDI_VELOCITY_MAX)) / MIDI_VELOCITY_MAX) * 0.7),

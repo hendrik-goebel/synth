@@ -1,16 +1,18 @@
 import {
+  DELAY_DIVISION_OPTIONS,
+} from "../constants.js";
+import {
+  CLEAN_DELAY_REPEAT_GAIN_CAP,
   CLEAN_DELAY_REPETITIONS_MAX,
   CLEAN_DELAY_REPETITIONS_MIN,
-  DELAY_DIVISION_OPTIONS,
   DELAY_FEEDBACK_MAX,
-} from "../constants.js";
+} from "../value-limits.js";
 import { state } from "../state.js";
 import { clamp } from "../utils.js";
 
 const TAPE_DELAY_DRIVE_CURVE_AMOUNT = 0.22;
 const TAPE_DELAY_DRIVE_CURVE_STEPS = 100;
 const CLEAN_DELAY_REPEAT_TARGET_LEVEL = 0.18;
-const CLEAN_DELAY_REPEAT_GAIN_CAP = 0.92;
 const tapeDelayDriveCurveCache = new Map();
 
 function getTapeDelayDriveCurve(amount = TAPE_DELAY_DRIVE_CURVE_AMOUNT) {

@@ -1,19 +1,13 @@
 import {
   ARPEGGIO_HISTORY_LIMIT,
   ARPEGGIO_OCTAVE_OPTIONS,
-  CLEAN_DELAY_REPETITIONS_MAX,
-  CLEAN_DELAY_REPETITIONS_MIN,
   clampPitchShiftSemitones,
   clampLfoRateHz,
   controlConfig,
   extractOctave,
   getCircleOfFifthsKeyLabel,
   getPitchClassesForMajorKey,
-  DEAD_NOTE_PAUSE_COUNT_MAX,
-  DEAD_NOTE_PAUSE_COUNT_MIN,
-  DELAY_FEEDBACK_MAX,
   DELAY_DIVISION_OPTIONS,
-  DISTORTION_FEEDBACK_MAX,
   GLOBAL_CONTROL_KEYS,
   INITIAL_SYNTH_PARAMS,
   LFO_TARGET_OPTIONS,
@@ -22,11 +16,27 @@ import {
   normalizeCircleOfFifthsKeyIndex,
   PITCH_CLASS_OPTIONS,
   POST_FILTER_TYPE_OPTIONS,
+} from "./constants.js";
+import {
+  CLEAN_DELAY_REPETITIONS_MAX,
+  CLEAN_DELAY_REPETITIONS_MIN,
+  DEAD_NOTE_PAUSE_COUNT_MAX,
+  DEAD_NOTE_PAUSE_COUNT_MIN,
+  DELAY_FEEDBACK_MAX,
+  DISTORTION_FEEDBACK_MAX,
+  ENVELOPE_ATTACK_MAX_SECONDS,
+  ENVELOPE_ATTACK_MIN_SECONDS,
+  ENVELOPE_DECAY_MAX_SECONDS,
+  ENVELOPE_DECAY_MIN_SECONDS,
+  ENVELOPE_RELEASE_MAX_SECONDS,
+  ENVELOPE_RELEASE_MIN_SECONDS,
+  MIDI_CHANNEL_MAX,
+  MIDI_CHANNEL_MIN,
   PITCH_SHIFT_MAX_SEMITONES,
   PITCH_SHIFT_MIN_SEMITONES,
   STARTUP_DELAY_FEEDBACK_MAX,
   TAPE_DELAY_SEND_MAX,
-} from "./constants.js";
+} from "./value-limits.js";
 import {
   applyLiveAudioUpdates,
   applyLiveChannelLevelUpdates,
@@ -45,8 +55,6 @@ import {
 } from "./audio-engine.js";
 import {
   clampMidiChannel,
-  MIDI_CHANNEL_MAX,
-  MIDI_CHANNEL_MIN,
 } from "./constants.js";
 import {
   broadcastCrossTabTransportStart,
@@ -277,11 +285,11 @@ function sanitizeSeedGlobalParamValue(key, value, fallback) {
 function sanitizeSeedChannelParamValue(key, value, fallback) {
   switch (key) {
     case "attack":
-      return clampNumber(value, 0.001, 0.8, fallback);
+      return clampNumber(value, ENVELOPE_ATTACK_MIN_SECONDS, ENVELOPE_ATTACK_MAX_SECONDS, fallback);
     case "decay":
-      return clampNumber(value, 0.01, 1.2, fallback);
+      return clampNumber(value, ENVELOPE_DECAY_MIN_SECONDS, ENVELOPE_DECAY_MAX_SECONDS, fallback);
     case "release":
-      return clampNumber(value, 0.01, 0.8, fallback);
+      return clampNumber(value, ENVELOPE_RELEASE_MIN_SECONDS, ENVELOPE_RELEASE_MAX_SECONDS, fallback);
     case "filterCutoff":
       return clampNumber(value, 250, 8000, fallback);
     case "filterTracking":
@@ -1107,6 +1115,33 @@ export class AudioStateController extends EventTarget {
         );
         return false;
       }
+    }
+
+    if (controlId === "attack"
+      && (numericValue < ENVELOPE_ATTACK_MIN_SECONDS || numericValue > ENVELOPE_ATTACK_MAX_SECONDS)) {
+      this.emitError(`Attack must stay between ${ENVELOPE_ATTACK_MIN_SECONDS} and ${ENVELOPE_ATTACK_MAX_SECONDS} seconds`, {
+        controlId,
+        value,
+      });
+      return false;
+    }
+
+    if (controlId === "decay"
+      && (numericValue < ENVELOPE_DECAY_MIN_SECONDS || numericValue > ENVELOPE_DECAY_MAX_SECONDS)) {
+      this.emitError(`Decay must stay between ${ENVELOPE_DECAY_MIN_SECONDS} and ${ENVELOPE_DECAY_MAX_SECONDS} seconds`, {
+        controlId,
+        value,
+      });
+      return false;
+    }
+
+    if (controlId === "release"
+      && (numericValue < ENVELOPE_RELEASE_MIN_SECONDS || numericValue > ENVELOPE_RELEASE_MAX_SECONDS)) {
+      this.emitError(`Release must stay between ${ENVELOPE_RELEASE_MIN_SECONDS} and ${ENVELOPE_RELEASE_MAX_SECONDS} seconds`, {
+        controlId,
+        value,
+      });
+      return false;
     }
 
     if ((controlId === "tape-delay-enabled" || controlId === "clean-delay-enabled")

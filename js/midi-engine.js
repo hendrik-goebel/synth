@@ -3,8 +3,8 @@ import {
   clampMidiVelocity,
   MIDI_CLOCK_MODE_OPTIONS,
   MIDI_CLOCK_PULSES_PER_QUARTER,
-  MIDI_VELOCITY_MAX,
 } from "./constants.js";
+import { MIDI_VELOCITY_MAX } from "./value-limits.js";
 import { state } from "./state.js";
 
 let midiAccess = null;

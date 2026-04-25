@@ -1,3 +1,43 @@
+# Task: Extract Min/Max Value Constants Into A Dedicated Limits Module
+
+## Plan
+- [x] Audit every bound-style constant currently defined in `js/constants.js` plus any min/max caps defined locally in effect modules.
+- [x] Create one dedicated `js/value-limits.js` source of truth for those bounds, then migrate direct consumers in the audio, controller, MIDI, UI, and effect modules.
+- [x] Re-run focused regressions plus `npm run build`, then document the result and any reusable refactor lesson.
+
+## Progress Notes
+- Added `js/value-limits.js` as the dedicated source of truth for shared min/max and cap-style values, including MIDI/channel bounds, envelope minima, delay limits, pitch-shift bounds, and the distortion feedback limits that previously lived inside `js/effects/distortion-effect.js`.
+- Updated `js/constants.js` to import those bounds from `js/value-limits.js` and re-export them, so the broader constants module no longer owns the raw limit values while existing callers can keep working during the migration.
+- Migrated the main direct consumers (`js/audio-engine.js`, `js/audio-state-controller.js`, `js/ui.js`, `js/midi-engine.js`, `js/effects/delay-effect.js`, and `js/effects/distortion-effect.js`) to import their range constants directly from `js/value-limits.js`.
+- Follow-up correction: added the missing shared release bounds plus attack/decay maxima, then replaced the remaining envelope literals in `js/audio-state-controller.js`, `js/audio-engine.js`, `index.html`, and `tasks/envelope-minimums-test.mjs` so all envelope limits now live in the dedicated limits module.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/value-limits.js`, `js/constants.js`, `js/audio-engine.js`, `js/audio-state-controller.js`, `js/ui.js`, `js/effects/delay-effect.js`, `js/effects/distortion-effect.js`, `js/midi-engine.js`, and `tasks/todo.md` files; only pre-existing/non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/envelope-minimums-test.mjs` passed.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `node --experimental-default-type=module tasks/tape-delay-send-max-test.mjs` passed.
+- `node --experimental-default-type=module tasks/midi-note-routing-test.mjs` passed.
+- `npm run build` completed successfully after the limits-module refactor.
+- Follow-up verification: `node --experimental-default-type=module tasks/envelope-minimums-test.mjs` passed again after adding shared release limits and extending the regression to cover release min/max validation.
+- Follow-up verification: `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed after the envelope-limit cleanup, and `npm run build` completed successfully again.
+
+---
+
+# Task: Shorten Minimum Attack And Decay Times For Crisper Percussion
+
+## Plan
+- [ ] Audit the current attack/decay minima across `index.html`, `js/constants.js`, `js/audio-state-controller.js`, and `js/audio-engine.js` so the control range and runtime clamps cannot drift.
+- [ ] Introduce shared envelope minimum constants, lower the effective attack/decay floors, and update the visible control formatting/slider step so very short values remain selectable and readable.
+- [ ] Add a focused regression for the shorter envelope minima, then run the relevant task test plus `npm run build` and record the review and lesson.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
 # Task: Add Pitch Slider To Change Sound Frequency
 
 ## Plan

@@ -1,5 +1,9 @@
 # Lessons Learned
 
+- When many modules share bound-style constants, extract them into one dedicated limits module and let the broader `js/constants.js` layer re-export them temporarily during migration; that keeps the source of truth singular while reducing import-churn risk.
+
+- When extracting a family of related bounds (for example envelope timings), migrate the whole set at once — minima and maxima for attack, decay, and release — or one sibling literal will stay behind and reintroduce drift between UI, validation, and runtime behavior.
+
 - When adding a new synth slider, register it in the shared control source of truth (`INITIAL_SYNTH_PARAMS` + `controlConfig`), validate it in `AudioStateController`, and apply it once at the scheduling boundary in `js/audio-engine.js`; that keeps UI labels, seed persistence, live playback, and transport-driven MIDI output aligned.
 
 - When surfacing cross-tab runtime state in the UI (for example remote MIDI follower mode), render it from the existing shared sync path (`syncMidiGlobalUI()` / transport refresh) instead of adding one-off DOM updates in transport handlers; mirrored status labels stay correct with less wiring that way.

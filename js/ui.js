@@ -1,13 +1,9 @@
 import {
   controlConfig,
-  DEAD_NOTE_PAUSE_COUNT_MAX,
-  DEAD_NOTE_PAUSE_COUNT_MIN,
   delayFeedbackFromNormalized,
   delayDivisionIndexFromUiValue,
   extractOctave,
   getCircleOfFifthsKeyLabel,
-  MIDI_CHANNEL_MAX,
-  MIDI_CHANNEL_MIN,
   getPitchClassLabel,
   getPitchClassesForMajorKey,
   GLOBAL_CONTROL_KEYS,
@@ -19,6 +15,12 @@ import {
   POST_FILTER_TYPE_OPTIONS,
   uiValueFromDelayDivisionIndex,
 } from "./constants.js";
+import {
+  DEAD_NOTE_PAUSE_COUNT_MAX,
+  DEAD_NOTE_PAUSE_COUNT_MIN,
+  MIDI_CHANNEL_MAX,
+  MIDI_CHANNEL_MIN,
+} from "./value-limits.js";
 import { statusLabel } from "./dom.js";
 import {
   getEnabledArpeggioOctaves,
