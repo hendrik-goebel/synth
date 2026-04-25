@@ -11,6 +11,7 @@ import {
   bindNoteSelector,
   bindMixerChannels,
   bindKeyboardShortcuts,
+  bindPitchShiftModeToggle,
   bindPostFilterTypeToggle,
   bindSettingsDialog,
 } from "./ui.js";
@@ -21,6 +22,7 @@ const audioStateController = new AudioStateController();
 bindControllerEvents(audioStateController);
 bindControls();
 bindDelayToggleButtons(audioStateController);
+bindPitchShiftModeToggle(audioStateController);
 bindGlobalKeyActions(audioStateController);
 bindStateSeedControls(audioStateController);
 bindGlobalTransportControls(audioStateController);

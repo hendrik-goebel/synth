@@ -4,6 +4,7 @@ import {
   getFrequencyFromMidiNoteNumber,
   getMidiNoteNumberFromNoteId,
   HUMANIZE,
+  isContinuousPitchShiftEnabled,
   LFO_TARGET_OPTIONS,
 } from "./constants.js";
 import {
@@ -85,7 +86,9 @@ function getLfoModulationAtTime(time) {
 }
 
 function getPitchShiftSemitones(voiceParams) {
-  return clampPitchShiftSemitones(voiceParams?.pitchShiftSemitones ?? 0);
+  return clampPitchShiftSemitones(voiceParams?.pitchShiftSemitones ?? 0, {
+    continuous: isContinuousPitchShiftEnabled(voiceParams?.pitchShiftContinuous),
+  });
 }
 
 function getPitchShiftedFrequency(frequency, voiceParams) {
@@ -103,7 +106,7 @@ function getTransposedMidiNoteNumber(midiNoteNumber, voiceParams) {
     return null;
   }
 
-  const shiftedMidiNoteNumber = numericMidiNoteNumber + getPitchShiftSemitones(voiceParams);
+  const shiftedMidiNoteNumber = Math.round(numericMidiNoteNumber + getPitchShiftSemitones(voiceParams));
   if (shiftedMidiNoteNumber < 0 || shiftedMidiNoteNumber > 127) {
     return null;
   }

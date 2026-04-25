@@ -131,13 +131,26 @@ export function normalizedFromDelayFeedback(value) {
   return Math.log(clampedValue / DELAY_FEEDBACK_LOG_MIN) / Math.log(ratio);
 }
 
-export function clampPitchShiftSemitones(value) {
+export function isContinuousPitchShiftEnabled(value) {
+  return Number(value) >= 0.5;
+}
+
+export function clampPitchShiftSemitones(value, { continuous = false } = {}) {
   const numeric = Number.parseFloat(value);
   if (!Number.isFinite(numeric)) {
     return 0;
   }
 
-  return Math.min(PITCH_SHIFT_MAX_SEMITONES, Math.max(PITCH_SHIFT_MIN_SEMITONES, Math.round(numeric)));
+  const clamped = Math.min(PITCH_SHIFT_MAX_SEMITONES, Math.max(PITCH_SHIFT_MIN_SEMITONES, numeric));
+  return continuous ? clamped : Math.round(clamped);
+}
+
+export function formatPitchShiftSemitones(value, continuous = false) {
+  const semitones = clampPitchShiftSemitones(value, { continuous });
+  const formattedValue = continuous
+    ? `${semitones > 0 ? "+" : ""}${semitones.toFixed(2).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1")}`
+    : `${semitones > 0 ? "+" : ""}${Math.round(semitones)}`;
+  return `${formattedValue} st`;
 }
 
 export function formatEnvelopeSeconds(value) {
@@ -1036,6 +1049,7 @@ export const INITIAL_SYNTH_PARAMS = {
   detuneSpread: 3,
   subLevel: 0.62,
   upperLevel: 0.58,
+  pitchShiftContinuous: 0,
   pitchShiftSemitones: 0,
   stereoPan: 0,
   distortionDrive: 0.45,
@@ -1151,13 +1165,15 @@ export const controlConfig = {
     valueId: "sub-level-value",
     formatter: (value) => value.toFixed(2),
   },
+  "pitch-shift-mode": {
+    key: "pitchShiftContinuous",
+    valueId: "pitch-shift-mode-value",
+    formatter: (value) => (isContinuousPitchShiftEnabled(value) ? "Continuous" : "Stepped"),
+  },
   "pitch-shift": {
     key: "pitchShiftSemitones",
     valueId: "pitch-shift-value",
-    formatter: (value) => {
-      const semitones = clampPitchShiftSemitones(value);
-      return `${semitones > 0 ? "+" : ""}${semitones} st`;
-    },
+    formatter: (value) => formatPitchShiftSemitones(value),
   },
   "stereo-pan": {
     key: "stereoPan",

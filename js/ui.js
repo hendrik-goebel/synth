@@ -3,10 +3,12 @@ import {
   delayFeedbackFromNormalized,
   delayDivisionIndexFromUiValue,
   extractOctave,
+  formatPitchShiftSemitones,
   getCircleOfFifthsKeyLabel,
   getPitchClassLabel,
   getPitchClassesForMajorKey,
   GLOBAL_CONTROL_KEYS,
+  isContinuousPitchShiftEnabled,
   lfoRateFromNormalized,
   normalizedFromDelayFeedback,
   normalizedFromLfoRate,
@@ -68,6 +70,7 @@ let stateSeedInputElement = null;
 let stateSeedSaveElement = null;
 let stateSeedLoadElement = null;
 let stateSeedDeleteElement = null;
+let pitchShiftInputElement = null;
 let globalKeyTransposeUpElement = null;
 let globalKeyTransposeDownElement = null;
 let settingsNoteButtonElements = null;
@@ -274,6 +277,13 @@ function getStateSeedDeleteElement() {
     stateSeedDeleteElement = document.getElementById("state-seed-delete");
   }
   return stateSeedDeleteElement;
+}
+
+function getPitchShiftInputElement() {
+  if (!pitchShiftInputElement) {
+    pitchShiftInputElement = document.getElementById("pitch-shift");
+  }
+  return pitchShiftInputElement;
 }
 
 function getGlobalKeyTransposeUpElement() {
@@ -503,6 +513,15 @@ export function setControlLabel(controlId, value) {
   }
 
   if (valueElement) {
+    if (controlId === "pitch-shift") {
+      const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
+      valueElement.textContent = formatPitchShiftSemitones(
+        value,
+        isContinuousPitchShiftEnabled(instrumentParams.pitchShiftContinuous),
+      );
+      return;
+    }
+
     valueElement.textContent = config.formatter(value);
   }
 }
@@ -516,7 +535,18 @@ export function setControlUIValue(controlId, value) {
     }
   }
   if (input) {
-    if (delayToggleControlIds.has(controlId)) {
+    if (controlId === "pitch-shift-mode") {
+      const isContinuous = isContinuousPitchShiftEnabled(value);
+      input.value = isContinuous ? "1" : "0";
+      input.textContent = isContinuous ? "Continuous" : "Stepped";
+      input.classList.toggle("is-active", isContinuous);
+      input.setAttribute("aria-pressed", String(isContinuous));
+
+      const pitchShiftInput = getPitchShiftInputElement();
+      if (pitchShiftInput) {
+        pitchShiftInput.step = isContinuous ? "0.01" : "1";
+      }
+    } else if (delayToggleControlIds.has(controlId)) {
       const isEnabled = Boolean(Number(value));
       input.value = isEnabled ? "1" : "0";
       input.textContent = isEnabled ? "On" : "Off";
@@ -542,6 +572,10 @@ export function setControlUIValue(controlId, value) {
     }
   }
   setControlLabel(controlId, value);
+  if (controlId === "pitch-shift-mode") {
+    const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
+    setControlLabel("pitch-shift", instrumentParams.pitchShiftSemitones ?? 0);
+  }
 }
 
 export function renderMixerChannels() {
@@ -1034,6 +1068,26 @@ export function bindDelayToggleButtons(controller) {
       const nextValue = currentValue === 1 ? 0 : 1;
       controllerRef.setControlValue(controlId, nextValue);
     });
+  });
+}
+
+export function bindPitchShiftModeToggle(controller) {
+  const button = document.getElementById("pitch-shift-mode");
+  if (!button) {
+    return;
+  }
+
+  controlElementCache.set("pitch-shift-mode", button);
+  button.controllerRef = controller;
+  button.addEventListener("click", (event) => {
+    const controllerRef = event.currentTarget?.controllerRef;
+    if (!controllerRef) {
+      return;
+    }
+
+    const currentValue = Number.parseInt(event.currentTarget.value, 10);
+    const nextValue = currentValue === 1 ? 0 : 1;
+    controllerRef.setControlValue("pitch-shift-mode", nextValue);
   });
 }
 

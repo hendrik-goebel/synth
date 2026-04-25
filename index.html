@@ -435,6 +435,18 @@
         <h3 class="control-group-title">Oscillator</h3>
         <div class="control-group-items">
           <div class="control-item">
+            <label for="pitch-shift-mode">Pitch Mode (<span id="pitch-shift-mode-value">Stepped</span>)</label>
+            <button
+              id="pitch-shift-mode"
+              type="button"
+              class="control-toggle-btn pitch-shift-mode-toggle"
+              value="0"
+              aria-pressed="false"
+            >
+              Stepped
+            </button>
+          </div>
+          <div class="control-item">
             <label for="pitch-shift">Pitch Shift (<span id="pitch-shift-value">0 st</span>)</label>
             <input id="pitch-shift" type="range" min="-24" max="24" step="1" value="0">
           </div>

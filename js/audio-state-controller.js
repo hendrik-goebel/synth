@@ -10,6 +10,7 @@ import {
   DELAY_DIVISION_OPTIONS,
   GLOBAL_CONTROL_KEYS,
   INITIAL_SYNTH_PARAMS,
+  isContinuousPitchShiftEnabled,
   LFO_TARGET_OPTIONS,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
@@ -282,7 +283,7 @@ function sanitizeSeedGlobalParamValue(key, value, fallback) {
   }
 }
 
-function sanitizeSeedChannelParamValue(key, value, fallback) {
+function sanitizeSeedChannelParamValue(key, value, fallback, currentParams = {}) {
   switch (key) {
     case "attack":
       return clampNumber(value, ENVELOPE_ATTACK_MIN_SECONDS, ENVELOPE_ATTACK_MAX_SECONDS, fallback);
@@ -301,8 +302,12 @@ function sanitizeSeedChannelParamValue(key, value, fallback) {
     case "subLevel":
     case "upperLevel":
       return clampNumber(value, 0, 1.3, fallback);
+    case "pitchShiftContinuous":
+      return sanitizeToggleValue(value, fallback);
     case "pitchShiftSemitones":
-      return clampPitchShiftSemitones(value ?? fallback);
+      return clampPitchShiftSemitones(value ?? fallback, {
+        continuous: isContinuousPitchShiftEnabled(currentParams.pitchShiftContinuous),
+      });
     case "stereoPan":
       return clampNumber(value, -1, 1, fallback);
     case "distortionDrive":
@@ -505,7 +510,12 @@ function applySeedSnapshotToState(seedSnapshot) {
         return;
       }
 
-      instrumentParams[key] = sanitizeSeedChannelParamValue(key, channelSeed.params[key], instrumentParams[key]);
+      instrumentParams[key] = sanitizeSeedChannelParamValue(
+        key,
+        channelSeed.params[key],
+        instrumentParams[key],
+        instrumentParams,
+      );
     });
 
     const fallbackPitchClasses = getEnabledArpeggioPitchClasses(channelId);
@@ -568,6 +578,21 @@ export class AudioStateController extends EventTarget {
       playingPresetCount: state.playingPresetIds.size,
       playingPresetIds: Array.from(state.playingPresetIds),
       ...detail,
+    });
+  }
+
+  emitControlUpdate(controlId, key, value, presetId = state.activeInstrumentPresetId) {
+    this.emitAction("control-updated", {
+      controlId,
+      key,
+      value,
+      presetId,
+    });
+    this.emitStateChange("control-updated", {
+      controlId,
+      key,
+      value,
+      presetId,
     });
   }
 
@@ -1104,9 +1129,11 @@ export class AudioStateController extends EventTarget {
     }
 
     if (controlId === "pitch-shift") {
-      const isValidPitchShift = Number.isInteger(numericValue)
-        && numericValue >= PITCH_SHIFT_MIN_SEMITONES
-        && numericValue <= PITCH_SHIFT_MAX_SEMITONES;
+      const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
+      const isContinuousPitchShift = isContinuousPitchShiftEnabled(instrumentParams.pitchShiftContinuous);
+      const isValidPitchShift = numericValue >= PITCH_SHIFT_MIN_SEMITONES
+        && numericValue <= PITCH_SHIFT_MAX_SEMITONES
+        && (isContinuousPitchShift || Number.isInteger(numericValue));
 
       if (!isValidPitchShift) {
         this.emitError(
@@ -1115,6 +1142,11 @@ export class AudioStateController extends EventTarget {
         );
         return false;
       }
+    }
+
+    if (controlId === "pitch-shift-mode" && !validToggleValues.has(numericValue)) {
+      this.emitError(`Invalid toggle value for ${controlId}`, { controlId, value });
+      return false;
     }
 
     if (controlId === "attack"
@@ -1186,30 +1218,42 @@ export class AudioStateController extends EventTarget {
     }
 
     const { key } = controlConfig[controlId];
+    let normalizedValue = numericValue;
+    if (controlId === "pitch-shift") {
+      const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
+      normalizedValue = clampPitchShiftSemitones(numericValue, {
+        continuous: isContinuousPitchShiftEnabled(instrumentParams.pitchShiftContinuous),
+      });
+    }
+
     if (GLOBAL_CONTROL_KEYS.has(key)) {
-      state.synthParams[key] = numericValue;
+      state.synthParams[key] = normalizedValue;
       if (key === "tempoBpm") {
         syncDelayTimeToTempo();
         resyncMidiClockTempo();
       }
-      applyLiveAudioUpdates(key, numericValue);
+      applyLiveAudioUpdates(key, normalizedValue);
     } else {
       const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
-      instrumentParams[key] = numericValue;
+      instrumentParams[key] = normalizedValue;
+
+      if (controlId === "pitch-shift-mode" && !isContinuousPitchShiftEnabled(normalizedValue)) {
+        const roundedPitchShift = clampPitchShiftSemitones(instrumentParams.pitchShiftSemitones, {
+          continuous: false,
+        });
+        if (instrumentParams.pitchShiftSemitones !== roundedPitchShift) {
+          instrumentParams.pitchShiftSemitones = roundedPitchShift;
+          this.emitControlUpdate(
+            "pitch-shift",
+            controlConfig["pitch-shift"].key,
+            roundedPitchShift,
+            state.activeInstrumentPresetId,
+          );
+        }
+      }
     }
 
-    this.emitAction("control-updated", {
-      controlId,
-      key,
-      value: numericValue,
-      presetId: state.activeInstrumentPresetId,
-    });
-    this.emitStateChange("control-updated", {
-      controlId,
-      key,
-      value: numericValue,
-      presetId: state.activeInstrumentPresetId,
-    });
+    this.emitControlUpdate(controlId, key, normalizedValue, state.activeInstrumentPresetId);
     return true;
   }
 

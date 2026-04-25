@@ -1309,6 +1309,18 @@ body {
   color: #cbd5e1;
 }
 
+.pitch-shift-mode-toggle {
+  min-width: 6.4rem;
+}
+
+.pitch-shift-mode-toggle.is-active,
+.pitch-shift-mode-toggle[aria-pressed="true"] {
+  border-color: #0ea5e9;
+  background: #082f49;
+  color: #e0f2fe;
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.32), 0 0 14px rgba(14, 165, 233, 0.14);
+}
+
 .dead-note-toggle:hover {
   border-color: #fbbf24;
 }

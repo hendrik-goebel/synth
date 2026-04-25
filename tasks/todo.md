@@ -1,3 +1,19 @@
+# Task: Add Continuous Pitch Shift Toggle Beside The Pitch Control
+
+## Plan
+- [ ] Trace the current pitch-shift flow across `index.html`, `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/presets.js`, `js/state-seed.js`, and `js/audio-engine.js` so the new mode stays per-channel and persistent.
+- [ ] Add one per-channel pitch-mode control that switches the existing `Pitch Shift` slider between semitone-stepped and continuous behavior without changing its range.
+- [ ] Update validation, formatting, seed persistence, and audio/MIDI behavior so stepped mode keeps the current integer semitone semantics while continuous mode allows bounded fractional shifts.
+- [ ] Add a focused regression plus targeted verification and `npm run build`, then document the result and any lesson.
+
+## Progress Notes
+- Pending.
+
+## Review
+- Pending.
+
+---
+
 # Task: Extract Min/Max Value Constants Into A Dedicated Limits Module
 
 ## Plan
