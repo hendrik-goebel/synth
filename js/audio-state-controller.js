@@ -11,7 +11,10 @@ import {
   GLOBAL_CONTROL_KEYS,
   INITIAL_SYNTH_PARAMS,
   isContinuousPitchShiftEnabled,
+  LFO_DEPTH_PARAM_KEYS,
   LFO_TARGET_OPTIONS,
+  LFO_TARGET_PARAM_KEYS,
+  LFO_RATE_PARAM_KEYS,
   NOTE_LENGTH_OPTIONS,
   NOTE_OPTIONS,
   normalizeCircleOfFifthsKeyIndex,
@@ -247,18 +250,24 @@ function sanitizeToggleValue(value, fallback = 0) {
 }
 
 function sanitizeSeedGlobalParamValue(key, value, fallback) {
+  if (LFO_TARGET_PARAM_KEYS.includes(key)) {
+    const numeric = toNumber(value);
+    return numeric === null ? fallback : Math.max(0, Math.min(LFO_TARGET_OPTIONS.length - 1, Math.round(numeric)));
+  }
+
+  if (LFO_RATE_PARAM_KEYS.includes(key)) {
+    return clampLfoRateHz(toNumber(value) ?? fallback);
+  }
+
+  if (LFO_DEPTH_PARAM_KEYS.includes(key)) {
+    return clampNumber(value, 0, 1, fallback);
+  }
+
   switch (key) {
     case "tempoBpm":
       return clampNumber(value, 60, 220, fallback);
     case "globalTimbre":
       return clampNumber(value, -1, 1, fallback);
-    case "lfoTarget": {
-      const numeric = toNumber(value);
-      return numeric === null ? fallback : Math.max(0, Math.min(LFO_TARGET_OPTIONS.length - 1, Math.round(numeric)));
-    }
-    case "lfoRate":
-      return clampLfoRateHz(toNumber(value) ?? fallback);
-    case "lfoDepth":
     case "reverbMix":
     case "masterVolume":
       return clampNumber(value, 0, 1, fallback);
@@ -1182,7 +1191,9 @@ export class AudioStateController extends EventTarget {
       return false;
     }
 
-    if (controlId === "lfo-target" && !validLfoTargetIndices.has(numericValue)) {
+    const { key } = controlConfig[controlId];
+
+    if (LFO_TARGET_PARAM_KEYS.includes(key) && !validLfoTargetIndices.has(numericValue)) {
       this.emitError(`Invalid LFO target value for ${controlId}`, { controlId, value });
       return false;
     }
@@ -1217,7 +1228,6 @@ export class AudioStateController extends EventTarget {
       return false;
     }
 
-    const { key } = controlConfig[controlId];
     let normalizedValue = numericValue;
     if (controlId === "pitch-shift") {
       const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);

@@ -1,3 +1,32 @@
+# Task: Add Three More Independent LFOs
+
+## Plan
+- [x] Inspect the current single-LFO state, UI, seed, and audio flow across `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/state-seed.js`, `js/audio-engine.js`, and `index.html`.
+- [x] Expand the single LFO into four independently configurable global LFO slots while keeping the existing unsuffixed controls and state keys as backward-compatible `LFO 1` aliases.
+- [x] Update the UI, controller validation, and seed/global state handling so each LFO has its own target/rate/depth controls and persists independently.
+- [x] Refactor the audio engine so multiple LFOs can modulate different targets independently and can also sum on the same target safely at note-scheduling time.
+- [x] Add focused regression coverage for the four-LFO UI and independent runtime behavior, then run those checks plus `npm run build`.
+
+## Progress Notes
+- Added a shared four-slot LFO model in `js/constants.js` via `LFO_SLOT_CONFIGS`, preserving the original unsuffixed `lfoTarget`, `lfoRate`, and `lfoDepth` keys as `LFO 1` for backward compatibility while adding `lfo2*`, `lfo3*`, and `lfo4*` global state keys.
+- Expanded `GLOBAL_CONTROL_KEYS`, `INITIAL_SYNTH_PARAMS`, and generated `controlConfig` entries so all four LFOs reuse the existing generic UI/controller sync path.
+- Rebuilt the `index.html` LFO area into four separate sections (`LFO 1`–`LFO 4`), each with its own target select plus rate/depth controls; `LFO 1` keeps the legacy control ids and the new slots use `lfo-2-*`, `lfo-3-*`, and `lfo-4-*` ids.
+- Generalized `js/ui.js` so LFO depth labels and rate normalization work for every slot, and generalized `js/audio-state-controller.js` so all four target/rate/depth triplets validate and sanitize consistently.
+- Refactored `js/audio-engine.js` from one active LFO into a per-slot modulation collector; same-target LFOs now sum their contributions and clamp once at the target boundary, while different targets remain fully independent.
+- Added `tasks/multi-lfo-independent-test.mjs` to verify that separate LFOs can target pitch shift and detune spread independently at the same time, and that two pitch-targeted LFOs also sum correctly.
+
+## Review
+- `get_errors` reported no blocking errors in the edited `js/constants.js`, `js/ui.js`, `js/audio-state-controller.js`, `js/audio-engine.js`, `index.html`, `tasks/pitch-shift-lfo-ui-placement-test.mjs`, and `tasks/multi-lfo-independent-test.mjs` files; only older non-blocking warnings remain elsewhere.
+- `node --experimental-default-type=module tasks/pitch-shift-lfo-ui-placement-test.mjs` passed.
+- `node --experimental-default-type=module tasks/pitch-shift-lfo-test.mjs` passed.
+- `node --experimental-default-type=module tasks/lfo-additional-targets-test.mjs` passed.
+- `node --experimental-default-type=module tasks/multi-lfo-independent-test.mjs` passed.
+- `node --experimental-default-type=module tasks/pitch-shift-mode-test.mjs` passed.
+- `node --experimental-default-type=module tasks/initial-startup-scene-test.mjs` passed.
+- `npm run build` completed successfully after expanding the app to four independent LFOs.
+
+---
+
 # Task: Add More Synth Parameters As LFO Targets
 
 ## Plan

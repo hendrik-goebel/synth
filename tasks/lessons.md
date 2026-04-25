@@ -1,5 +1,7 @@
 # Lessons Learned
 
+- When one modulation source grows into multiple independent LFOs, keep the original slot's ids/keys as backward-compatible aliases and generate the extra slot config from shared metadata; this avoids duplicating UI/controller logic and keeps old seeds/tests working while new slots are added.
+
 - When expanding a shared discrete target list like `LFO_TARGET_OPTIONS`, append new targets instead of reordering existing ones so saved numeric indices stay compatible, and apply the new modulation at the per-note derived-value boundary rather than mutating shared live state for already-running voices.
 
 - When a control chooses one item from a small named option set, prefer a `<select>` over a numeric slider; discrete labels are easier to scan, and the existing state model can still store numeric indices behind the UI.

@@ -5,6 +5,7 @@ import {
   getMidiNoteNumberFromNoteId,
   HUMANIZE,
   isContinuousPitchShiftEnabled,
+  LFO_SLOT_CONFIGS,
   LFO_TARGET_OPTIONS,
 } from "./constants.js";
 import {
@@ -70,26 +71,33 @@ function getLfoTargetOption(targetIndex = state.synthParams.lfoTarget) {
   return LFO_TARGET_OPTIONS[normalizedIndex];
 }
 
-function getLfoModulationAtTime(time) {
-  const targetOption = getLfoTargetOption();
-  if (!targetOption.key) {
-    return { key: null, amount: 0 };
-  }
+function getLfoModulationsAtTime(time) {
+  return LFO_SLOT_CONFIGS
+    .map(({ targetKey, rateKey, depthKey, slot }) => {
+      const targetOption = getLfoTargetOption(state.synthParams[targetKey]);
+      if (!targetOption.key) {
+        return null;
+      }
 
-  const rate = clampLfoRateHz(state.synthParams.lfoRate ?? 1.2);
-  const depth = clamp(state.synthParams.lfoDepth ?? 0, 0, 1);
-  const phase = time * Math.PI * 2 * rate;
-  return {
-    key: targetOption.key,
-    amount: Math.sin(phase) * depth,
-  };
+      const rate = clampLfoRateHz(state.synthParams[rateKey] ?? 1.2);
+      const depth = clamp(state.synthParams[depthKey] ?? 0, 0, 1);
+      const phase = time * Math.PI * 2 * rate;
+      return {
+        slot,
+        key: targetOption.key,
+        amount: Math.sin(phase) * depth,
+        targetOption,
+      };
+    })
+    .filter(Boolean);
 }
 
 function getLfoTargetedValue(baseValue, time, fallbackTargetKey = null) {
-  const lfoModulation = getLfoModulationAtTime(time);
-  const targetKey = fallbackTargetKey ?? lfoModulation.key;
+  const lfoModulations = getLfoModulationsAtTime(time);
+  const fallbackModulation = lfoModulations[0] || { key: null };
+  const targetKey = fallbackTargetKey ?? fallbackModulation.key;
   const targetOption = LFO_TARGET_OPTIONS.find((option) => option.key === targetKey);
-  if (!targetOption || lfoModulation.key !== targetKey) {
+  if (!targetOption) {
     return baseValue;
   }
 
@@ -98,13 +106,23 @@ function getLfoTargetedValue(baseValue, time, fallbackTargetKey = null) {
     return baseValue;
   }
 
-  const modulationAmount = Number.parseFloat(targetOption.modulationAmount);
-  if (!Number.isFinite(modulationAmount) || modulationAmount <= 0) {
+  const totalModulation = lfoModulations
+    .filter((lfoModulation) => lfoModulation.key === targetKey)
+    .reduce((sum, lfoModulation) => {
+      const modulationAmount = Number.parseFloat(lfoModulation.targetOption.modulationAmount);
+      if (!Number.isFinite(modulationAmount) || modulationAmount <= 0) {
+        return sum;
+      }
+
+      return sum + (lfoModulation.amount * modulationAmount);
+    }, 0);
+
+  if (Math.abs(totalModulation) <= 0.000001) {
     return numericBaseValue;
   }
 
   return clamp(
-    numericBaseValue + (lfoModulation.amount * modulationAmount),
+    numericBaseValue + totalModulation,
     targetOption.min,
     targetOption.max,
   );

@@ -101,6 +101,28 @@ export const LFO_TARGET_OPTIONS = [
   { label: "Tone", key: "distortionTone", min: 500, max: 12000, modulationAmount: 3200 },
   { label: "Tape Delay Send", key: "delaySend", min: 0, max: TAPE_DELAY_SEND_MAX, modulationAmount: TAPE_DELAY_SEND_MAX },
 ];
+export const LFO_SLOT_COUNT = 4;
+export const LFO_SLOT_CONFIGS = Array.from({ length: LFO_SLOT_COUNT }, (_, index) => {
+  const slot = index + 1;
+  const controlSuffix = slot === 1 ? "" : `-${slot}`;
+  const keySuffix = slot === 1 ? "" : `${slot}`;
+  return {
+    slot,
+    label: `LFO ${slot}`,
+    targetKey: `lfo${keySuffix}Target`,
+    rateKey: `lfo${keySuffix}Rate`,
+    depthKey: `lfo${keySuffix}Depth`,
+    targetControlId: `lfo${controlSuffix}-target`,
+    rateControlId: `lfo${controlSuffix}-rate`,
+    depthControlId: `lfo${controlSuffix}-depth`,
+    targetValueId: `lfo${controlSuffix}-target-value`,
+    rateValueId: `lfo${controlSuffix}-rate-value`,
+    depthValueId: `lfo${controlSuffix}-depth-value`,
+  };
+});
+export const LFO_TARGET_PARAM_KEYS = LFO_SLOT_CONFIGS.map(({ targetKey }) => targetKey);
+export const LFO_RATE_PARAM_KEYS = LFO_SLOT_CONFIGS.map(({ rateKey }) => rateKey);
+export const LFO_DEPTH_PARAM_KEYS = LFO_SLOT_CONFIGS.map(({ depthKey }) => depthKey);
 export const LFO_RATE_CURVE_EXPONENT = 1.15;
 
 export function clampLfoRateHz(value) {
@@ -175,6 +197,12 @@ export function formatLfoDepth(value, targetIndex = 0) {
   }
 
   return `${Math.round(depth * 100)}%`;
+}
+
+export function getLfoSlotConfigByControlId(controlId) {
+  return LFO_SLOT_CONFIGS.find(({ targetControlId, rateControlId, depthControlId }) => (
+    controlId === targetControlId || controlId === rateControlId || controlId === depthControlId
+  )) || null;
 }
 
 export function formatEnvelopeSeconds(value) {
@@ -1044,6 +1072,15 @@ export const GLOBAL_CONTROL_KEYS = new Set([
   "lfoTarget",
   "lfoRate",
   "lfoDepth",
+  "lfo2Target",
+  "lfo2Rate",
+  "lfo2Depth",
+  "lfo3Target",
+  "lfo3Rate",
+  "lfo3Depth",
+  "lfo4Target",
+  "lfo4Rate",
+  "lfo4Depth",
   "masterVolume",
   "reverbMix",
   "tapeDelayEnabled",
@@ -1064,6 +1101,15 @@ export const INITIAL_SYNTH_PARAMS = {
   lfoTarget: 1,
   lfoRate: 0.22,
   lfoDepth: 0.16,
+  lfo2Target: 0,
+  lfo2Rate: 0.22,
+  lfo2Depth: 0,
+  lfo3Target: 0,
+  lfo3Rate: 0.22,
+  lfo3Depth: 0,
+  lfo4Target: 0,
+  lfo4Rate: 0.22,
+  lfo4Depth: 0,
   attack: 0.12,
   decay: 0.5,
   release: 0.12,
@@ -1109,6 +1155,39 @@ export const INITIAL_SYNTH_PARAMS = {
   postFilterMix: 0.5,
 };
 
+const lfoControlConfig = Object.fromEntries(
+  LFO_SLOT_CONFIGS.flatMap(({
+    targetControlId,
+    targetKey,
+    targetValueId,
+    rateControlId,
+    rateKey,
+    rateValueId,
+    depthControlId,
+    depthKey,
+    depthValueId,
+  }) => ([
+    [targetControlId, {
+      key: targetKey,
+      valueId: targetValueId,
+      formatter: (value) => {
+        const index = Math.max(0, Math.min(LFO_TARGET_OPTIONS.length - 1, Math.round(value)));
+        return LFO_TARGET_OPTIONS[index].label;
+      },
+    }],
+    [rateControlId, {
+      key: rateKey,
+      valueId: rateValueId,
+      formatter: (value) => `${value.toFixed(2)} Hz`,
+    }],
+    [depthControlId, {
+      key: depthKey,
+      valueId: depthValueId,
+      formatter: (value) => formatLfoDepth(value),
+    }],
+  ])),
+);
+
 export const controlConfig = {
   "note-length-toggle": {
     key: "noteLength",
@@ -1126,24 +1205,7 @@ export const controlConfig = {
       return value < 0 ? ` ${amount}%` : ` ${amount}%`;
     },
   },
-  "lfo-target": {
-    key: "lfoTarget",
-    valueId: "lfo-target-value",
-    formatter: (value) => {
-      const index = Math.max(0, Math.min(LFO_TARGET_OPTIONS.length - 1, Math.round(value)));
-      return LFO_TARGET_OPTIONS[index].label;
-    },
-  },
-  "lfo-rate": {
-    key: "lfoRate",
-    valueId: "lfo-rate-value",
-    formatter: (value) => `${value.toFixed(2)} Hz`,
-  },
-  "lfo-depth": {
-    key: "lfoDepth",
-    valueId: "lfo-depth-value",
-    formatter: (value) => formatLfoDepth(value),
-  },
+  ...lfoControlConfig,
   "tempo-bpm": {
     key: "tempoBpm",
     valueId: "tempo-bpm-value",

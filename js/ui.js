@@ -5,6 +5,7 @@ import {
   extractOctave,
   formatLfoDepth,
   formatPitchShiftSemitones,
+  getLfoSlotConfigByControlId,
   getCircleOfFifthsKeyLabel,
   getPitchClassLabel,
   getPitchClassesForMajorKey,
@@ -514,6 +515,7 @@ export function setControlLabel(controlId, value) {
   }
 
   if (valueElement) {
+    const lfoSlotConfig = getLfoSlotConfigByControlId(controlId);
     if (controlId === "pitch-shift") {
       const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
       valueElement.textContent = formatPitchShiftSemitones(
@@ -523,8 +525,8 @@ export function setControlLabel(controlId, value) {
       return;
     }
 
-    if (controlId === "lfo-depth") {
-      valueElement.textContent = formatLfoDepth(value, state.synthParams.lfoTarget);
+    if (lfoSlotConfig?.depthControlId === controlId) {
+      valueElement.textContent = formatLfoDepth(value, state.synthParams[lfoSlotConfig.targetKey]);
       return;
     }
 
@@ -565,7 +567,7 @@ export function setControlUIValue(controlId, value) {
       }
     } else {
       let nextValue = String(value);
-      if (controlId === "lfo-rate") {
+      if (getLfoSlotConfigByControlId(controlId)?.rateControlId === controlId) {
         nextValue = String(normalizedFromLfoRate(value));
       } else if (controlId === "delay-time" || controlId === "clean-delay-time") {
         nextValue = String(uiValueFromDelayDivisionIndex(value));
@@ -581,8 +583,11 @@ export function setControlUIValue(controlId, value) {
   if (controlId === "pitch-shift-mode") {
     const instrumentParams = getInstrumentParams(state.activeInstrumentPresetId);
     setControlLabel("pitch-shift", instrumentParams.pitchShiftSemitones ?? 0);
-  } else if (controlId === "lfo-target") {
-    setControlLabel("lfo-depth", state.synthParams.lfoDepth ?? 0);
+  } else {
+    const lfoSlotConfig = getLfoSlotConfigByControlId(controlId);
+    if (lfoSlotConfig?.targetControlId === controlId) {
+      setControlLabel(lfoSlotConfig.depthControlId, state.synthParams[lfoSlotConfig.depthKey] ?? 0);
+    }
   }
 }
 
@@ -1034,7 +1039,7 @@ export function bindControls() {
         return;
       }
 
-      if (controlId === "lfo-rate") {
+      if (getLfoSlotConfigByControlId(controlId)?.rateControlId === controlId) {
         const normalized = Number.parseFloat(event.target.value);
         controller.setControlValue(controlId, lfoRateFromNormalized(normalized));
         return;
